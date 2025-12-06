@@ -1,0 +1,139 @@
+{
+    "ROBOT_IP": "192.168.58.2",
+    "ROBOT_TOOL": 0,
+    "ROBOT_USER": 0,
+    "TCP_X_OFFSET": 0.0,
+    "TCP_Y_OFFSET": 0.0,
+    "TCP_X_STEP_DISTANCE": 50.0,
+    "TCP_X_STEP_OFFSET": 0.1,
+    "TCP_Y_STEP_DISTANCE": 50.0,
+    "TCP_Y_STEP_OFFSET": 0.1,
+    "OFFSET_DIRECTION_MAP": {
+        "+X": true,
+        "-X": true,
+        "+Y": true,
+        "-Y": true
+    },
+    "MOVEMENT_GROUPS": {
+        "LOGIN_POS": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "position": "[59.118, -334, 721.66, 180, 0, -90]"
+        },
+        "HOME_POS": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "position": "[-232.343, -93.902, 819.846, 180, 0, 90]"
+        },
+        "CALIBRATION_POS": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "position": "[-25.4, 370.001, 819.846, 180, 0, 0]"
+        },
+        "JOG": {
+            "velocity": 20,
+            "acceleration": 100,
+            "iterations": 1
+        },
+        "NOZZLE CLEAN": {
+            "velocity": 30,
+            "acceleration": 30,
+            "iterations": 1,
+            "points": [
+                "[-165.037, -300.705, 298.201, 180, 0, 90]",
+                "[-165.037, -431.735, 298.201, 180, 0, 90]",
+                "[-165.037, -400, 298.201, 180, 0, 90]"
+            ]
+        },
+        "TOOL CHANGER": {
+            "velocity": 100,
+            "acceleration": 30,
+            "iterations": 1
+        },
+        "SLOT 0 PICKUP": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-98.555, -224.46, 300, 180, 0, 90]",
+                "[-98.555, -224.46, 181.11, 180, 0, 90]",
+                "[-98.555, -190.696, 181.11, 180, 0, 90]",
+                "[-98.555, -190.696, 300, 180, 0, 90]"
+            ]
+        },
+        "SLOT 0 DROPOFF": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-98.555, -190.696, 300, 180, 0, 90]",
+                "[-98.555, -190.696, 181.11, 180, 0, 90]",
+                "[-98.555, -224.46, 181.11, 180, 0, 90]",
+                "[-98.555, -224.46, 300, 180, 0, 90]"
+            ]
+        },
+        "SLOT 1 PICKUP": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-247.871, -221.213, 300, 180, 0, 90]",
+                "[-247.871, -221.213, 180.278, 180, 0, 90]",
+                "[-247.871, -150, 180.278, 180, 0, 90]"
+            ]
+        },
+        "SLOT 1 DROPOFF": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-247.871, -150, 180.278, 180, 0, 90]",
+                "[-247.871, -221.213, 180.278, 180, 0, 90]",
+                "[-247.871, -221.213, 300, 180, 0, 90]"
+            ]
+        },
+        "SLOT 4 PICKUP": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-441.328, -280.786, 300, -180, 0, 90]",
+                "[-441.328, -280.786, 184.912, -180, 0, 90]",
+                "[-441.328, -201.309, 184.912, -180, 0, 90]"
+            ]
+        },
+        "SLOT 4 DROPOFF": {
+            "velocity": 0,
+            "acceleration": 0,
+            "iterations": 1,
+            "points": [
+                "[-441.328, -201.309, 184.912, -180, 0, 90]",
+                "[-441.328, -280.786, 184.912, -180, 0, 90]",
+                "[-441.328, -280.786, 300, -180, 0, 90]"
+            ]
+        }
+    },
+    "SAFETY_LIMITS": {
+        "x_min": -500,
+        "x_max": 500,
+        "y_min": -500,
+        "y_max": 500,
+        "z_min": 100,
+        "z_max": 800,
+        "rx_min": 170,
+        "rx_max": 190,
+        "ry_min": -10,
+        "ry_max": 10,
+        "rz_min": -180,
+        "rz_max": 180
+    },
+    "GLOBAL_MOTION_SETTINGS": {
+        "global_velocity": 100,
+        "global_acceleration": 100,
+        "emergency_decel": 500,
+        "max_jog_step": 50
+    }
+}

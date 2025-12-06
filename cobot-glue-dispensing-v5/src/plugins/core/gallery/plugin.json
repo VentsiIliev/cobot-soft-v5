@@ -1,0 +1,15 @@
+{
+    "name": "Gallery",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "Workpiece gallery management with thumbnail view and editing capabilities",
+    "category": "core",
+    "entry_point": "plugin.GalleryPlugin",
+    "auto_load": true,
+    "permissions": ["file.system"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/gallery.png",
+    "folder_id": 1,
+    "icon_name": "GALLERY_ICON"
+}

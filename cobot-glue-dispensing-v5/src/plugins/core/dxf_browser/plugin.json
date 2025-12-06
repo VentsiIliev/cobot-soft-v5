@@ -1,0 +1,13 @@
+{
+    "name": "DXF Browser",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "DXF file management and viewing",
+    "category": "core",
+    "entry_point": "plugin.DxfBrowserPlugin",
+    "auto_load": true,
+    "permissions": ["file.system"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/dxf_browser.png"
+}

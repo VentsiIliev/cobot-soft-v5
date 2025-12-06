@@ -1,0 +1,156 @@
+{
+    "workpieceId": "4",
+    "name": "",
+    "description": "",
+    "toolId": "0",
+    "gripperId": "1",
+    "glueType": "Type A",
+    "program": "Trace",
+    "material": "Material1",
+    "contour": {
+        "contour": [
+            [
+                [
+                    701.0,
+                    304.0
+                ]
+            ],
+            [
+                [
+                    652.0,
+                    361.0
+                ]
+            ],
+            [
+                [
+                    733.0,
+                    428.0
+                ]
+            ],
+            [
+                [
+                    782.0,
+                    372.0
+                ]
+            ],
+            [
+                [
+                    701.0,
+                    304.0
+                ]
+            ]
+        ],
+        "settings": {
+            "Spray Width": "10.0",
+            "Spraying Height": "15.0",
+            "Fan Speed": "100.0",
+            "Generator-Glue Delay": "1.0",
+            "Pump Speed": "0.0",
+            "Pump Reverse Time": "0.5",
+            "Pump Speed Reverse": "3000.0",
+            "RZ Angle": "0.0",
+            "Glue Type": "Type A",
+            "Generator Timeout": "5.0",
+            "Time Before Motion": "0.1",
+            "Time Before Stop": "1.0",
+            "Reach Start Threshold": "100.0",
+            "Reach End Threshold": "70.0",
+            "Glue Speed Coefficient": "5.0",
+            "Glue Acceleration Coefficient": "50.0",
+            "Initial Ramp Speed Duration": "1.0",
+            "Initial Ramp Speed": "5000.0",
+            "Reverse Ramp Steps": "1.0",
+            "Forward Ramp Steps": "3.0",
+            "Velocity": "60.0",
+            "Acceleration": "30.0"
+        }
+    },
+    "offset": "0",
+    "height": "4",
+    "glue_qty": "",
+    "spray_width": "10",
+    "pickup_point": null,
+    "sprayPattern": {
+        "Contour": [],
+        "Fill": [
+            {
+                "contour": [
+                    [
+                        [
+                            688.0753784179688,
+                            320.5687561035156
+                        ]
+                    ],
+                    [
+                        [
+                            767.4024658203125,
+                            387.1642761230469
+                        ]
+                    ],
+                    [
+                        [
+                            754.2296142578125,
+                            402.2189636230469
+                        ]
+                    ],
+                    [
+                        [
+                            754.2296142578125,
+                            402.2189636230469
+                        ]
+                    ],
+                    [
+                        [
+                            675.0368041992188,
+                            335.7361145019531
+                        ]
+                    ],
+                    [
+                        [
+                            661.9981689453125,
+                            350.9034729003906
+                        ]
+                    ],
+                    [
+                        [
+                            661.9981689453125,
+                            350.9034729003906
+                        ]
+                    ],
+                    [
+                        [
+                            741.0567626953125,
+                            417.2736511230469
+                        ]
+                    ]
+                ],
+                "settings": {
+                    "Spray Width": "10.0",
+                    "Spraying Height": "15.0",
+                    "Fan Speed": "100.0",
+                    "Generator-Glue Delay": "1.0",
+                    "Pump Speed": "0.0",
+                    "Pump Reverse Time": "0.5",
+                    "Pump Speed Reverse": "3000.0",
+                    "RZ Angle": "0.0",
+                    "Glue Type": "Type A",
+                    "Generator Timeout": "5.0",
+                    "Time Before Motion": "0.1",
+                    "Time Before Stop": "1.0",
+                    "Reach Start Threshold": "100.0",
+                    "Reach End Threshold": "70.0",
+                    "Glue Speed Coefficient": "5.0",
+                    "Glue Acceleration Coefficient": "50.0",
+                    "Initial Ramp Speed Duration": "1.0",
+                    "Initial Ramp Speed": "5000.0",
+                    "Reverse Ramp Steps": "1.0",
+                    "Forward Ramp Steps": "3.0",
+                    "Velocity": "60.0",
+                    "Acceleration": "30.0"
+                }
+            }
+        ]
+    },
+    "contourArea": "0",
+    "nozzles": []
+}

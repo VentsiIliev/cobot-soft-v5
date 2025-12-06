@@ -1,0 +1,15 @@
+{
+    "name": "Calibration",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "Camera calibration tools for accurate measurements",
+    "category": "core",
+    "entry_point": "plugin.CalibrationPlugin",
+    "auto_load": true,
+    "permissions": ["file.system","camera.access"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/calibration.png",
+    "folder_id": 2,
+    "icon_name": "CALIBRATION_ICON"
+}

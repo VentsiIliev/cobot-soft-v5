@@ -1,0 +1,15 @@
+{
+    "name": "Settings",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "System settings management for camera, robot, and glue configurations",
+    "category": "core",
+    "entry_point": "plugin.SettingsPlugin",
+    "auto_load": true,
+    "permissions": ["settings.read", "settings.write"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/settings.png",
+    "folder_id": 2,
+    "icon_name": "SETTINGS_ICON"
+}

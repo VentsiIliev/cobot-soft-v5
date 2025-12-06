@@ -1,0 +1,79 @@
+{
+  "environment": "production",
+  "server": {
+    "host": "192.168.222.143",
+    "port": 80,
+    "protocol": "http"
+  },
+  "endpoints": {
+    "weights": "/weights",
+    "tare": "/tare",
+    "get_config": "/get-config",
+    "update_config": "/update-config"
+  },
+  "global_settings": {
+    "fetch_timeout_seconds": 5,
+    "data_fetch_interval_ms": 100,
+    "ui_update_interval_ms": 500
+  },
+  "cells": [
+    {
+      "id": 1,
+      "type": "TypeD",
+      "url": "http://192.168.222.143/weight1",
+      "capacity": 10000.0,
+      "fetch_timeout": 1,
+      "calibration": {
+        "zero_offset": 22.5,
+        "scale_factor": 222.0,
+        "temperature_compensation": false
+      },
+      "measurement": {
+        "sampling_rate": 10,
+        "filter_cutoff": 5.0,
+        "averaging_samples": 5,
+        "min_weight_threshold": 0.1,
+        "max_weight_threshold": 10000.0
+      }
+    },
+    {
+      "id": 2,
+      "type": "TypeA",
+      "url": "http://192.168.222.143/weight2",
+      "capacity": 10000.0,
+      "fetch_timeout": 5,
+      "calibration": {
+        "zero_offset": 23.14,
+        "scale_factor": 0.98,
+        "temperature_compensation": true
+      },
+      "measurement": {
+        "sampling_rate": 20,
+        "filter_cutoff": 8.0,
+        "averaging_samples": 3,
+        "min_weight_threshold": 0.2,
+        "max_weight_threshold": 10000.0
+      }
+    },
+    {
+      "id": 3,
+      "type": "TypeB",
+      "url": "http://192.168.222.143/weight3",
+      "capacity": 10000.0,
+      "fetch_timeout": 5,
+      "calibration": {
+        "zero_offset": 7.89,
+        "scale_factor": 1.02,
+        "temperature_compensation": false
+      },
+      "measurement": {
+        "sampling_rate": 15,
+        "filter_cutoff": 6.0,
+        "averaging_samples": 4,
+        "min_weight_threshold": 0.15,
+        "max_weight_threshold": 10000.0
+      }
+    }
+  ],
+  "MODE": "production"
+}

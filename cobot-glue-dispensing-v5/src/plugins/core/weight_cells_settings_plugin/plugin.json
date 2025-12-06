@@ -1,0 +1,15 @@
+{
+    "name": "Glue Weight Cell Settings",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "Configure settings for glue weight cells used in various analyses",
+    "category": "core",
+    "entry_point": "plugin.GlueWeightCellsSettingsPlugin",
+    "auto_load": true,
+    "permissions": ["file.system"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/weight_cell.png",
+    "folder_id": 2,
+    "icon_name": "GLUE_WEIGHT_CELL_ICON"
+}

@@ -1,0 +1,15 @@
+{
+    "name": "User Management",
+    "version": "1.0.0",
+    "author": "PL Team",
+    "description": "Manage user accounts, roles, and permissions within the application",
+    "category": "core",
+    "entry_point": "plugin.UserManagementPlugin",
+    "auto_load": true,
+    "permissions": ["file.system"],
+    "dependencies": [],
+    "min_app_version": "1.0.0",
+    "icon": "icons/user_management.png",
+    "folder_id": 3,
+    "icon_name": "USER_MANAGEMENT_ICON"
+}

@@ -1,0 +1,9 @@
+Model Summary
+=============
+Model: default_0.988
+Accuracy: 0.988
+Trained: 2025-12-04 09:09:39
+Features: unknown
+Feature Version: unknown
+Dataset: unknown
+Training pairs: unknown
