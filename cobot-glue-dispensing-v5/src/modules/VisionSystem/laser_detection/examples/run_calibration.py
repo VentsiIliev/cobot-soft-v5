@@ -91,7 +91,7 @@ if __name__ == "__main__":
         print("Camera frame received. Starting laser calibration...")
 
 
-        laser_calibration.calibrate(initial_position, iterations=30,step_mm=0.5, delay_between_move_detect_ms=200)
+        laser_calibration.calibrate(initial_position)
         laser_calibration.print_calibration_data()
         plot_calibration_curve(laser_calibration.calibration_data)
 

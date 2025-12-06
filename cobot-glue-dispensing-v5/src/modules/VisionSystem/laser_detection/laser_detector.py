@@ -18,6 +18,21 @@ class LaserDetector:
         self.lase_bright_point = None
 
     # -------------------------------------------------
+   # Subpixel quadratic peak refinement
+   # -------------------------------------------------
+    def subpixel_quadratic(self, idx, arr):
+       n = len(arr)
+       if 1 <= idx < n - 1:
+           L = float(arr[idx - 1])
+           C = float(arr[idx])
+           R = float(arr[idx + 1])
+           denom = (L - 2 * C + R)
+           if denom != 0:
+               offset = 0.5 * (L - R) / denom
+               return idx + offset
+       return float(idx)
+
+    # -------------------------------------------------
     # Main detection
     # -------------------------------------------------
     def detect_laser_line(self, on_frame, off_frame, axis=None):
@@ -57,24 +72,46 @@ class LaserDetector:
         min_intensity = self.config.min_intensity
 
         if axis == 'y':
-            mask_bool = diff > min_intensity  # boolean mask
-            weights = diff * mask_bool
-            indices = np.arange(w)
-            sum_weights = np.sum(weights, axis=1)
-            # avoid division by zero
-            sum_weights[sum_weights == 0] = 1
-            centroid_x = np.sum(weights * indices, axis=1) / sum_weights
-            y_coords = np.arange(h)
-            points = [(cx, float(y)) for cx, y, wsum in zip(centroid_x, y_coords, sum_weights) if wsum > 1]
-        else:
             mask_bool = diff > min_intensity
             weights = diff * mask_bool
-            indices = np.arange(h)
-            sum_weights = np.sum(weights, axis=0)
-            sum_weights[sum_weights == 0] = 1
-            centroid_y = np.sum(weights * indices[:, None], axis=0) / sum_weights
+            centroid_x = np.zeros(h, dtype=np.float32)
+
+            for i in range(h):
+                row = diff[i, :]
+                if np.max(row) > min_intensity:
+                    idx_max = np.argmax(row)
+                    # Subpixel refinement
+                    centroid_x[i] = self.subpixel_quadratic(idx_max, row)
+                else:
+                    centroid_x[i] = np.nan  # invalid row
+
+            y_coords = np.arange(h)
+            points = [(cx, float(y)) for cx, y in zip(centroid_x, y_coords) if not np.isnan(cx)]
+
+
+        else:
+
+            mask_bool = diff > min_intensity
+
+            centroid_y = np.zeros(w, dtype=np.float32)
+
+            for j in range(w):
+
+                col = diff[:, j]
+
+                if np.max(col) > min_intensity:
+
+                    idx_max = np.argmax(col)
+
+                    centroid_y[j] = self.subpixel_quadratic(idx_max, col)
+
+                else:
+
+                    centroid_y[j] = np.nan
+
             x_coords = np.arange(w)
-            points = [(float(x), cy) for x, cy, wsum in zip(x_coords, centroid_y, sum_weights) if wsum > 1]
+
+            points = [(float(x), cy) for x, cy in zip(x_coords, centroid_y) if not np.isnan(cy)]
 
         # Closest point to image center
         closest_point = None
@@ -103,17 +140,3 @@ class LaserDetector:
 #     img_bin = (img > 0).astype(np.uint8)
 #     skeleton = skeletonize(img_bin)  # fast C-based
 #     return (skeleton * 255).astype(np.uint8)
- # # -------------------------------------------------
- #    # Subpixel quadratic peak refinement
- #    # -------------------------------------------------
- #    def subpixel_quadratic(self, idx, arr):
- #        n = len(arr)
- #        if 1 <= idx < n - 1:
- #            L = float(arr[idx - 1])
- #            C = float(arr[idx])
- #            R = float(arr[idx + 1])
- #            denom = (L - 2 * C + R)
- #            if denom != 0:
- #                offset = 0.5 * (L - R) / denom
- #                return idx + offset
- #        return float(idx)

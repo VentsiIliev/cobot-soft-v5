@@ -22,9 +22,10 @@ class LaserDetectionConfig:
     default_axis: str = 'y'  # Default detection axis ('x' or 'y')
 
     # Frame acquisition
-    detection_delay_ms: int = 50  # Delay between frame captures in milliseconds
+    detection_delay_ms: int = 350  # Delay between laser toggle and image capture (ms)
+    image_capture_delay_ms: int = 15  # Delay between consecutive image captures (ms)
     detection_samples: int = 10  # Number of frames to median filter
-    max_detection_retries: int = 3  # Maximum retry attempts for detection
+    max_detection_retries: int = 5  # Maximum retry attempts for detection
 
     # Subpixel refinement
     use_subpixel_refinement: bool = True  # Enable subpixel peak refinement
@@ -48,7 +49,7 @@ class LaserCalibrationConfig:
     """Configuration for laser calibration process."""
 
     # Calibration movement parameters
-    step_size_mm: float = 0.5  # Step size for each calibration iteration in mm
+    step_size_mm: float = 1  # Step size for each calibration iteration in mm
     num_iterations: int = 30  # Number of calibration steps
 
     # Safety parameters

@@ -3,6 +3,7 @@ import time
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import PolynomialFeatures
 
 from core.services.robot_service.impl.base_robot_service import RobotService
@@ -12,11 +13,11 @@ from modules.VisionSystem.laser_detection.storage import LaserCalibrationStorage
 
 class LaserDetectionCalibration:
     def __init__(
-        self,
-        laser_service,
-        robot_service: RobotService,
-        config: LaserCalibrationConfig = None,
-        storage: LaserCalibrationStorage = None
+            self,
+            laser_service,
+            robot_service: RobotService,
+            config: LaserCalibrationConfig = None,
+            storage: LaserCalibrationStorage = None
     ):
         """
         Initialize laser calibration service.
@@ -37,8 +38,8 @@ class LaserDetectionCalibration:
         self.poly_model = None
         self.poly_transform = None
         self.poly_degree = None
-        self.poly_r2 = None
         self.robot_initial_position = None
+        self.prev_reading = None
 
     def print_calibration_data(self):
         for i, entry in enumerate(self.calibration_data, start=1):
@@ -97,7 +98,7 @@ class LaserDetectionCalibration:
         )
         return True
 
-    def calibrate(self, initial_position, iterations=None, step_mm=None, delay_between_move_detect_ms=None):
+    def calibrate(self, initial_position):
         """
         Run laser calibration process.
 
@@ -111,33 +112,29 @@ class LaserDetectionCalibration:
             bool: True if successful, False otherwise
         """
         # Use config defaults if not specified
-        iterations = iterations if iterations is not None else self.config.num_iterations
-        step_mm = step_mm if step_mm is not None else self.config.step_size_mm
-        delay_between_move_detect_ms = delay_between_move_detect_ms if delay_between_move_detect_ms is not None else self.config.delay_between_move_detect_ms
+        iterations = self.config.num_iterations
+        step_mm = self.config.step_size_mm
+        delay_between_move_detect_ms = self.config.delay_between_move_detect_ms
         self.move_to_initial_position(initial_position)
         self.robot_initial_position = initial_position
-        time.sleep(delay_between_move_detect_ms/1000.0)
-        mask, bright, closest = self.laser_service.detect(axis='y', delay_ms=delay_between_move_detect_ms)
+        time.sleep(delay_between_move_detect_ms / 1000.0)
+        mask, bright, closest = self.laser_service.detect()
         self.zero_reference_coords = closest
         if self.zero_reference_coords is None:
             print("[ERROR] Laser line not detected at initial position.")
             return False
 
         # add the zero point to the calibration data
-        self.calibration_data.append((0, 0.0)) # height in mm, delta in pixels
+        self.calibration_data.append((0, 0.0))  # height in mm, delta in pixels
 
         for i in range(1, iterations + 1):
             # move down the robot by step provided in mm
             self.move_down_by_mm(step_mm)
-            time.sleep(delay_between_move_detect_ms/1000.0)
+            time.sleep(delay_between_move_detect_ms / 1000.0)
 
             max_attempts = self.config.calibration_max_attempts
             while max_attempts > 0:
-                mask, bright, closest = self.laser_service.detect(
-                    axis='y',
-                    delay_ms=delay_between_move_detect_ms,
-                    max_retries=self.config.calibration_detection_retries
-                )
+                mask, bright, closest = self.laser_service.detect()
                 if closest is None:
                     print(f"[WARN] Laser line not detected at iteration {i}. Skipping.")
                     continue
@@ -146,6 +143,14 @@ class LaserDetectionCalibration:
                 if delta_pixels > 0:
                     max_attempts -= 1
                     continue
+
+                if self.prev_reading is not None and delta_pixels > self.prev_reading:
+                    print(f"[WARN] Detected delta {delta_pixels} pixels is greater than previous reading {self.prev_reading} pixels. Retrying.")
+                    max_attempts -= 1
+                    self.prev_reading = delta_pixels
+                    continue
+
+                self.prev_reading = delta_pixels
                 current_height = i * step_mm  # assuming Z axis is at index 2
                 self.calibration_data.append((current_height, delta_pixels))
                 print(f"[INFO] Captured calibration point: Height={current_height}mm, Delta={delta_pixels} pixels")
@@ -158,76 +163,91 @@ class LaserDetectionCalibration:
         return True
 
     def save_calibration(self, filename="laser_calibration.json"):
-        """
-        Save calibration data and best-fit polynomial using storage service.
-
-        Args:
-            filename: Name of the calibration file
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
+        # Convert numpy types to Python native types for JSON serialization
         data_to_save = {
-            "zero_reference_coords": self.zero_reference_coords,
-            "calibration_data": self.calibration_data,
-            "robot_initial_position": self.robot_initial_position
+            "zero_reference_coords": [float(x) for x in
+                                      self.zero_reference_coords] if self.zero_reference_coords is not None else None,
+            "calibration_data": [(float(h), float(d)) for h, d in self.calibration_data],
+            "robot_initial_position": [float(x) for x in
+                                       self.robot_initial_position] if self.robot_initial_position is not None else None
         }
 
         if self.poly_model is not None:
             data_to_save["polynomial"] = {
-                "coefficients": self.poly_model.coef_.tolist(),
+                "coefficients": [float(c) for c in self.poly_model.coef_],
                 "intercept": float(self.poly_model.intercept_),
-                "degree": self.poly_degree,
-                "r2": float(self.poly_r2)
+                "degree": int(self.poly_degree),
+                "mse": float(self.poly_mse)
             }
 
-        # Use storage service to save
         return self.storage.save_calibration(data_to_save, filename)
 
     def pick_best_polynomial_fit(self, max_degree=None, save_filename=None):
         """
-        Automatically pick the best polynomial degree for pixel_delta -> height mapping.
-        Optionally saves both calibration data and polynomial model using storage service.
+        Automatically pick the best polynomial degree for pixel_delta -> height mapping
+        using cross-validated MSE (much more stable than R²).
 
         Args:
             max_degree: Maximum polynomial degree to test (uses config default if None)
             save_filename: Filename to save calibration (saves if not None)
         """
+
         # Use config default if not specified
         max_degree = max_degree if max_degree is not None else self.config.max_polynomial_degree
 
-        if not self.calibration_data or len(self.calibration_data) < 2:
+        if not self.calibration_data or len(self.calibration_data) < 3:
             print("[WARN] Not enough calibration data to fit a model.")
             return None
 
+        # Extract arrays
         heights = np.array([h for h, d in self.calibration_data])
-        deltas = np.array([d for h, d in self.calibration_data])
+        deltas = np.array([d for h, d in self.calibration_data]).reshape(-1, 1)
 
-        best_r2 = -np.inf
+        best_mse = np.inf
         best_degree = 1
         best_model = None
         best_poly = None
 
+        print("[INFO] Evaluating polynomial degrees...")
+
         for degree in range(1, max_degree + 1):
+            # Create polynomial transform
             poly = PolynomialFeatures(degree)
-            X_poly = poly.fit_transform(deltas.reshape(-1, 1))
+            X_poly = poly.fit_transform(deltas)
+
+            # Regression model
             model = LinearRegression()
-            model.fit(X_poly, heights)
-            pred = model.predict(X_poly)
-            r2 = r2_score(heights, pred)
-            if r2 > best_r2:
-                best_r2 = r2
+
+            # 5-fold cross-validation MSE
+            scores = cross_val_score(
+                model,
+                X_poly,
+                heights,
+                scoring='neg_mean_squared_error',
+                cv=5
+            )
+            mse = -scores.mean()
+
+            print(f"   Degree {degree}: CV-MSE = {mse:.6f}")
+
+            # Select best (lowest MSE)
+            if mse < best_mse:
+                best_mse = mse
                 best_degree = degree
                 best_model = model
                 best_poly = poly
 
+            # Fit model now that it’s selected (we keep the final one)
+            best_model.fit(best_poly.fit_transform(deltas), heights)
+
+        # Save results
         self.poly_model = best_model
         self.poly_transform = best_poly
         self.poly_degree = best_degree
-        self.poly_r2 = best_r2
+        self.poly_mse = best_mse
 
-        print(f"[INFO] Best polynomial degree: {best_degree}, R²={best_r2:.4f}")
+        print(f"[INFO] Best polynomial degree = {best_degree}  (CV-MSE={best_mse:.6f})")
 
-        # Save everything using storage service
+        # Save to file if requested
         if save_filename:
             self.save_calibration(save_filename)

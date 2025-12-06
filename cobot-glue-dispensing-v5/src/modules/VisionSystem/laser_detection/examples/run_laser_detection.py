@@ -38,7 +38,7 @@ if __name__ == "__main__":
             # Read delay_ms from trackbar
             delay_ms = cv2.getTrackbarPos("Delay ms", "Controls")
 
-            mask, bright, closest = lds.detect(axis='y', delay_ms=delay_ms, max_retries=3)
+            mask, bright, closest = lds.detect()
 
             if lds.last_on_frame is None:
                 print(f"Waiting for laser ON frame...")

@@ -49,7 +49,7 @@ class LaserDetectionService:
 
 
 
-    def detect(self, axis=None, delay_ms=None, samples=None, max_retries=None):
+    def detect(self):
         """
         Detect laser line using median of multiple ON/OFF frames.
 
@@ -63,10 +63,11 @@ class LaserDetectionService:
             tuple: (mask, bright, closest) or (None, None, None) if detection fails
         """
         # Use config defaults if not specified
-        axis = axis if axis is not None else self.config.default_axis
-        delay_ms = delay_ms if delay_ms is not None else self.config.detection_delay_ms
-        samples = samples if samples is not None else self.config.detection_samples
-        max_retries = max_retries if max_retries is not None else self.config.max_detection_retries
+        axis =self.config.default_axis
+        delay_between_laser_toggle_and_capture = self.config.detection_delay_ms
+        image_capture_delay_ms = self.config.image_capture_delay_ms
+        samples = self.config.detection_samples
+        max_retries =  self.config.max_detection_retries
 
         for attempt in range(max_retries):
 
@@ -74,9 +75,10 @@ class LaserDetectionService:
             # 1. Collect OFF frames
             # ---------------------------
             self.laser.turnOff()
+            time.sleep(delay_between_laser_toggle_and_capture/1000)
             off_frames = []
             for i in range(samples):
-                time.sleep(delay_ms / 1000.0)
+                time.sleep(image_capture_delay_ms / 1000.0)
                 frame = self.vision_service.latest_frame
                 if frame is not None:
                     off_frames.append(frame.copy())
@@ -91,9 +93,10 @@ class LaserDetectionService:
             # 2. Collect ON frames
             # ---------------------------
             self.laser.turnOn()
+            time.sleep(delay_between_laser_toggle_and_capture / 1000)
             on_frames = []
             for i in range(samples):
-                time.sleep(delay_ms / 1000.0)
+                time.sleep(image_capture_delay_ms / 1000.0)
                 frame = self.vision_service.latest_frame
                 if frame is not None:
                     on_frames.append(frame.copy())
