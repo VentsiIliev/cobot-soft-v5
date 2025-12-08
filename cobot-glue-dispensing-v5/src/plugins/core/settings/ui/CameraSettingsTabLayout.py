@@ -920,21 +920,8 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 center_x = sum(p[0] for p in scaled_points) // 4
                 center_y = sum(p[1] for p in scaled_points) // 4
                 
-                # Draw label with background
-                label_text = "Brightness Area"
-                font = QFont()
-                font.setPointSize(10)
-                painter.setFont(font)
-                
-                # Draw text background
-                text_rect = painter.fontMetrics().boundingRect(label_text)
-                text_rect.moveCenter(QPoint(center_x, center_y))
-                painter.fillRect(text_rect.adjusted(-2, -2, 2, 2), QBrush(Qt.GlobalColor.black))
-                
-                # Draw text
-                painter.setPen(QPen(Qt.GlobalColor.white))
-                painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, label_text)
-                
+
+
         except Exception as e:
             print(f"Exception in _draw_saved_brightness_area: {e}")
 

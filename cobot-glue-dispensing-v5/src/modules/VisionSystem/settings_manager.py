@@ -30,10 +30,20 @@ class SettingsManager:
                 return False, message
 
             # Update the brightness controller with new PID values
-            vision_system.brightnessController.Kp = vision_system.camera_settings.get_brightness_kp()
-            vision_system.brightnessController.Ki = vision_system.camera_settings.get_brightness_ki()
-            vision_system.brightnessController.Kd = vision_system.camera_settings.get_brightness_kd()
-            vision_system.brightnessController.target = vision_system.camera_settings.get_target_brightness()
+            # Access through brightnessManager, not directly
+            vision_system.brightnessManager.brightnessController.Kp = vision_system.camera_settings.get_brightness_kp()
+            vision_system.brightnessManager.brightnessController.Ki = vision_system.camera_settings.get_brightness_ki()
+            vision_system.brightnessManager.brightnessController.Kd = vision_system.camera_settings.get_brightness_kd()
+            vision_system.brightnessManager.brightnessController.target = vision_system.camera_settings.get_target_brightness()
+
+            log_if_enabled(enabled=logging_enabled,
+                           logger=logger,
+                           level=LoggingLevel.INFO,
+                           message=f"Updated brightness controller - Kp: {vision_system.camera_settings.get_brightness_kp()}, "
+                                  f"Ki: {vision_system.camera_settings.get_brightness_ki()}, "
+                                  f"Kd: {vision_system.camera_settings.get_brightness_kd()}, "
+                                  f"Target: {vision_system.camera_settings.get_target_brightness()}",
+                           broadcast_to_ui=False)
 
             # Update camera resolution if changed
             if (CameraSettingKey.WIDTH.value in settings or

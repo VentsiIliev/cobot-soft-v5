@@ -304,7 +304,7 @@ if __name__ == '__main__':
 
     cam = Camera(cameraIndex=default_index, width=default_width, height=default_height,
                  fps=default_fps, mjpg_preferred=mjpg_pref)
-
+    cam.set_auto_exposure(True)
     print('Opened:', cam.isOpened())
     print('Properties:', cam.get_properties())
     if not cam.isOpened():

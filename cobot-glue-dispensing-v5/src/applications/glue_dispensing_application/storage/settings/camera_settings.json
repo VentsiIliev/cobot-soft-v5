@@ -10,10 +10,10 @@
   "Min contour area": 1000,
   "Max contour area": 10000000,
   "Contour detection": true,
-  "Draw contours": false,
+  "Draw contours": true,
   "Preprocessing": {
     "Gaussian blur": true,
-    "Blur kernel size": 5,
+    "Blur kernel size": 3,
     "Threshold type": "binary_inv",
     "Dilate enabled": true,
     "Dilate kernel size": 3,
@@ -29,26 +29,26 @@
     "Skip frames": 30
   },
   "Brightness Control": {
-    "Enable auto adjust": false,
+    "Enable auto adjust": true,
     "Kp": 0.0,
     "Ki": 0.2,
     "Kd": 0.05,
     "Target brightness": 200,
     "Brightness area point 1": [
-      904,
+      851,
       636
     ],
     "Brightness area point 2": [
-      901,
-      681
+      1024,
+      650
     ],
     "Brightness area point 3": [
-      932,
-      669
+      1026,
+      697
     ],
     "Brightness area point 4": [
-      923,
-      625
+      862,
+      694
     ]
   },
   "Aruco": {

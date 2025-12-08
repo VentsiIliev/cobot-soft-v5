@@ -19,14 +19,15 @@ if __name__ == "__main__":
 
     def main():
         vs = init_vision_service()
+        vs.camera_settings.set_brightness_auto(False)
         rs = init_robot_service()
         ld = LaserDetector(LaserDetectionConfig())
         lds = LaserDetectionService(detector=ld, laser=Laser(), vision_service=vs)
 
         # Create window and trackbar for delay_ms
-        cv2.namedWindow("Controls", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("Controls", 300, 50)
-        cv2.createTrackbar("Delay ms", "Controls", 200, 5000, on_trackbar)  # default 1000ms, max 5000ms
+        # cv2.namedWindow("Controls", cv2.WINDOW_NORMAL)
+        # cv2.resizeWindow("Controls", 300, 50)
+        # cv2.createTrackbar("Delay ms", "Controls", 200, 5000, on_trackbar)  # default 1000ms, max 5000ms
 
         while True:
             frame = vs.latest_frame
@@ -34,9 +35,6 @@ if __name__ == "__main__":
                 print(f"Waiting for camera frame...")
                 time.sleep(0.1)
                 continue
-
-            # Read delay_ms from trackbar
-            delay_ms = cv2.getTrackbarPos("Delay ms", "Controls")
 
             mask, bright, closest = lds.detect()
 
