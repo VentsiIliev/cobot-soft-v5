@@ -17,6 +17,8 @@ def init_vision_service():
     vision_system = VisionServiceSingleton().get_instance()
     vision_system.contourDetection = False
     vision_system.get_camera_settings().set_brightness_auto(False)
+    vision_system.camera.set_auto_exposure(False)
+    vision_system.camera.set_auto_exposure(False)
 
     threading.Thread(target=vision_system.run, daemon=True).start()
     return vision_system

@@ -39,7 +39,7 @@ class HeightMeasuringService:
         self.poly_model = None
         self.poly_transform = None
         self.poly_degree = None
-        self.poly_r2 = None
+        self.mse = None
         self.zero_reference_z = None  # Z position of the reference plane
         self.reference_xy = None      # XY position used during calibration
         self.zero_reference_coords = None  # Pixel coordinates of the zero reference
@@ -62,7 +62,8 @@ class HeightMeasuringService:
 
             # Reconstruct the polynomial model
             self.poly_degree = poly_data["degree"]
-            self.poly_r2 = poly_data["r2"]
+            self.mse = poly_data["mse"]
+
             self.poly_transform = PolynomialFeatures(self.poly_degree)
             self.poly_model = LinearRegression()
             self.poly_model.coef_ = np.array(poly_data["coefficients"])
@@ -81,7 +82,7 @@ class HeightMeasuringService:
             else:
                 print("[HeightMeasuring] No robot_initial_position found in calibration file.")
 
-            print(f"[HeightMeasuring] Calibration loaded: degree={self.poly_degree}, R²={self.poly_r2:.4f}")
+            print(f"[HeightMeasuring] Calibration loaded: degree={self.poly_degree}, mes={self.mse:.4f}")
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -117,7 +118,7 @@ class HeightMeasuringService:
         if current_pos is None:
             raise RuntimeError("Cannot get current robot position.")
 
-        target_pos_full = [x, y, self.zero_reference_z] + current_pos[3:]
+        target_pos_full = [x, y, self.zero_reference_z] + [180 ,0,0]  # Assuming fixed orientation
         self.robot_service.move_to_position(
             position=target_pos_full,
             tool=self.robot_service.robot_config.robot_tool,
@@ -144,11 +145,7 @@ class HeightMeasuringService:
         time.sleep(self.config.delay_between_move_detect_ms/1000.0)
 
         # Detect laser line using config values
-        mask, bright, closest = self.laser_detection_service.detect(
-            axis="y",
-            delay_ms=self.config.measurement_delay_ms,
-            max_retries=self.config.measurement_max_retries
-        )
+        mask, bright, closest = self.laser_detection_service.detect()
         if closest is None:
             print("[WARN] Laser line not detected.")
             return None
@@ -162,4 +159,4 @@ class HeightMeasuringService:
         print(f"[INFO] Pixel delta: {pixel_delta:.2f}")
         print(f"[INFO] Calculated height: {height_mm:.4f} mm")
 
-        return height_mm
+        return height_mm,pixel_delta

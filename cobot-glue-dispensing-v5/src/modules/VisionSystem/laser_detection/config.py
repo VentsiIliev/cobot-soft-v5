@@ -22,9 +22,9 @@ class LaserDetectionConfig:
     default_axis: str = 'y'  # Default detection axis ('x' or 'y')
 
     # Frame acquisition
-    detection_delay_ms: int = 350  # Delay between laser toggle and image capture (ms)
-    image_capture_delay_ms: int = 15  # Delay between consecutive image captures (ms)
-    detection_samples: int = 10  # Number of frames to median filter
+    detection_delay_ms: int = 200  # Delay between laser toggle and image capture (ms)
+    image_capture_delay_ms: int = 10  # Delay between consecutive image captures (ms)
+    detection_samples: int = 5  # Number of frames to median filter
     max_detection_retries: int = 5  # Maximum retry attempts for detection
 
     # Subpixel refinement
@@ -50,7 +50,7 @@ class LaserCalibrationConfig:
 
     # Calibration movement parameters
     step_size_mm: float = 1  # Step size for each calibration iteration in mm
-    num_iterations: int = 30  # Number of calibration steps
+    num_iterations: int = 50  # Number of calibration steps
 
     # Safety parameters
     check_safety_limits: bool = True  # Check robot safety limits during calibration
@@ -96,7 +96,7 @@ class HeightMeasuringConfig:
     measurement_acceleration: float = 10.0  # Robot acceleration during measurement (mm/s²)
     measurement_threshold: float = 0.25  # Position threshold for measurement (mm)
     measurement_timeout: float = 10.0  # Timeout for movement during measurement (seconds)
-    delay_between_move_detect_ms: int = 1000  # Delay between movement and detection (ms)
+    delay_between_move_detect_ms: int = 500  # Delay between movement and detection (ms)
     # Calibration file
     calibration_filename: str = "laser_calibration.json"  # Name of calibration file
 

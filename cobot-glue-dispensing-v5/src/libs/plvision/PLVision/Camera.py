@@ -178,18 +178,21 @@ class Camera:
 
     def set_auto_exposure(self, enabled: bool):
         """
-        Enable or disable camera auto exposure.
-
-        Note: different backends/drivers expect different values for
-        cv2.CAP_PROP_AUTO_EXPOSURE; for V4L2 the menu values are typically
-        1 = Manual Mode, 3 = Aperture Priority (auto). This method tries
-        a sequence of likely values to flip the mode and returns the
-        resulting property value (or None if not available).
+        Change AE mode reliably by restarting stream.
         """
-        if not self.isOpened():
-            raise RuntimeError('Camera not opened')
 
-        # Candidate values to try (ordered by most likely for common drivers)
+        # Stop stream (required for many UVC cameras)
+        self.stop_stream()
+        time.sleep(0.05)
+
+        # Restart stream but DO NOT read frames yet
+        self.start_stream()
+        time.sleep(0.1)
+
+        if not self.isOpened():
+            raise RuntimeError("Camera could not restart while changing auto exposure")
+
+        # Candidate values to try
         if enabled:
             candidates = (3.0, 1.0, 0.75, 0.25)
         else:
@@ -199,27 +202,18 @@ class Camera:
         for v in candidates:
             try:
                 if self.verbose_ae:
-                    print(f"[AE] trying value: {v}")
+                    print(f"[AE] trying: {v}")
                 ok = self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, float(v))
                 if ok:
                     last_ok = v
-                    # small pause to let driver apply
                     time.sleep(0.02)
-                    if self.verbose_ae:
-                        print(f"[AE] accepted value: {v}")
                     break
-                else:
-                    if self.verbose_ae:
-                        print(f"[AE] driver rejected value: {v}")
-            except Exception:
-                if self.verbose_ae:
-                    print(f"[AE] exception trying value: {v}")
+            except:
                 continue
 
-        # Return current readback if available
         try:
             return self.cap.get(cv2.CAP_PROP_AUTO_EXPOSURE)
-        except Exception:
+        except:
             return last_ok
 
     def get_auto_exposure(self):
@@ -279,6 +273,21 @@ class Camera:
     # Backward-compatible aliases
     def stopCapture(self):
         self.close()
+
+    def stop_stream(self):
+        """Stop the camera stream without destroying Camera object."""
+        if self.cap is not None:
+            try:
+                self.cap.release()
+            except:
+                pass
+        self.cap = None
+
+    def start_stream(self):
+        """Restart camera stream with previous parameters."""
+        api = self._resolve_backend_for_platform()
+        self.cap = cv2.VideoCapture(self.device, api)
+        self._configure_capture()
 
 
 if __name__ == '__main__':

@@ -107,6 +107,49 @@ if __name__ == "__main__":
         return corners[idxs]
 
 
+    def downsample_chessboard_corners_safe(corners, board_width, board_height, target_points=50):
+        """
+        Downsample chessboard corners but exclude the last 5 rows.
+
+        Parameters:
+            corners: np.array of shape (N,1,2) from findChessboardCorners
+            board_width: number of inner corners per row
+            board_height: number of inner corners per column
+            target_points: desired number after downsampling
+
+        Returns:
+            Reduced set of corners (<= target_points)
+        """
+
+        import numpy as np
+
+        # Number of rows to keep
+        keep_rows = board_height - 5
+        if keep_rows <= 0:
+            raise ValueError("Cannot remove last 5 rows; board height too small")
+
+        # Convert to (row, col) indexing
+        N = len(corners)
+        if N != board_width * board_height:
+            raise ValueError("Corner count does not match given board dimensions")
+
+        corners_reshaped = corners.reshape(board_height, board_width, 1, 2)
+
+        # Keep only the first (board_height - 5) rows
+        usable = corners_reshaped[:keep_rows].reshape(-1, 1, 2)
+
+        M = len(usable)
+        if M <= target_points:
+            return usable  # no further reduction needed
+
+        # Downsample evenly
+        stride = M / target_points
+        idxs = (np.arange(target_points) * stride).astype(int)
+        idxs = np.clip(idxs, 0, M - 1)
+
+        return usable[idxs]
+
+
     def extract_4_chessboard_corners_safe(corners, chessboard_width, chessboard_height):
         """
         Extract 4 points in order:
@@ -243,7 +286,7 @@ if __name__ == "__main__":
             print("Chessboard search cancelled or failed.")
             cv2.destroyAllWindows()
             exit(0)
-        reduced_corners = extract_4_chessboard_corners_safe(
+        reduced_corners = downsample_chessboard_corners_safe(
             corners,
             chessboard_width,
             chessboard_height
@@ -287,7 +330,7 @@ if __name__ == "__main__":
             cv2.waitKey(1)
 
         # Measure height
-        height = hms.measure_at(x=x, y=y)
+        height,pixel_data = hms.measure_at(x=x, y=y)
         robot_pos = rs.get_current_position()
 
         print(f"  Robot Position: X={robot_pos[0]:.2f}, Y={robot_pos[1]:.2f}, Z={robot_pos[2]:.2f}")
@@ -338,6 +381,12 @@ if __name__ == "__main__":
 
             cv2.putText(display, "Press ESC to exit", (10, info_y),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128), 1)
+
+            # draw image center crosshair
+            h, w = display.shape[:2]
+            cv2.line(display, (w // 2 - 10, h // 2), (w // 2 + 10, h // 2), (255, 0, 0), 2)
+            cv2.line(display, (w // 2, h // 2 - 10), (w // 2, h // 2 + 10), (255, 0, 0), 2)
+
 
             cv2.imshow(WINDOW_NAME, display)
             key = cv2.waitKey(1000) & 0xFF  # Wait 1 second between measurements
