@@ -19,7 +19,6 @@ def handle_moving_to_first_point_state(context, resume):
 
     # --- Robot trajectory updates disabled at this step ---
     trajectory_update = False  # kept symbolic (can be applied by caller)
-
     # Ensure settings exist
     if context.current_settings is None:
         result = MovingResult(

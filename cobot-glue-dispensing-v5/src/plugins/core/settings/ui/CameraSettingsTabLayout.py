@@ -1619,8 +1619,12 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.raw_mode_requested.emit(self.raw_mode_active)
 
     def updateValues(self, camera_settings: CameraSettings):
-        print("Updating input fields from CameraSettings object...")
         """Updates input field values from camera settings object."""
+        print(f"[CameraSettingsTabLayout] updateValues called")
+        print(f"[CameraSettingsTabLayout] Updating widgets with settings: draw_contours={camera_settings.get_draw_contours()}, contour_detection={camera_settings.get_contour_detection()}")
+
+        # CRITICAL: Update the internal camera_settings object FIRST
+        self.camera_settings = camera_settings
 
         # Collect all widgets that need updating
         widgets = [
@@ -1696,6 +1700,20 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             # Always unblock signals, even if an error occurs
             for widget in widgets:
                 widget.blockSignals(False)
+
+        # CRITICAL FIX: Update visual appearance of QToggle widgets
+        # QToggle widgets use stateChanged signal to update their appearance,
+        # but signals were blocked during setChecked() calls above.
+        # So we must manually update their visual state.
+        toggle_widgets = [
+            self.contour_detection_toggle, self.draw_contours_toggle,
+            self.gaussian_blur_toggle, self.dilate_enabled_toggle,
+            self.erode_enabled_toggle, self.brightness_auto_toggle,
+            self.aruco_enabled_toggle, self.aruco_flip_toggle
+        ]
+        for toggle in toggle_widgets:
+            if hasattr(toggle, 'update_pos_color'):
+                toggle.update_pos_color(toggle.isChecked())
 
         print("Camera settings updated from CameraSettings object.")
 

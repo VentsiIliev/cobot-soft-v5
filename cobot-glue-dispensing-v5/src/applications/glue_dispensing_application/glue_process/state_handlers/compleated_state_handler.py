@@ -7,5 +7,6 @@ def handle_completed_state(context):
    
    # Set flag to indicate operation is completed
    context.operation_just_completed = True
+   context.service.generatorOff()
    
    return GlueProcessState.IDLE # return next state to transition to

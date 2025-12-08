@@ -34,6 +34,8 @@ def handle_start_pump_adjustment_thread(context,logger_context,should_adjust_pum
             )
             log_debug_message(logger_context, message="Pump adjustment thread started.")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             log_error_message(logger_context, message=f"Failed to start pump adjustment thread: {e}")
 
             result = PumpAdjustmentResult(False, GlueProcessState.ERROR, None, None, context.current_path_index, context.current_point_index, context.current_path, context.current_settings)
@@ -44,7 +46,7 @@ def handle_start_pump_adjustment_thread(context,logger_context,should_adjust_pum
         if not pump_ready_event.wait(timeout=5.0):
             log_error_message(logger_context, message="Pump adjustment thread failed to initialize in time.")
             result = PumpAdjustmentResult(False, GlueProcessState.ERROR, None, None, context.current_path_index, context.current_point_index, context.current_path, context.current_settings)
-            handle_start_pump_adjustment_thread(context, result)
+            handle_start_pump_adjustment_thread(context,logger_context ,result)
             return result.next_state
 
         log_debug_message(logger_context, message="Pump adjustment thread ready.")

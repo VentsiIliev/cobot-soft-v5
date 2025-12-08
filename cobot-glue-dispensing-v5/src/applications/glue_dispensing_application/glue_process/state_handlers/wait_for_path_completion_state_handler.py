@@ -78,6 +78,9 @@ def handle_wait_for_path_completion(context,logger_context) -> GlueProcessState:
         try:
             if hasattr(pump_thread, 'result') and pump_thread.result is not None:
                 success, progress_index = pump_thread.result[:2]  # Unpack first two values
+                log_debug_message(logger_context,
+                                  f"[WAIT] Thread terminated - success={success}, progress={progress_index}, expected_points={len(path)}")
+
                 if success:
                     final_point_index = progress_index
                     log_debug_message(logger_context, 
@@ -96,6 +99,8 @@ def handle_wait_for_path_completion(context,logger_context) -> GlueProcessState:
             else:
                 log_debug_message(logger_context, message=f"[WAIT] Pump thread completed — path {path_index} done (no result captured).")
         except Exception as result_error:
+            import traceback
+            traceback.print_exc()
             log_debug_message(logger_context, message=f"[WAIT] Could not get pump thread result: {result_error}")
 
     except Exception as e:

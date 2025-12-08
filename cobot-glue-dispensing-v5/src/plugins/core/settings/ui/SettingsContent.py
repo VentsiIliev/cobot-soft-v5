@@ -279,6 +279,7 @@ class SettingsContent(BackgroundWidget):
                 from PyQt6.QtCore import QTimer
                 QTimer.singleShot(100, self.cameraSettingsTabLayout.start_camera_updates)
                 # Also load camera settings immediately since it's the first visible tab
+                print("[SettingsContent] Scheduling camera settings load in 150ms...")
                 QTimer.singleShot(150, lambda: self._load_tab_settings('camera'))
 
     def _on_tab_changed(self, index):
@@ -397,6 +398,11 @@ class SettingsContent(BackgroundWidget):
         self.cameraSettingsTabLayout.star_camera_requested.connect(self.onStartCameraRequested)
         self.cameraSettingsTabLayout.raw_mode_requested.connect(self.onRawModeRequested)
 
+        # Connect settings button signals (BUGFIX: These were missing!)
+        self.cameraSettingsTabLayout.load_settings_requested.connect(self.onLoadCameraSettingsRequested)
+        self.cameraSettingsTabLayout.save_settings_requested.connect(self.onSaveCameraSettingsRequested)
+        self.cameraSettingsTabLayout.reset_settings_requested.connect(self.onResetCameraSettingsRequested)
+
     def onStartCameraRequested(self):
         print("Camera start requested")
 
@@ -404,6 +410,69 @@ class SettingsContent(BackgroundWidget):
         print("Raw mode requested")
         # Emit a signal to update the camera feed
         self.raw_mode_requested.emit(state)
+
+    def onLoadCameraSettingsRequested(self):
+        """Handle load camera settings button click"""
+        print("[SettingsContent] Load camera settings requested")
+        try:
+            if self.controller_service:
+                result = self.controller_service.settings.get_camera_settings()
+                if result and result.success:
+                    self.updateCameraSettings(result.data)
+                    print("[SettingsContent] Camera settings loaded and UI updated")
+                    # Show success toast if available
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Camera settings loaded successfully")
+                else:
+                    print(f"[SettingsContent] Failed to load camera settings: {result.message if result else 'No result'}")
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Failed to load camera settings")
+        except Exception as e:
+            print(f"[SettingsContent] Error loading camera settings: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def onSaveCameraSettingsRequested(self):
+        """Handle save camera settings button click"""
+        print("[SettingsContent] Save camera settings requested")
+        try:
+            if self.controller_service and hasattr(self.cameraSettingsTabLayout, 'camera_settings'):
+                result = self.controller_service.settings.update_camera_settings(
+                    self.cameraSettingsTabLayout.camera_settings
+                )
+                if result and result.success:
+                    print("[SettingsContent] Camera settings saved successfully")
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Camera settings saved successfully")
+                else:
+                    print(f"[SettingsContent] Failed to save camera settings: {result.message if result else 'No result'}")
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Failed to save camera settings")
+        except Exception as e:
+            print(f"[SettingsContent] Error saving camera settings: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def onResetCameraSettingsRequested(self):
+        """Handle reset camera settings button click"""
+        print("[SettingsContent] Reset camera settings requested")
+        try:
+            if self.controller_service:
+                result = self.controller_service.settings.reset_camera_settings()
+                if result and result.success:
+                    # Reload the default settings into the UI
+                    self.updateCameraSettings(result.data)
+                    print("[SettingsContent] Camera settings reset to defaults")
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Camera settings reset to defaults")
+                else:
+                    print(f"[SettingsContent] Failed to reset camera settings: {result.message if result else 'No result'}")
+                    if hasattr(self.cameraSettingsTabLayout, 'showToast'):
+                        self.cameraSettingsTabLayout.showToast("Failed to reset camera settings")
+        except Exception as e:
+            print(f"[SettingsContent] Error resetting camera settings: {e}")
+            import traceback
+            traceback.print_exc()
 
     def update_tab_icons(self):
         """Dynamically update tab icons based on window width and created tabs"""
@@ -481,8 +550,11 @@ class SettingsContent(BackgroundWidget):
             self._position_toggle_button()
 
     def updateCameraSettings(self, cameraSettings):
+        print(f"[SettingsContent] updateCameraSettings called with settings: draw_contours={cameraSettings.get_draw_contours() if cameraSettings else 'None'}")
         if self.cameraSettingsTabLayout is not None:
             self.cameraSettingsTabLayout.updateValues(cameraSettings)
+        else:
+            print("[SettingsContent] WARNING: cameraSettingsTabLayout is None, cannot update values")
 
     def updateRobotSettings(self, robotSettings):
         if self.robotSettingsTabLayout is not None:

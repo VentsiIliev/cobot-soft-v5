@@ -27,7 +27,7 @@ def check_robot_state(state_machine, robotService, start_point_index, furthest_c
         last_completed_point = start_point_index + furthest_checkpoint_passed - 1 if furthest_checkpoint_passed > 0 else start_point_index
         next_target_point = start_point_index + furthest_checkpoint_passed
         
-        log_debug_message(robotService.robot_service_logger_context,
+        log_debug_message(robotService.logger_context,
             message=f"Robot state changed to {current_state}, last completed point: {last_completed_point}, should resume from point {next_target_point} (furthest_checkpoint_passed={furthest_checkpoint_passed})")
         return True, next_target_point
     
@@ -41,7 +41,7 @@ def is_first_point_reached(currentPos, first_point, threshold, robotService, sta
     if not first_point_reached:
         first_point_reached = is_point_reached(currentPos, first_point, threshold)
         if first_point_reached:
-            log_debug_message(robotService.robot_service_logger_context,
+            log_debug_message(robotService.logger_context,
                 message=f"First point {start_point_index} reached, starting pump speed adjustments")
             return True, True
         else:
@@ -63,14 +63,14 @@ def is_final_point_reached(currentPos, final_point, remaining_path, furthest_che
         if len(remaining_path) >= 2:
             second_to_last_required = len(remaining_path) - 2  # Index of second-to-last point
             if furthest_checkpoint_passed > second_to_last_required:
-                log_debug_message(robotService.robot_service_logger_context,
+                log_debug_message(robotService.logger_context,
                     message=f"Final point reached and passed through second-to-last point (checkpoint {second_to_last_required}), path complete")
                 return True
             else:
-                log_debug_message(robotService.robot_service_logger_context,
+                log_debug_message(robotService.logger_context,
                     message=f"Close to final point but haven't passed second-to-last point yet (need checkpoint {second_to_last_required}, current: {furthest_checkpoint_passed})")
         else:
-            log_debug_message(robotService.robot_service_logger_context,
+            log_debug_message(robotService.logger_context,
                 message="Final point reached (path has <2 points), path complete")
             return True
 
@@ -90,7 +90,7 @@ def update_checkpoint_progress(currentPos, remaining_path, furthest_checkpoint_p
             log_checkpoint_reached(start_point_index + i, distance_to_checkpoint, start_point_index, i + 1)
             # Robot has passed this checkpoint - set to the next point we should head toward
             furthest_checkpoint_passed = i + 1  # +1 because we've passed this point, now head to next
-            log_debug_message(robotService.robot_service_logger_context,
+            log_debug_message(robotService.logger_context,
                 message=f"Passed checkpoint {start_point_index + i}, next target will be point {start_point_index + furthest_checkpoint_passed}")
     
     return furthest_checkpoint_passed
@@ -170,17 +170,17 @@ def adjustPumpSpeedDynamically(
 
     # Signal ready to main thread
     if ready_event is not None:
+        print(f"Signaling pump thread ready to main thread")
         ready_event.set()
-        log_debug_message(robotService.robot_service_logger_context, message="Pump thread signaled ready to main thread")
-        log_debug_message(robotService.robot_service_logger_context, message="Pump thread ready - signaled to main thread")
-
+        log_debug_message(robotService.logger_context, message="Pump thread signaled ready to main thread")
+    print(f"Pump thread proceeding with dynamic pump speed adjustment")
     # Initialize variables
     start_time = time.time()
     last_write_time = start_time
     remaining_path = path[start_point_index:]
-    log_debug_message(robotService.robot_service_logger_context,
+    print(f"Remaining path length: {len(remaining_path)} points")
+    log_debug_message(robotService.logger_context,
         f"adjustPumpSpeedWhileRobotIsMoving2: Starting with {len(remaining_path)} points, start_index={start_point_index}")
-
     first_point = remaining_path[0]
     final_point = remaining_path[-1]
     furthest_checkpoint_passed = 0
@@ -198,7 +198,6 @@ def adjustPumpSpeedDynamically(
         if current_pos is None:
             time.sleep(robotService.robot_state_manager_cycle_time)
             continue
-
         # Check if first point is reached
         first_point_reached, should_continue = is_first_point_reached(
             current_pos, first_point, threshold, robotService, start_point_index, first_point_reached
@@ -206,36 +205,29 @@ def adjustPumpSpeedDynamically(
         if not should_continue:
             time.sleep(robotService.robot_state_manager_cycle_time)
             continue
-
         # Check if final point is reached
         if is_final_point_reached(current_pos, final_point, remaining_path, furthest_checkpoint_passed, threshold, robotService):
             break
-
         # Update checkpoint progress
         furthest_checkpoint_passed = update_checkpoint_progress(
             current_pos, remaining_path, furthest_checkpoint_passed, start_point_index, robotService
         )
-
         # Get current robot motion data
         current_velocity = robotService.get_current_velocity()
         current_acceleration = robotService.get_current_acceleration()
-
         # Calculate pump speed adjustments
         adjusted_pump_speed, velocity_compensation, accel_compensation = calculate_pump_speed_adjustments(
             current_velocity, current_acceleration, glue_speed_coefficient, glue_acceleration_coefficient
         )
-
         # Log debug data
         last_write_time = log_debug_data(
             robotService, current_velocity, current_acceleration, 
             velocity_compensation, accel_compensation, adjusted_pump_speed, last_write_time
         )
-
         # Apply pump speed adjustment
         glueSprayService.adjustMotorSpeed(motorAddress=motorAddress, speed=int(adjusted_pump_speed))
-
     # Path completed successfully
-    log_debug_message(robotService.robot_service_logger_context, message="RobotService.adjustPumpSpeedWhileRobotIsMoving2 ALL POINTS REACHED! ")
+    log_debug_message(robotService.logger_context, message="RobotService.adjustPumpSpeedWhileRobotIsMoving2 ALL POINTS REACHED! ")
     final_progress = start_point_index + len(remaining_path) - 1
     return True, final_progress
 
@@ -249,6 +241,9 @@ class PumpThreadWithResult(threading.Thread):
         try:
             self.result = self._target(*self._args, **self._kwargs)
         except Exception as e:
+            print(f"[PUMP THREAD EXCEPTION] {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             self.result = (False, 0, e)
 
 def start_dynamic_pump_speed_adjustment_thread(service,
@@ -258,7 +253,8 @@ def start_dynamic_pump_speed_adjustment_thread(service,
                                                path,
                                                reach_end_threshold,
                                                pump_ready_event,
-                                               start_point_index=0):
+                                               start_point_index=0,
+                                               execution_context=None):
 
     pump_thread = PumpThreadWithResult(
         target=adjustPumpSpeedDynamically,
@@ -271,10 +267,12 @@ def start_dynamic_pump_speed_adjustment_thread(service,
             path,  # path (must be sequence)
             reach_end_threshold,  # threshold
             start_point_index,  # start_point_index
-            pump_ready_event  # ready_event
+            pump_ready_event,  # ready_event
+            execution_context  # execution_context
         )
     )
     pump_thread.start()
+    print(f"Started pump adjustment thread with start_point_index={start_point_index}")
 
     return pump_thread
 

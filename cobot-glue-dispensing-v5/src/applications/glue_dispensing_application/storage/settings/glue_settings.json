@@ -3,7 +3,7 @@
     "Spraying Height": 10.0,
     "Fan Speed": 50.0,
     "Generator-Glue Delay": 1,
-    "Pump Speed": 10000.0,
+    "Pump Speed": 1000.0,
     "Pump Reverse Time": 1.0,
     "Pump Speed Reverse": 1000.0,
     "RZ Angle": 0,
@@ -17,5 +17,5 @@
     "Forward Ramp Steps": 1,
     "Reverse Ramp Steps": 1,
     "Initial Ramp Speed Duration": 1,
-    "Spray On": false
+    "Spray On": true
 }

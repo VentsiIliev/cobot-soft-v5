@@ -409,7 +409,7 @@ class MotorControl(ModbusController):
         self._adjust_client_connected = False
 
     def adjustMotorSpeed(self, motorAddress, speed):
-        speed = int(-speed)
+        speed = int(speed)
         # print(f"adjustMotorSpeed {speed}")
         
         # Check if we have a reusable connection
@@ -491,8 +491,10 @@ class MotorControl(ModbusController):
         # initialize durations
         dur_get_client = dur_ramp = dur_sleep = dur_split = dur_write = dur_close = 0.0
 
-        speed = int(-speed)
-        initial_ramp_speed = int(-initial_ramp_speed)
+        # speed = int(-speed)
+        speed = int(speed)
+        # initial_ramp_speed = int(-initial_ramp_speed)
+        initial_ramp_speed = int(initial_ramp_speed)
 
         log_if_enabled(enabled=ENABLE_LOGGING,
                        logger=motor_control_logger,
@@ -577,7 +579,7 @@ class MotorControl(ModbusController):
 
 
     def motorOff(self, motorAddress, speedReverse, reverse_time,ramp_steps):
-        speedReverse = speedReverse
+        speedReverse = -speedReverse
         log_if_enabled(enabled=ENABLE_LOGGING,
                        logger=motor_control_logger,
                        message=f"MotorControl.motorOff called with speedReverse: {speedReverse}, motorAddress: {motorAddress}, reverse_time: {reverse_time}, ramp_steps: {ramp_steps}",

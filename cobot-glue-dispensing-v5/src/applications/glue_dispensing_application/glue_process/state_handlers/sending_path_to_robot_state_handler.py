@@ -77,7 +77,7 @@ def handle_send_path_to_robot(context,logger_context):
             return result.next_state
 
     # All points completed successfully
-    log_debug_message(logger_context, message="All points sent and reached. Path completed.")
+    log_debug_message(logger_context, message="All points sent.")
     result = HandlerResult(True, False, GlueProcessState.WAIT_FOR_PATH_COMPLETION, path_index, 0, path, settings)
     update_context_from_handler_result(context, result)
     return result.next_state

@@ -97,7 +97,7 @@ class BrightnessManager:
 
         # Log when error is significant
         final_error = abs(self.brightnessController.target - final_brightness)
-        if final_error > 2:  # Lower threshold to see convergence
-            print(f"[BrightnessManager] Current: {current_brightness:.1f}, Error: {error:.1f}, Correction: {correction:.2f}, Total Adj: {self.brightnessAdjustment:.1f}, Final: {final_brightness:.1f}")
+        # if final_error > 2:  # Lower threshold to see convergence
+        #     print(f"[BrightnessManager] Current: {current_brightness:.1f}, Error: {error:.1f}, Correction: {correction:.2f}, Total Adj: {self.brightnessAdjustment:.1f}, Final: {final_brightness:.1f}")
 
         self.vision_system.image = final_frame

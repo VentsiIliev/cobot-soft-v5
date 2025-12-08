@@ -58,6 +58,9 @@ def move_to_first_point(context,path,logger_context):
             # If movement succeeded
             # Determine whether generator should be started
             generator_needed = bool(context.spray_on and not context.generator_started and not context.service.generatorState())
+            if generator_needed:
+                context.service.generatorOn()
+                context.generator_started = True
 
             return MoveResult(True, GlueProcessState.MOVING_TO_FIRST_POINT, generator_needed)
 
