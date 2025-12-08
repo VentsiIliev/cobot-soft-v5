@@ -107,7 +107,7 @@ if __name__ == "__main__":
         return corners[idxs]
 
 
-    def downsample_chessboard_corners_safe(corners, board_width, board_height, target_points=50):
+    def downsample_chessboard_corners_safe(corners, board_width, board_height, target_points=150):
         """
         Downsample chessboard corners but exclude the last 5 rows.
 

@@ -47,14 +47,20 @@ class LaserDetectionCalibration:
 
     def move_to_initial_position(self, position):
         """Move robot to initial calibration position using config values."""
-        self.robot_service.move_to_position(
-            position=position,
-            tool=self.robot_service.robot_config.robot_tool,
-            workpiece=self.robot_service.robot_config.robot_user,
-            velocity=self.config.calibration_velocity,
-            acceleration=self.config.calibration_acceleration,
-            waitToReachPosition=False
-        )
+        self.robot_service.robot.move_liner(position = position,
+                                            vel = self.config.calibration_velocity,
+                                            acc = self.config.calibration_acceleration,
+                                            tool = self.robot_service.robot_config.robot_tool,
+                                            user = self.robot_service.robot_config.robot_user,
+                                            blendR=0)
+        # self.robot_service.move_to_position(
+        #     position=position,
+        #     tool=self.robot_service.robot_config.robot_tool,
+        #     workpiece=self.robot_service.robot_config.robot_user,
+        #     velocity=self.config.calibration_velocity,
+        #     acceleration=self.config.calibration_acceleration,
+        #     waitToReachPosition=False
+        # )
         self.robot_service._waitForRobotToReachPosition(
             position,
             threshold=self.config.movement_threshold,
