@@ -5,6 +5,8 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import ClassVar
 
+from modules.shared.utils.linuxUtils import get_modbus_port
+
 
 class ModbusParity(Enum):
     """
@@ -46,11 +48,12 @@ class ModbusClientConfig:
     inter_byte_timeout: float  # 10 ms delay
     max_retries: int
 
+SUDO_PASS = "plp"
 
 # Примерна конфигурация
 config: ModbusClientConfig = ModbusClientConfig(
     slave_id=1,
-    port="/dev/ttyUSB0",
+    port=get_modbus_port(sudo_password=SUDO_PASS),
     baudrate=115200,
     byte_size=8,
     parity=ModbusParity.NONE,

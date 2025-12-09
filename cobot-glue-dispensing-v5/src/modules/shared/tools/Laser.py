@@ -1,7 +1,7 @@
 """
 Class not in use as moved to depth camera.
 """
-
+from modules.modbusCommunication import ModbusController
 from modules.modbusCommunication.ModbusClient import ModbusClient
 import platform
 from modules.shared.utils import linuxUtils
@@ -34,30 +34,17 @@ class Laser:
                    Exception: If the communication port cannot be detected or the Modbus client cannot be initialized, an exception is raised.
                """
         self.slave = 1
-
-        # Determine OS and set the correct serial port
-        if platform.system() == "Windows":
-            self.port = "COM5"  # Adjust as necessary
-        else:  # Assuming Linux
-            # self.port = "/dev/ttyUSB0"  # Adjust as necessary
-            self.port = linuxUtils.get_modbus_port()  # Adjust as necessary
-            print(f"Detected laser port: {self.port}")
         self._create_modbus_client()
         # self.modbusClient = ModbusClient(self.slave, self.port, 115200, 8, 1, 0.05)
 
     def _create_modbus_client(self):
         try:
             # Reset singleton instance to force new connection on reconnect
-            ModbusClientSingleton._client_instance = None
-            self.modbusClient = ModbusClientSingleton.get_instance(
-                slave=self.slave,
-                port=self.port,
-                baudrate=115200,
-                bytesize=8,
-                stopbits=1,
-                timeout=0.05
-            )
+            self.modbusClient = ModbusController.getModbusClient(self.slave)
+
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.state = SENSOR_STATE_ERROR
             # raise Exception(f"Failed to create Modbus client: {e}")
 

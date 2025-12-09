@@ -14,14 +14,13 @@ logging.basicConfig(
     ]
 )
 
-SUDO_PASS = "plp"
 # SUDO_PASS = "123"
 
 
-def find_ch341_uart_port():
+def find_ch341_uart_port(sudo_password):
     try:
         result = subprocess.run(
-            ["sudo", "-S", "dmesg"], input=SUDO_PASS + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            ["sudo", "-S", "dmesg"], input=sudo_password + "\n", stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
     except subprocess.SubprocessError as e:
         logging.error("Failed to execute dmesg command: %s", e)
@@ -44,12 +43,12 @@ def find_ch341_uart_port():
 
     return None
 
-def get_modbus_port():
+def get_modbus_port(sudo_password=None):
     # return "/dev/ttyS1"
     if platform.system() == "Windows":
         return "COM5"  # Adjust as necessary
     else:  # Assuming Linux
-        port = find_ch341_uart_port()
+        port = find_ch341_uart_port(sudo_password)
         if port:
             # print("Port found:", port)
             return port
@@ -91,4 +90,4 @@ def list_video_devices_v4l2():
 #     for path in paths:
 #         print(f"  - {path}")
 
-print(get_modbus_port())
+# print(get_modbus_port())

@@ -1,12 +1,11 @@
 import time
-from typing import List, Dict, Tuple
-from dataclasses import dataclass
 
+from applications.glue_dispensing_application.services.glueSprayService.motorControl.error_handler import \
+    MotorControlErrorHandler
+from applications.glue_dispensing_application.services.glueSprayService.motorControl.health_check import HealthCheck
+from applications.glue_dispensing_application.services.glueSprayService.motorControl.motor_state import MotorState, \
+    AllMotorsState
 from applications.glue_dispensing_application.services.glueSprayService.motorControl.utils import split_into_16bit
-
-from applications.glue_dispensing_application.services.glueSprayService.motorControl.errorCodes import MotorErrorCode
-
-
 from modules.modbusCommunication import ModbusController
 from modules.utils.custom_logging import LoggingLevel, log_if_enabled, setup_logger
 
@@ -24,386 +23,20 @@ DEFAULT_HEALTH_CHECK_DELAY = 3  # seconds
 DEFAULT_RAMP_STEP_DELAY = 0.001  # seconds
 
 
-@dataclass
-class MotorState:
-    """Represents the state of a motor including its health and error information."""
-    
-    address: int
-    is_healthy: bool = False
-    errors: List[int] = None
-    error_count: int = 0
-    modbus_errors: List[str] = None
-    
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
-        if self.modbus_errors is None:
-            self.modbus_errors = []
-    
-    def add_error(self, error_code: int) -> None:
-        """Add an error code to the motor state."""
-        if error_code not in self.errors:
-            self.errors.append(error_code)
-            self.error_count = len(self.errors)
-            self.is_healthy = False
-    
-    def add_modbus_error(self, error: str) -> None:
-        """Add a modbus error to the motor state."""
-        self.modbus_errors.append(error)
-        self.is_healthy = False
-    
-    def clear_errors(self) -> None:
-        """Clear all errors and mark motor as healthy."""
-        self.errors.clear()
-        self.modbus_errors.clear()
-        self.error_count = 0
-        self.is_healthy = True
-    
-    def has_errors(self) -> bool:
-        """Check if motor has any errors."""
-        return len(self.errors) > 0 or len(self.modbus_errors) > 0
-    
-    def get_filtered_errors(self) -> List[int]:
-        """Get errors filtered by motor address prefix."""
-        motor_address_to_prefix = {
-            0: 1,  # Motor 0 errors start with 1x
-            2: 2,  # Motor 2 errors start with 2x
-            4: 3,  # Motor 4 errors start with 3x
-            6: 4   # Motor 6 errors start with 4x
-        }
-        
-        expected_prefix = motor_address_to_prefix.get(self.address)
-        if expected_prefix is None:
-            return self.errors
-        
-        filtered = []
-        for error in self.errors:
-            if error == 0:
-                continue
-            error_prefix = error // 10
-            if error_prefix == expected_prefix:
-                filtered.append(error)
-        
-        return filtered
-    
-    def to_dict(self) -> Dict:
-        """Convert motor state to dictionary format for backward compatibility."""
-        return {
-            'state': self.is_healthy,
-            'errors': self.get_filtered_errors(),
-            'error_count': len(self.get_filtered_errors()),
-            'modbus_errors': self.modbus_errors
-        }
-    
-    def __str__(self) -> str:
-        """String representation of motor state."""
-        filtered_errors = self.get_filtered_errors()
-        return (f"Motor {self.address}: "
-                f"Healthy={self.is_healthy}, "
-                f"Error Count={len(filtered_errors)}, "
-                f"Errors={filtered_errors}")
 
-
-@dataclass
-class AllMotorsState:
-    """Represents the state of all motors."""
-    
-    success: bool
-    motors: Dict[int, MotorState]
-    sorted_errors: List[Tuple[int, int]] = None  # (error_code, motor_address)
-    
-    def __post_init__(self):
-        if self.sorted_errors is None:
-            self.sorted_errors = []
-    
-    def add_motor_state(self, motor_state: MotorState) -> None:
-        """Add a motor state to the collection."""
-        self.motors[motor_state.address] = motor_state
-    
-    def get_all_errors_sorted(self) -> List[Tuple[int, int]]:
-        """Get all errors from all motors sorted by error code."""
-        all_errors = []
-        for motor_state in self.motors.values():
-            filtered_errors = motor_state.get_filtered_errors()
-            for error in filtered_errors:
-                all_errors.append((error, motor_state.address))
-        
-        all_errors.sort(key=lambda x: x[0])
-        self.sorted_errors = all_errors
-        return all_errors
-    
-    def to_dict(self) -> Dict:
-        """Convert to dictionary format for backward compatibility."""
-        return {
-            'success': self.success,
-            'motors': {addr: motor.to_dict() for addr, motor in self.motors.items()},
-            'sorted_errors': self.get_all_errors_sorted()
-        }
-
-
-
-class HealthCheck:
-    def __init__(self):
-        pass
-
-    def health_check_motor(self, client, motor_address: int, filter_by_motor: bool = True) -> MotorState:
-        """Perform health check for a single motor and return MotorState object."""
-        log_if_enabled(enabled=ENABLE_LOGGING,
-                       logger=motor_control_logger,
-                       message=f"Performing health check for motor {motor_address}",
-                       level=LoggingLevel.INFO,
-                       broadcast_to_ui=False)
-        motor_state = MotorState(address=motor_address)
-        
-        # Reset motor (acknowledge command)
-        modbus_error = client.writeRegisters(HEALTH_CHECK_TRIGGER_REGISTER, [1])
-        if modbus_error is not None:
-            error_msg = f"Failed to trigger health check: {modbus_error}"
-            motor_state.add_modbus_error(error_msg)
-            MotorControlErrorHandler.handle_modbus_error(HEALTH_CHECK_TRIGGER_REGISTER, modbus_error)
-            return motor_state
-
-        log_if_enabled(enabled=ENABLE_LOGGING,
-                       logger=motor_control_logger,
-                       message=f"Health check triggered, waiting for {DEFAULT_HEALTH_CHECK_DELAY} seconds",
-                       level=LoggingLevel.INFO,
-                       broadcast_to_ui=False)
-        time.sleep(DEFAULT_HEALTH_CHECK_DELAY)
-
-        # Check for motor-specific errors
-        error_check_result, motor_errors_count = self._get_motor_errors_count(client, motor_address)
-        
-        if not error_check_result:
-            motor_state.add_modbus_error("Failed to read motor error count")
-            return motor_state
-
-        if motor_errors_count > 0:
-            raw_motor_errors = self._read_errors(client, motor_errors_count)
-            if raw_motor_errors:
-                # Add all non-zero errors to motor state
-                for error in raw_motor_errors:
-                    if error != 0:
-                        motor_state.add_error(error)
-                
-                # Get filtered errors for this specific motor
-                filtered_errors = motor_state.get_filtered_errors()
-                
-                if filtered_errors:
-                    log_if_enabled(enabled=ENABLE_LOGGING,
-                                   logger=motor_control_logger,
-                                   message=f"Motor {motor_address} has errors: {filtered_errors}",
-                                   level=LoggingLevel.WARNING,
-                                   broadcast_to_ui=False)
-                    MotorControlErrorHandler.handle_motor_errors(motor_address, filtered_errors)
-                    motor_state.is_healthy = False
-                else:
-                    log_if_enabled(enabled=ENABLE_LOGGING,
-                                   logger=motor_control_logger,
-                                   message=f"Motor {motor_address} has no relevant errors",
-                                   level=LoggingLevel.INFO,
-                                   broadcast_to_ui=False)
-                    motor_state.is_healthy = True
-            else:
-                motor_state.add_modbus_error("Failed to read error values")
-        else:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"Motor {motor_address} has no errors",
-                           level=LoggingLevel.INFO,
-                           broadcast_to_ui=False)
-            motor_state.is_healthy = True
-
-        return motor_state
-
-    def health_check_all_motors(self, client, motor_addresses: List[int]) -> AllMotorsState:
-        """Perform health check for all motors efficiently."""
-        all_motors_state = AllMotorsState(success=True, motors={})
-        
-        # Trigger health check once for all motors
-        modbus_error = client.writeRegisters(HEALTH_CHECK_TRIGGER_REGISTER, [1])
-        if modbus_error is not None:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"Failed to trigger health check: {modbus_error}",
-                           level=LoggingLevel.ERROR,
-                           broadcast_to_ui=False)
-            MotorControlErrorHandler.handle_modbus_error(HEALTH_CHECK_TRIGGER_REGISTER, modbus_error)
-            all_motors_state.success = False
-            # Create failed motor states for all motors
-            for motor_address in motor_addresses:
-                motor_state = MotorState(address=motor_address)
-                motor_state.add_modbus_error("Failed to trigger health check")
-                all_motors_state.add_motor_state(motor_state)
-            return all_motors_state
-        
-        log_if_enabled(enabled=ENABLE_LOGGING,
-                       logger=motor_control_logger,
-                       message=f"Health check triggered for all motors, waiting {DEFAULT_HEALTH_CHECK_DELAY} seconds",
-                       level=LoggingLevel.INFO,
-                       broadcast_to_ui=False)
-        time.sleep(DEFAULT_HEALTH_CHECK_DELAY)
-        
-        # Get global error count
-        error_check_result, global_errors_count = self._get_motor_errors_count(client)
-        
-        if not error_check_result:
-            # Communication failed - mark all motors as unhealthy
-            all_motors_state.success = False
-            for motor_address in motor_addresses:
-                motor_state = MotorState(address=motor_address)
-                motor_state.add_modbus_error("Failed to communicate with motor controller")
-                all_motors_state.add_motor_state(motor_state)
-                log_if_enabled(enabled=ENABLE_LOGGING,
-                               logger=motor_control_logger,
-                               message=f"Motor {motor_address} communication failed - marked as unhealthy",
-                               level=LoggingLevel.ERROR,
-                               broadcast_to_ui=False)
-        elif global_errors_count == 0:
-            # Communication successful but no errors - set all motors to healthy state
-            for motor_address in motor_addresses:
-                motor_state = MotorState(address=motor_address, is_healthy=True)
-                all_motors_state.add_motor_state(motor_state)
-                log_if_enabled(enabled=ENABLE_LOGGING,
-                               logger=motor_control_logger,
-                               message=f"Motor {motor_address} has no errors",
-                               level=LoggingLevel.INFO,
-                               broadcast_to_ui=False)
-        else:
-            # Read all errors once
-            raw_motor_errors = self._read_errors(client, global_errors_count)
-            if raw_motor_errors:
-                # Filter non-zero errors
-                all_motor_errors = [err for err in raw_motor_errors if err != 0]
-                
-                # Process each motor
-                for motor_address in motor_addresses:
-                    motor_state = MotorState(address=motor_address)
-                    
-                    # Add all errors to motor state (filtering will be done by MotorState)
-                    for error in all_motor_errors:
-                        motor_state.add_error(error)
-                    
-                    # Check if motor has relevant errors
-                    filtered_errors = motor_state.get_filtered_errors()
-                    
-                    if filtered_errors:
-                        log_if_enabled(enabled=ENABLE_LOGGING,
-                                       logger=motor_control_logger,
-                                       message=f"Motor {motor_address} has errors: {filtered_errors}",
-                                       level=LoggingLevel.WARNING,
-                                       broadcast_to_ui=False)
-                        MotorControlErrorHandler.handle_motor_errors(motor_address, filtered_errors)
-                        motor_state.is_healthy = False
-                    else:
-                        log_if_enabled(enabled=ENABLE_LOGGING,
-                                       logger=motor_control_logger,
-                                       message=f"Motor {motor_address} has no relevant errors",
-                                       level=LoggingLevel.INFO,
-                                       broadcast_to_ui=False)
-                        motor_state.is_healthy = True
-                    
-                    all_motors_state.add_motor_state(motor_state)
-            else:
-                # Failed to read errors, mark all motors as failed
-                all_motors_state.success = False
-                for motor_address in motor_addresses:
-                    motor_state = MotorState(address=motor_address)
-                    motor_state.add_modbus_error("Failed to read error values")
-                    all_motors_state.add_motor_state(motor_state)
-        
-        return all_motors_state
-
-
-
-    def _read_errors(self, client, errors_count):
-        """Read motor error values from error registers"""
-        error_values, modbus_error = client.readRegisters(MOTOR_ERROR_REGISTERS_START, errors_count)
-
-        if modbus_error is not None:
-            MotorControlErrorHandler.handle_modbus_error("error_registers", modbus_error)
-            return []
-
-        if not error_values:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message="No errors read from motor",
-                           level=LoggingLevel.INFO,
-                           broadcast_to_ui=False)
-            return []
-
-        return error_values
-
-    def _get_motor_errors_count(self, client, motor_address=None):
-        """Read motor errors count from register 20"""
-        try:
-            errors_count, modbus_error = client.read(MOTOR_ERROR_COUNT_REGISTER)
-
-            if modbus_error is not None:
-                MotorControlErrorHandler.handle_modbus_error(f"{motor_address}_error_count", modbus_error)
-                return False, None
-
-            return True, errors_count
-
-        except Exception as e:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"Exception reading motor {motor_address} errors count: {e}",
-                           level=LoggingLevel.ERROR,
-                           broadcast_to_ui=False)
-            return False, None
-
-class MotorControlErrorHandler:
-    @staticmethod
-    def handle_modbus_error(motorAddress, modbus_error):
-        log_if_enabled(enabled=ENABLE_LOGGING,
-                       logger=motor_control_logger,
-                       message="Handling Modbus error...",
-                       level=LoggingLevel.WARNING,
-                       broadcast_to_ui=False)
-        if modbus_error is not None:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"Modbus error for motor {motorAddress} - {modbus_error.name}: {modbus_error.description()}",
-                           level=LoggingLevel.ERROR,
-                           broadcast_to_ui=False)
-        else:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"No Modbus error for motor {motorAddress}",
-                           level=LoggingLevel.INFO,
-                           broadcast_to_ui=False)
-
-    @staticmethod
-    def handle_motor_errors(motorAddress, errors):
-        # print("Handling motor-specific errors...")
-        if errors:
-            # print(f"Motor {motorAddress} has the following errors:")
-            for error in errors:
-                try:
-                    error_code = MotorErrorCode(error)
-                    log_if_enabled(enabled=ENABLE_LOGGING,
-                                   logger=motor_control_logger,
-                                   message=f"Motor error code: {error_code.name} ({error_code.value}) - {error_code.description()}",
-                                   level=LoggingLevel.WARNING,
-                                   broadcast_to_ui=False)
-                except ValueError:
-                    log_if_enabled(enabled=ENABLE_LOGGING,
-                                   logger=motor_control_logger,
-                                   message=f"Unknown motor error code: {error} (not a recognized motor error)",
-                                   level=LoggingLevel.WARNING,
-                                   broadcast_to_ui=False)
-        else:
-            log_if_enabled(enabled=ENABLE_LOGGING,
-                           logger=motor_control_logger,
-                           message=f"Motor {motorAddress} has no errors",
-                           level=LoggingLevel.INFO,
-                           broadcast_to_ui=False)
 
 class MotorControl(ModbusController):
     def __init__(self,motorSlaveId=1):
         super().__init__()
         self.motorsId = motorSlaveId
-        self.healthCheck = HealthCheck()
+        self.healthCheck = HealthCheck(
+            health_check_register=HEALTH_CHECK_TRIGGER_REGISTER,
+            health_check_delay= DEFAULT_HEALTH_CHECK_DELAY,
+            motor_register_start=MOTOR_ERROR_REGISTERS_START,
+            motor_error_count_register=MOTOR_ERROR_COUNT_REGISTER,
+            logging_enabled=ENABLE_LOGGING,
+            logger=motor_control_logger
+        )
         # Connection reuse for adjustMotorSpeed
         self._adjust_client = None
         self._adjust_client_connected = False
@@ -593,7 +226,7 @@ class MotorControl(ModbusController):
             # Initial stop - check for modbus errors
             modbus_error = client.writeRegisters(motorAddress, [0, 0])
             if modbus_error is not None:
-                MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error)
+                MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error,ENABLE_LOGGING,motor_control_logger)
                 client.close()
                 return False
 
@@ -609,7 +242,7 @@ class MotorControl(ModbusController):
             # Final stop - check for modbus errors
             modbus_error = client.writeRegisters(motorAddress, [0, 0])
             if modbus_error is not None:
-                MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error)
+                MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error,ENABLE_LOGGING,motor_control_logger)
                 result = False
                 
             client.close()
@@ -682,7 +315,7 @@ class MotorControl(ModbusController):
         modbus_error = client.writeRegisters(motorAddress, [low16_int, high16_int])
 
         if modbus_error is not None:
-            MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error)
+            MotorControlErrorHandler.handle_modbus_error(motorAddress, modbus_error,ENABLE_LOGGING,motor_control_logger)
             modbus_errors.append(modbus_error)
             log_if_enabled(enabled=ENABLE_LOGGING,
                            logger=motor_control_logger,
@@ -757,50 +390,45 @@ class MotorControl(ModbusController):
 
 
 
-# if __name__ == "__main__":
-#     motorControl = MotorControl()
-#     speedTemp = 10000
-#     speedReverseTemp = 250
-#
-#     while True:
-#         try:
-#             motorAddressTemp = int(input("Enter motor address (-1/0/2/4/6 or 'exit' to quit): ").strip())
-#         except ValueError:
-#             print("Exiting.")
-#             break
-#
-#         while True:
-#             command = input(f"Enter command for motor {motorAddressTemp} (on/off/state/newstate/allstates/back): ").strip().lower()
-#             if command == "on":
-#                 motorControl.motorOn(motorAddressTemp, speedTemp,3,22000,1)
-#             elif command == "off":
-#                 motorControl.motorOff(motorAddressTemp, speedReverseTemp, reverse_time=0.5,ramp_steps=1)
-#             elif command == "state":
-#                 motorControl.motorState(motorAddressTemp)
-#             elif command == "newstate":
-#                 motor_state = motorControl.motorState(motorAddressTemp)
-#                 print("New Motor State Object:")
-#                 print(f"  {motor_state}")
-#                 print(f"  Modbus Errors: {motor_state.modbus_errors}")
-#             elif command == "allstates":
-#                 all_motors_state = motorControl.getAllMotorStates()
-#                 print("All Motor States (New Format):")
-#                 print(f"Success: {all_motors_state.success}")
-#                 for motor_addr, motor_state in all_motors_state.motors.items():
-#                     print(f"  {motor_state}")
-#                 sorted_errors = all_motors_state.get_all_errors_sorted()
-#                 print(f"Sorted Errors: {sorted_errors}")
-#
-#             elif command == "back":
-#                 break
-#             else:
-#                 print("Unknown command. Please enter 'on', 'off', 'state', 'newstate', 'allstates', or 'back'.")
-#
-#
 if __name__ == "__main__":
+    motorControl = MotorControl()
+    speedTemp = 10000
+    speedReverseTemp = 250
 
-    controller = MotorControl(1)
-    # controller.motorOn(0,200,1,1000,1)
-    # controller.motorOn(0,0,5,5000,1)
-    controller.motorOff(0,4000,0.5,1)
+    while True:
+        try:
+            motorAddressTemp = int(input("Enter motor address (-1/0/2/4/6 or 'exit' to quit): ").strip())
+        except ValueError:
+            print("Exiting.")
+            break
+
+        while True:
+            command = input(f"Enter command for motor {motorAddressTemp} (on/off/state/newstate/allstates/back): ").strip().lower()
+            if command == "on":
+                motorControl.motorOn(motorAddressTemp, speedTemp,3,22000,1)
+            elif command == "off":
+                motorControl.motorOff(motorAddressTemp, speedReverseTemp, reverse_time=0.5,ramp_steps=1)
+            elif command == "state":
+                motorControl.motorState(motorAddressTemp)
+            elif command == "newstate":
+                motor_state = motorControl.motorState(motorAddressTemp)
+                print("New Motor State Object:")
+                print(f"  {motor_state}")
+                print(f"  Modbus Errors: {motor_state.modbus_errors}")
+            elif command == "allstates":
+                all_motors_state = motorControl.getAllMotorStates()
+                print("All Motor States (New Format):")
+                print(f"Success: {all_motors_state.success}")
+                for motor_addr, motor_state in all_motors_state.motors.items():
+                    print(f"  {motor_state}")
+                sorted_errors = all_motors_state.get_all_errors_sorted()
+                print(f"Sorted Errors: {sorted_errors}")
+
+            elif command == "back":
+                break
+            else:
+                print("Unknown command. Please enter 'on', 'off', 'state', 'newstate', 'allstates', or 'back'.")
+
+
+
 
