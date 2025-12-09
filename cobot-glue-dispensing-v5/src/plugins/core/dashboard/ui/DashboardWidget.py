@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 
 from frontend.core.utils.localization import TranslatableWidget, TranslationKeys
 from frontend.widgets.MaterialButton import MaterialButton
+from frontend.wizards.setupWizard import SetupWizard
 from plugins.core.dashboard.ui.widgets.ControlButtonsWidget import ControlButtonsWidget
 from plugins.core.dashboard.ui.widgets.RobotTrajectoryWidget import RobotTrajectoryWidget
 from plugins.core.dashboard.ui.config.dashboard_styles import DashboardConfig
@@ -160,8 +161,6 @@ class DashboardWidget(TranslatableWidget):
     """GLUE DISPENSING APPLICATION SPECIFIC"""
     def on_glue_card_long_press(self, card_index: int):
         """Handle long press on glue card - show glue change wizard"""
-        from new_development.setupWizard import SetupWizard
-
         wizard = SetupWizard()
         wizard.setWindowTitle(f"Change Glue for Cell {card_index}")
 

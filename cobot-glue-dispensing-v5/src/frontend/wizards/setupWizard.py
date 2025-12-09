@@ -4,7 +4,8 @@ from PyQt6.QtWidgets import (QApplication, QWizard, QWizardPage, QVBoxLayout,
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap, QFont, QColor, QIcon
 import sys
-from pl_ui.ui.widgets.MaterialButton import MaterialButton
+
+from frontend.widgets.MaterialButton import MaterialButton
 
 
 class WizardStep(QWizardPage):
