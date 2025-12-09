@@ -1,156 +1,212 @@
 import time
 import minimalmodbus
 import logging
+from typing import List, Tuple, Optional
 
 from applications.glue_dispensing_application.services.glueSprayService.motorControl.errorCodes import \
     ModbusExceptionType
 from modules.modbusCommunication.modbus_lock import modbus_lock
 
+
 class ModbusClient:
     """
-    ModbusClient class provides functionality to communicate with a Modbus slave device
-    using the Modbus RTU protocol via a serial connection. It allows for reading and
-    writing registers on the Modbus slave device.
+    Клас ModbusClient предоставя функционалност за комуникация с Modbus slave устройство
+    чрез Modbus RTU протокол по сериен порт. Позволява четене и запис на регистри в
+    Modbus slave устройството.
 
-    Attributes:
-        slave (int): The Modbus slave address (default is 10).
-        client (minimalmodbus.Instrument): An instance of the minimalmodbus Instrument class
-                                           used for Modbus communication.
+    Атрибути:
+        slave (int): Адрес на Modbus slave (по подразбиране 10).
+        client (minimalmodbus.Instrument): Инстанция на minimalmodbus Instrument за
+                                           Modbus комуникация.
+        max_retries (int): Максимален брой опити при неуспешна комуникация.
     """
-    def __init__(self, slave=10, port='COM5', baudrate=115200, bytesize=8,
-                 stopbits=1, timeout=0.01,parity = minimalmodbus.serial.PARITY_NONE,max_retries=30):
+
+    def __init__(self, slave: int = 10, port: str = 'COM5', baudrate: int = 115200, bytesize: int = 8,
+                 stopbits: int = 1, timeout: float = 0.01, parity: str = minimalmodbus.serial.PARITY_NONE,
+                 max_retries: int = 30) -> None:
+        """
+        Инициализация на ModbusClient.
+
+        Параметри:
+            slave (int): Адрес на Modbus slave устройство.
+            port (str): Серийният порт за комуникация (например 'COM5').
+            baudrate (int): Скорост на сериен порт.
+            bytesize (int): Размер на байт.
+            stopbits (int): Брой стоп-бита.
+            timeout (float): Таймаут за комуникация в секунди.
+            parity (str): Паритет (по подразбиране без паритет).
+            max_retries (int): Максимален брой опити при комуникационни грешки.
+
+        Изключения:
+            Exception: Ако не може да се отвори серийния порт.
+        """
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.slave = slave
+        self.slave: int = slave
         try:
-            self.client = minimalmodbus.Instrument(port, self.slave, debug=False)
-            # from modbusCommunication.MockClient import MockInstrument
-            # self.client = MockInstrument(port, self.slave, debug=False)
+            self.client: minimalmodbus.Instrument = minimalmodbus.Instrument(port, self.slave, debug=False)
         except Exception as e:
-            raise Exception(f"Could not open port {port}. Please check the connection and port settings.") from e
+            raise Exception(f"Не може да се отвори порт {port}. Проверете връзката и настройките на порта.") from e
 
         self.client.serial.baudrate = baudrate
         self.client.serial.bytesize = bytesize
         self.client.serial.stopbits = stopbits
         self.client.serial.timeout = timeout
         self.client.serial.parity = parity
-        self.max_retries = max_retries
+        self.max_retries: int = max_retries
 
-    def writeRegister(self, register, value, signed=False):
-        maxAttempts = self.max_retries
+    def writeRegister(self, register: int, value: float, signed: bool = False) -> Optional[ModbusExceptionType]:
+        """
+        Записва стойност в конкретен регистър на Modbus устройството.
+
+        Параметри:
+            register (int): Регистър, в който ще се записва.
+            value (float): Стойност за запис.
+            signed (bool): Дали стойността е подписана.
+
+        Връща:
+            None, ако записът е успешен.
+            ModbusExceptionType при грешка.
+        """
         attempts = 0
-        while attempts < maxAttempts:
+        while attempts < self.max_retries:
             with modbus_lock:
                 try:
                     self.client.write_register(register, value, signed=signed)
-                    # print(f"ModbusClient.writeRegister - > Wrote {value} to register {register}")
-                    return None  # Success
+                    return None
                 except Exception as e:
                     modbus_error = ModbusExceptionType.from_exception(e)
-                    print(f"ModbusClient.writeRegister -> Error writing register {register}: {e} - {modbus_error.name}: {modbus_error.description()}")
-                    # if modbus_error == ModbusExceptionType.CHECKSUM_ERROR:
-                    #     return modbus_error  # Don't retry checksum errors
+                    print(
+                        f"ModbusClient.writeRegister -> Грешка при запис в регистър {register}: {e} - {modbus_error.name}: {modbus_error.description()}")
                     import traceback
                     traceback.print_exc()
                     attempts += 1
-                    if attempts < maxAttempts:
+                    if attempts < self.max_retries:
                         time.sleep(0.1)
                     else:
-                        return modbus_error  # Return the error type after max attempts
-        
-        return ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
+                        return modbus_error
 
-    def writeRegisters(self, start_register, values):
-        maxAttempts = self.max_retries
+        return ModbusExceptionType.MODBUS_EXCEPTION
+
+    def writeRegisters(self, start_register: int, values: List[float]) -> Optional[ModbusExceptionType]:
+        """
+        Записва последователност от стойности, започвайки от даден регистър.
+
+        Параметри:
+            start_register (int): Първи регистър за запис.
+            values (List[float]): Стойности за запис.
+
+        Връща:
+            None при успешен запис.
+            ModbusExceptionType при грешка.
+        """
         attempts = 0
-        while attempts < maxAttempts:
+        while attempts < self.max_retries:
             with modbus_lock:
                 try:
-                    # print(f"Writing registers starting from {start_register} with values: {values} Attempt {attempts+1}")
                     self.client.write_registers(start_register, values)
                     time.sleep(0.02)
-                    # print("Written registers successfully")
-                    return None  # Success
+                    return None
                 except Exception as e:
                     modbus_error = ModbusExceptionType.from_exception(e)
-
-                    # if modbus_error != ModbusExceptionType.CHECKSUM_ERROR:
                     import traceback
                     traceback.print_exc()
-
                     attempts += 1
-                    if attempts >= maxAttempts:
-                        return modbus_error  # Return error after max attempts
+                    if attempts >= self.max_retries:
+                        return modbus_error
 
+        return ModbusExceptionType.MODBUS_EXCEPTION
 
+    def readRegisters(self, start_register: int, count: int) -> Tuple[
+        Optional[List[int]], Optional[ModbusExceptionType]]:
+        """
+        Чете последователност от регистри, започвайки от даден регистър.
 
-        return ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
+        Параметри:
+            start_register (int): Първи регистър за четене.
+            count (int): Брой регистри за четене.
 
-    def readRegisters(self, start_register, count):
-        maxAttempts = self.max_retries
+        Връща:
+            tuple: (values, None) при успешен прочит.
+            tuple: (None, ModbusExceptionType) при грешка.
+        """
         attempts = 0
-        while attempts < maxAttempts:
+        while attempts < self.max_retries:
             with modbus_lock:
                 try:
-                    # print(f"Read {count} registers starting from register: {start_register}")
                     values = self.client.read_registers(start_register, count)
-                    return values, None  # Success - return values and no error
+                    return values, None
                 except Exception as e:
-                    print(f"ModbusClient.readRegisters -> Error reading registers: {e}")
+                    print(f"ModbusClient.readRegisters -> Грешка при четене на регистрите: {e}")
                     modbus_error = ModbusExceptionType.from_exception(e)
-                    
-                    # if modbus_error == ModbusExceptionType.CHECKSUM_ERROR:
-                    #     return None, modbus_error  # Return None values with error
-                    
                     attempts += 1
-                    if attempts >= maxAttempts:
-                        return None, modbus_error  # Return error after max attempts
-        
-        return None, ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
+                    if attempts >= self.max_retries:
+                        return None, modbus_error
 
-    def read(self, register):
-        maxAttempts = self.max_retries
+        return None, ModbusExceptionType.MODBUS_EXCEPTION
+
+    def read(self, register: int) -> Tuple[Optional[int], Optional[ModbusExceptionType]]:
+        """
+        Чете стойност от конкретен регистър.
+
+        Параметри:
+            register (int): Регистър за четене.
+
+        Връща:
+            tuple: (стойност, None) при успешен прочит.
+            tuple: (None, ModbusExceptionType) при грешка.
+        """
         attempts = 0
-        while attempts < maxAttempts:
+        while attempts < self.max_retries:
             with modbus_lock:
                 try:
                     value = self.client.read_register(register)
-                    # print(f"Read value: {value} from register: {register}")
-                    return value, None  # Success - return value and no error
+                    return value, None
                 except Exception as e:
                     modbus_error = ModbusExceptionType.from_exception(e)
-                    
                     if modbus_error == ModbusExceptionType.CHECKSUM_ERROR:
-                        return None, modbus_error  # Return None value with error
-                    
+                        return None, modbus_error
                     attempts += 1
-                    if attempts >= maxAttempts:
-                        return None, modbus_error  # Return error after max attempts
-        
-        return None, ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
+                    if attempts >= self.max_retries:
+                        return None, modbus_error
 
-    def readBit(self,address,functioncode=1):
+        return None, ModbusExceptionType.MODBUS_EXCEPTION
+
+    def readBit(self, address: int, functioncode: int = 1) -> int:
+        """
+        Чете отделен бит от Modbus устройство.
+
+        Параметри:
+            address (int): Адрес на бита.
+            functioncode (int): Функционален код (по подразбиране 1).
+
+        Връща:
+            int: Стойност на бита (0 или 1).
+        """
         with modbus_lock:
-            return self.client.read_bit(address,functioncode=functioncode)
+            return self.client.read_bit(address, functioncode=functioncode)
 
-    def writeBit(self,address,value):
-        maxAttempts = self.max_retries
+    def writeBit(self, address: int, value: int) -> None:
+        """
+        Записва стойност в отделен бит на Modbus устройство.
+
+        Параметри:
+            address (int): Адрес на бита.
+            value (int): Стойност за запис (0 или 1).
+        """
         attempts = 0
-        while attempts < maxAttempts:
+        while attempts < self.max_retries:
             with modbus_lock:
                 try:
                     self.client.write_bit(address, value)
                     break
                 except minimalmodbus.ModbusException as e:
-                    if "Checksum error in rtu mode" in str(e):
-                        import traceback
-                        traceback.print_exc()
-                        break
-                    else:
-                        import traceback
-                        traceback.print_exc()
+                    import traceback
+                    traceback.print_exc()
                     attempts += 1
                     time.sleep(0.1)
 
-    def close(self):
+    def close(self) -> None:
+        """
+        Затваря серийния порт и освобождава ресурсите.
+        """
         self.client.serial.close()
-
