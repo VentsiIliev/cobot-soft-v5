@@ -31,10 +31,10 @@ def train_production_model():
     config = RobustTrainingConfig()
 
     # Customize for production (optional)
-    config.dataset.n_shapes = 8  # More shapes for better generalization
-    config.dataset.n_scales = 5  # More scale variations
-    config.dataset.n_variants = 5  # More shape variants
-    config.dataset.n_noisy = 4  # More noisy samples
+    config.dataset.n_shapes = 10  # More shapes for better generalization
+    config.dataset.n_scales = 10  # More scale variations
+    config.dataset.n_variants = 10  # More shape variants
+    config.dataset.n_noisy = 10  # More noisy samples
 
     # Set up output directory with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

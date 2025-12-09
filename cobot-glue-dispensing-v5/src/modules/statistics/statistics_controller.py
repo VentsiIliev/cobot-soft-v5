@@ -30,7 +30,7 @@ class StatisticsController:
         # Setup repository
         if storage_path is None:
             storage_path = Path(
-                "/home/plp/cobot-soft-v3.4/cobot-soft-v3/cobot-glue-dispensing-v3/src/modules/storage"
+                "/home/ilv/cobot-soft/cobot-soft-v5/cobot-glue-dispensing-v5/src/modules/statistics"
             )
 
         self.repo = StatisticsRepository(storage_path)
@@ -94,17 +94,38 @@ class StatisticsController:
 
     # =================== Component updates ===================
 
-    def _update_component_state(self, component: str, new_state: str, count_type: str):
+    def _update_component_state(self, component: str, new_state: str, count_type: str, motor_address: str = None):
         """Delegate component state updates to StatisticsService."""
         with self._lock:
-            self.statistics = self.service.update_component_state(
-                self.statistics, component, new_state, count_type
-            )
+            if component == "motor" and motor_address:
+                # Ensure motors dict exists
+                if "motors" not in self.statistics:
+                    self.statistics["motors"] = {}
 
-        print(
-            f"[StatisticsController] {component.capitalize()} {new_state.upper()} "
-            f"(count: {self.statistics[component][count_type]})"
-        )
+                # Ensure this motor exists
+                if motor_address not in self.statistics["motors"]:
+                    self.statistics["motors"][motor_address] = self.repo._default_motor_stats()
+
+                # Update the specific motor
+                self.statistics = self.service.update_component_state(
+                    self.statistics, f"motors.{motor_address}", new_state, count_type
+                )
+
+                print(
+                    f"[StatisticsController] Motor {motor_address} {new_state.upper()} "
+                    f"(count: {self.statistics['motors'][motor_address][count_type]})"
+                )
+            else:
+                # Handle generator and other components
+                self.statistics = self.service.update_component_state(
+                    self.statistics, component, new_state, count_type
+                )
+
+                print(
+                    f"[StatisticsController] {component.capitalize()} {new_state.upper()} "
+                    f"(count: {self.statistics[component][count_type]})"
+                )
+
         self._enqueue_update()
 
     def _on_generator_on(self, data=None):
@@ -114,10 +135,12 @@ class StatisticsController:
         self._update_component_state("generator", "off", "off_count")
 
     def _on_motor_on(self, data=None):
-        self._update_component_state("motor", "on", "on_count")
+        motor_address = str(data.get("motor_address", "1")) if isinstance(data, dict) else "1"
+        self._update_component_state("motor", "on", "on_count", motor_address=motor_address)
 
     def _on_motor_off(self, data=None):
-        self._update_component_state("motor", "off", "off_count")
+        motor_address = str(data.get("motor_address", "1")) if isinstance(data, dict) else "1"
+        self._update_component_state("motor", "off", "off_count", motor_address=motor_address)
 
     # =================== Public API ===================
 

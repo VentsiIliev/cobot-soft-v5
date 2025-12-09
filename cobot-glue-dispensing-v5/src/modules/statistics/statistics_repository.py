@@ -42,18 +42,25 @@ class StatisticsRepository:
                 "current_state": "off",
                 "session_start": None,
             },
-            "motor": {
-                "on_count": 0,
-                "off_count": 0,
-                "total_runtime_seconds": 0.0,
-                "last_on_timestamp": None,
-                "last_off_timestamp": None,
-                "current_state": "off",
-                "session_start": None,
+            "motors": {
+                # Motors will be added dynamically by address
+                # Example: "1": { on_count: 0, ... }, "2": { on_count: 0, ... }
             },
             "system": {
                 "total_cycles": 0,
                 "session_start": datetime.now().isoformat(),
                 "last_updated": None,
             },
+        }
+
+    def _default_motor_stats(self) -> Dict[str, Any]:
+        """Return default statistics structure for a single motor."""
+        return {
+            "on_count": 0,
+            "off_count": 0,
+            "total_runtime_seconds": 0.0,
+            "last_on_timestamp": None,
+            "last_off_timestamp": None,
+            "current_state": "off",
+            "session_start": None,
         }

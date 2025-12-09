@@ -49,16 +49,36 @@ class DemoControlPanel(QWidget):
         layout.addWidget(gen_off_btn)
         
         # Motor controls
-        motor_on_btn = QPushButton("🔧 Turn Motor ON")
-        motor_on_btn.clicked.connect(self.motor_on)
-        motor_on_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
-        layout.addWidget(motor_on_btn)
-        
-        motor_off_btn = QPushButton("🔧 Turn Motor OFF")
-        motor_off_btn.clicked.connect(self.motor_off)
-        motor_off_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px; font-weight: bold;")
-        layout.addWidget(motor_off_btn)
-        
+        motor1_on_btn = QPushButton("🔧 Turn Motor 1 ON")
+        motor1_on_btn.clicked.connect(lambda: self.motor_on("1"))
+        motor1_on_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor1_on_btn)
+
+        motor1_off_btn = QPushButton("🔧 Turn Motor 1 OFF")
+        motor1_off_btn.clicked.connect(lambda: self.motor_off("1"))
+        motor1_off_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor1_off_btn)
+
+        motor2_on_btn = QPushButton("🔧 Turn Motor 2 ON")
+        motor2_on_btn.clicked.connect(lambda: self.motor_on("2"))
+        motor2_on_btn.setStyleSheet("background-color: #00BCD4; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor2_on_btn)
+
+        motor2_off_btn = QPushButton("🔧 Turn Motor 2 OFF")
+        motor2_off_btn.clicked.connect(lambda: self.motor_off("2"))
+        motor2_off_btn.setStyleSheet("background-color: #FFC107; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor2_off_btn)
+
+        motor3_on_btn = QPushButton("🔧 Turn Motor 3 ON")
+        motor3_on_btn.clicked.connect(lambda: self.motor_on("3"))
+        motor3_on_btn.setStyleSheet("background-color: #3F51B5; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor3_on_btn)
+
+        motor3_off_btn = QPushButton("🔧 Turn Motor 3 OFF")
+        motor3_off_btn.clicked.connect(lambda: self.motor_off("3"))
+        motor3_off_btn.setStyleSheet("background-color: #FF5722; color: white; padding: 10px; font-weight: bold;")
+        layout.addWidget(motor3_off_btn)
+
         # Auto cycle button
         auto_btn = QPushButton("🔄 Run Auto Cycle (5 times)")
         auto_btn.clicked.connect(self.run_auto_cycle)
@@ -78,16 +98,16 @@ class DemoControlPanel(QWidget):
         print("📤 Publishing: Generator OFF")
         self.broker.publish(GlueSprayServiceTopics.GENERATOR_OFF,"")
     
-    def motor_on(self):
+    def motor_on(self, motor_address="1"):
         """Publish motor ON event."""
-        print("📤 Publishing: Motor ON")
-        self.broker.publish(GlueSprayServiceTopics.MOTOR_ON,"")
-    
-    def motor_off(self):
+        print(f"📤 Publishing: Motor {motor_address} ON")
+        self.broker.publish(GlueSprayServiceTopics.MOTOR_ON, {"motor_address": motor_address})
+
+    def motor_off(self, motor_address="1"):
         """Publish motor OFF event."""
-        print("📤 Publishing: Motor OFF")
-        self.broker.publish(GlueSprayServiceTopics.MOTOR_OFF,"")
-    
+        print(f"📤 Publishing: Motor {motor_address} OFF")
+        self.broker.publish(GlueSprayServiceTopics.MOTOR_OFF, {"motor_address": motor_address})
+
     def run_auto_cycle(self):
         """Run an automatic cycle sequence."""
         print("\n🔄 Starting auto cycle...")
