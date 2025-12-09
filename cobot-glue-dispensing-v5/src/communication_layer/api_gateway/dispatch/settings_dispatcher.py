@@ -8,6 +8,7 @@ from communication_layer.api.v1.Response import Response
 from communication_layer.api.v1.endpoints import glue_endpoints, settings_endpoints
 from communication_layer.api_gateway.interfaces.dispatch import IDispatcher
 from applications.glue_dispensing_application.handlers.glue_types_handler import GlueTypesHandler
+from applications.glue_dispensing_application.handlers.cell_hardware_handler import CellHardwareHandler
 
 
 class SettingsDispatch(IDispatcher):
@@ -26,6 +27,7 @@ class SettingsDispatch(IDispatcher):
         """
         self.settingsController = settingsController
         self.glue_types_handler = GlueTypesHandler()
+        self.cell_hardware_handler = CellHardwareHandler()
 
     def dispatch(self, parts: list, request: str, data: dict = None) -> dict:
         """
@@ -48,6 +50,11 @@ class SettingsDispatch(IDispatcher):
                        glue_endpoints.GLUE_TYPES_SET,
                        glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM]:
             return self.handle_glue_types(parts, request, data)
+        # Cell hardware config endpoints (NEW)
+        elif request in [glue_endpoints.CELL_HARDWARE_CONFIG_GET,
+                         glue_endpoints.CELL_HARDWARE_CONFIG_SET,
+                         glue_endpoints.CELL_HARDWARE_MOTOR_ADDRESS_GET]:
+            return self.handle_cell_hardware_config(parts, request, data)
         # Robot settings
         elif request in [settings_endpoints.SETTINGS_ROBOT_GET]:
             return self.handle_robot_settings(parts, request, data)
@@ -323,4 +330,60 @@ class SettingsDispatch(IDispatcher):
             return Response(
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling glue types: {e}"
+            ).to_dict()
+
+    def handle_cell_hardware_config(self, parts, request, data=None):
+        """
+        Handle cell hardware configuration operations.
+
+        Args:
+            parts (list): Parsed request parts
+            request (str): Full request string
+            data: Request data
+
+        Returns:
+            dict: Response with cell hardware config data or operation result
+        """
+        print(f"SettingsHandler: Handling cell hardware config: {request} with data: {data}")
+
+        try:
+            if request == glue_endpoints.CELL_HARDWARE_CONFIG_GET:
+                # Get complete hardware configuration
+                success, message, config = self.cell_hardware_handler.handle_get_config(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message,
+                    data=config
+                ).to_dict()
+
+            elif request == glue_endpoints.CELL_HARDWARE_MOTOR_ADDRESS_GET:
+                # Get motor address for specific cell
+                success, message, response = self.cell_hardware_handler.handle_get_motor_address(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message,
+                    data=response
+                ).to_dict()
+
+            elif request == glue_endpoints.CELL_HARDWARE_CONFIG_SET:
+                # Update hardware configuration
+                success, message = self.cell_hardware_handler.handle_set_config(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message
+                ).to_dict()
+
+            else:
+                return Response(
+                    Constants.RESPONSE_STATUS_ERROR,
+                    message=f"Unknown cell hardware config request: {request}"
+                ).to_dict()
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"SettingsHandler: Error handling cell hardware config: {e}")
+            return Response(
+                Constants.RESPONSE_STATUS_ERROR,
+                message=f"Error handling cell hardware config: {e}"
             ).to_dict()

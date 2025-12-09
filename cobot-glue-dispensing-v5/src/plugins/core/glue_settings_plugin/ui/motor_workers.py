@@ -1,4 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
+from applications.glue_dispensing_application.config.cell_hardware_config import CellHardwareConfig
 
 
 class RefreshMotorsWorker(QObject):
@@ -18,15 +19,21 @@ class RefreshMotorsWorker(QObject):
                     motors_healthy[motor_addr] = motor_state.is_healthy
             else:
                 # Failed to get states, assume all unhealthy
-                for i in range(4):
-                    motor_addr = self.glueSprayService.glueMapping.get(i + 1)
-                    motors_healthy[motor_addr] = False
+                for cell_id in CellHardwareConfig.get_all_cell_ids():
+                    try:
+                        motor_addr = CellHardwareConfig.get_motor_address(cell_id)
+                        motors_healthy[motor_addr] = False
+                    except ValueError:
+                        continue
 
         except Exception as e:
             print(f"Error getting all motor states: {e}")
-            for i in range(4):
-                motor_addr = self.glueSprayService.glueMapping.get(i + 1)
-                motors_healthy[motor_addr] = False
+            for cell_id in CellHardwareConfig.get_all_cell_ids():
+                try:
+                    motor_addr = CellHardwareConfig.get_motor_address(cell_id)
+                    motors_healthy[motor_addr] = False
+                except ValueError:
+                    continue
 
         self.finished.emit(motors_healthy)
 
@@ -48,7 +55,9 @@ class MotorWorker(QObject):
 
         try:
             svc = self.glueSprayService
-            address = svc.glueMapping.get(motor_number)
+            # Map motor number (1-4) to cell ID, then get motor address
+            cell_id = motor_number
+            address = CellHardwareConfig.get_motor_address(cell_id)
 
             if state:
                 result = svc.motorOn(

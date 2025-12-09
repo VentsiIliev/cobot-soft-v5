@@ -28,6 +28,11 @@ GLUE_TYPES_SET = "/api/v1/settings/glue/types/set"
 GLUE_TYPE_ADD_CUSTOM = "/api/v1/settings/glue/types/add/custom"
 GLUE_TYPE_REMOVE_CUSTOM = "/api/v1/settings/glue/types/remove/custom"
 
+# Cell hardware configuration (motor addresses)
+CELL_HARDWARE_CONFIG_GET = "/api/v1/settings/glue/hardware/get"
+CELL_HARDWARE_CONFIG_SET = "/api/v1/settings/glue/hardware/set"
+CELL_HARDWARE_MOTOR_ADDRESS_GET = "/api/v1/settings/glue/hardware/motor"
+
 
 # Glue application specific operations
 GLUE_NOZZLE_CLEAN = "glue/nozzle/clean"

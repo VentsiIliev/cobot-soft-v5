@@ -19,6 +19,7 @@ from plugins.core.glue_settings_plugin.ui.GlueTypeManagementTab import GlueTypeM
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 # import pyqtSignal
 from PyQt6.QtCore import pyqtSignal
+from applications.glue_dispensing_application.config.cell_hardware_config import CellHardwareConfig
 
 from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from applications.glue_dispensing_application.services.glueSprayService.GlueDispatchService import GlueDispatchService
@@ -966,8 +967,15 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         Args:
             motors_healthy (dict): Dictionary mapping motor addresses to True/False health state.
         """
+
         for i in range(4):
-            motor_addr = self.glueSprayService.glueMapping.get(i + 1)
+            cell_id = i + 1
+            try:
+                motor_addr = CellHardwareConfig.get_motor_address(cell_id)
+            except ValueError:
+                # Cell not configured, skip
+                continue
+
             is_healthy = motors_healthy.get(motor_addr, False)
 
             motor_toggle = getattr(self, f"motor_{i + 1}_toggle", None)
