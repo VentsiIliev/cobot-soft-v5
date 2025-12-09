@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "description": "Physical mapping between cell IDs and motor modbus addresses",
+  "cell_motor_mapping": {
+    "1": 0,
+    "2": 2,
+    "3": 4,
+    "4": 6
+  },
+  "notes": "This configuration can be edited via UI in the future. Cell ID -> Motor Modbus Address mapping."
+}
