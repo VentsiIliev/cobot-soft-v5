@@ -150,13 +150,19 @@ class DashboardWidget(TranslatableWidget):
     def create_glue_card(self, index: int, label_text: str) -> DashboardCard:
         """Create glue card using factory"""
         card = self.card_factory.create_glue_card(index, label_text, self.shared_card_container)
-        # Connect signals
-        card.glue_type_combo.currentTextChanged.connect(
-            lambda value, idx=index: self.glue_type_changed_signal.emit(idx, value)
+        # Connect button click to wizard
+        card.glue_type_button.clicked.connect(
+            lambda checked=False, idx=index: self.on_glue_button_clicked(idx)
         )
+        # Connect long press signal
         card.long_press_detected.connect(self.on_glue_card_long_press)
 
         return card
+
+    """GLUE DISPENSING APPLICATION SPECIFIC"""
+    def on_glue_button_clicked(self, card_index: int):
+        """Handle glue type button click - show glue change wizard"""
+        self.on_glue_card_long_press(card_index)
 
     """GLUE DISPENSING APPLICATION SPECIFIC"""
     def on_glue_card_long_press(self, card_index: int):
@@ -188,8 +194,9 @@ class DashboardWidget(TranslatableWidget):
                 # Use the stored dictionary to find the card
                 if card_index in self.glue_cards_dict:
                     card = self.glue_cards_dict[card_index]
-                    print(f"Found card with index {card_index}, updating combo to {selected_glue_type}")
-                    card.glue_type_combo.setCurrentText(selected_glue_type)
+                    print(f"Found card with index {card_index}, updating button to {selected_glue_type}")
+                    # Update button text to show new glue type
+                    card.glue_type_button.setText(selected_glue_type)
                 else:
                     print(f"Warning: Card with index {card_index} not found in dictionary")
                     print(f"Available card indices: {list(self.glue_cards_dict.keys())}")
