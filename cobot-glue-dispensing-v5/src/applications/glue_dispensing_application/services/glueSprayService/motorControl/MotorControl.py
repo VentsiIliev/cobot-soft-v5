@@ -22,9 +22,6 @@ DEFAULT_RAMP_STEPS = 1
 DEFAULT_HEALTH_CHECK_DELAY = 3  # seconds
 DEFAULT_RAMP_STEP_DELAY = 0.001  # seconds
 
-
-
-
 class MotorControl(ModbusController):
     def __init__(self,motorSlaveId=1):
         super().__init__()
