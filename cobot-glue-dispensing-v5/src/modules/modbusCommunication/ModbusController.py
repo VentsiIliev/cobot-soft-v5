@@ -19,6 +19,7 @@ class ModbusClientConfig:
     stop_bits: int
     timeout:float  # 20 ms timeout
     inter_byte_timeout: float  # 10 ms delay
+    max_retries: int
 
 
 config = ModbusClientConfig(
@@ -29,7 +30,8 @@ config = ModbusClientConfig(
     parity=ModbusParity.NONE,
     stop_bits=1,
     timeout=0.02,  # 20 ms timeout
-    inter_byte_timeout=0.01  # 10 ms delay
+    inter_byte_timeout=0.01,  # 10 ms delay
+    max_retries=30
 )
 
 class ModbusController:
@@ -39,7 +41,7 @@ class ModbusController:
         port = config.port
         # port = "/dev/ttyS1"
         # client = minimalmodbus.Instrument(port, slaveId)
-        client = ModbusClient(slave=slaveId, port=port)
+        client = ModbusClient(slave=slaveId, port=port,max_retries=config.max_retries)
         # print(f"Connected Port: {port} Slave Id: {slaveId}")
 
         """CLIENT CONFIG"""
