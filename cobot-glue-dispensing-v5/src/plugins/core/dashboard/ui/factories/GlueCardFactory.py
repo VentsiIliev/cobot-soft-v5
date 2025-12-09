@@ -1,8 +1,6 @@
-from PyQt6.QtWidgets import QComboBox
 from PyQt6.QtCore import Qt
 
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from plugins.core.dashboard.ui.widgets.DashboardCard import DashboardCard
 from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
 from frontend.widgets.MaterialButton import MaterialButton

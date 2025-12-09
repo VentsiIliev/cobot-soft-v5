@@ -150,23 +150,17 @@ class DashboardWidget(TranslatableWidget):
     def create_glue_card(self, index: int, label_text: str) -> DashboardCard:
         """Create glue card using factory"""
         card = self.card_factory.create_glue_card(index, label_text, self.shared_card_container)
-        # Connect button click to wizard
+        # Connect button click and long press to wizard
         card.glue_type_button.clicked.connect(
-            lambda checked=False, idx=index: self.on_glue_button_clicked(idx)
+            lambda checked=False, idx=index: self.show_glue_change_wizard(idx)
         )
-        # Connect long press signal
-        card.long_press_detected.connect(self.on_glue_card_long_press)
+        card.long_press_detected.connect(self.show_glue_change_wizard)
 
         return card
 
     """GLUE DISPENSING APPLICATION SPECIFIC"""
-    def on_glue_button_clicked(self, card_index: int):
-        """Handle glue type button click - show glue change wizard"""
-        self.on_glue_card_long_press(card_index)
-
-    """GLUE DISPENSING APPLICATION SPECIFIC"""
-    def on_glue_card_long_press(self, card_index: int):
-        """Handle long press on glue card - show glue change wizard"""
+    def show_glue_change_wizard(self, card_index: int):
+        """Show glue change wizard for button click or long press"""
         wizard = SetupWizard()
         wizard.setWindowTitle(f"Change Glue for Cell {card_index}")
 
