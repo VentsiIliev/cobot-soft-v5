@@ -42,7 +42,7 @@ class GlueCardFactory:
             glue_type_names = get_all_glue_type_names()
         except Exception as e:
             print(f"Failed to load glue types: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+            glue_type_names = ["Register glue types..."]
 
         combo.addItems(glue_type_names)
 
@@ -50,7 +50,7 @@ class GlueCardFactory:
         if cell:
             combo.setCurrentText(str(cell.glueType))
         else:
-            combo.setCurrentText("Type A")
+            combo.setCurrentText("Glue Type Not Set")
 
         combo.setObjectName(f"glue_combo_{index}")
 

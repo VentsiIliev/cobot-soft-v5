@@ -84,6 +84,7 @@ class DashboardMessageManager:
         # self.broker.subscribe("glueType", callback)
         # self.subscriptions.append(("glueType", callback))
         pass
+
     def cleanup(self) -> None:
         """Unsubscribe from all topics"""
         for topic, callback in self.subscriptions:

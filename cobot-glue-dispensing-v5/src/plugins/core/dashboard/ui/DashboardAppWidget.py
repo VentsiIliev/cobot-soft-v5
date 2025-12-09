@@ -143,10 +143,13 @@ class DashboardAppWidget(AppWidget):
         self.LOGOUT_REQUEST.emit()
 
     def on_glue_type_changed(self, index,glue_type):
-        print(f"Glue type of {index} changed to: {glue_type} ")
-
-        manager = GlueCellsManagerSingleton.get_instance()
-        manager.updateGlueTypeById(index,glue_type)
+        # this was used to change glue type cell config in glue manager
+        # from the dropdown in the dashboard card but now we use the setup wizard instead
+        # print(f"Glue type of {index} changed to: {glue_type} ")
+        #
+        # manager = GlueCellsManagerSingleton.get_instance()
+        # manager.updateGlueTypeById(index,glue_type)
+        pass
 
     def clean_up(self):
         """Clean up resources when the widget is closed"""
