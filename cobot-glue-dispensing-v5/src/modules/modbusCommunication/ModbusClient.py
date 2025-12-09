@@ -18,7 +18,7 @@ class ModbusClient:
                                            used for Modbus communication.
     """
     def __init__(self, slave=10, port='COM5', baudrate=115200, bytesize=8,
-                 stopbits=1, timeout=0.01,parity = minimalmodbus.serial.PARITY_NONE):
+                 stopbits=1, timeout=0.01,parity = minimalmodbus.serial.PARITY_NONE,max_retries=30):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.slave = slave
         try:
@@ -33,9 +33,10 @@ class ModbusClient:
         self.client.serial.stopbits = stopbits
         self.client.serial.timeout = timeout
         self.client.serial.parity = parity
+        self.max_retries = max_retries
 
     def writeRegister(self, register, value, signed=False):
-        maxAttempts = 30
+        maxAttempts = self.max_retries
         attempts = 0
         while attempts < maxAttempts:
             with modbus_lock:
@@ -59,7 +60,7 @@ class ModbusClient:
         return ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
 
     def writeRegisters(self, start_register, values):
-        maxAttempts = 30
+        maxAttempts = self.max_retries
         attempts = 0
         while attempts < maxAttempts:
             with modbus_lock:
@@ -85,7 +86,7 @@ class ModbusClient:
         return ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
 
     def readRegisters(self, start_register, count):
-        maxAttempts = 30
+        maxAttempts = self.max_retries
         attempts = 0
         while attempts < maxAttempts:
             with modbus_lock:
@@ -107,7 +108,7 @@ class ModbusClient:
         return None, ModbusExceptionType.MODBUS_EXCEPTION  # Fallback
 
     def read(self, register):
-        maxAttempts = 30
+        maxAttempts = self.max_retries
         attempts = 0
         while attempts < maxAttempts:
             with modbus_lock:
@@ -132,7 +133,7 @@ class ModbusClient:
             return self.client.read_bit(address,functioncode=functioncode)
 
     def writeBit(self,address,value):
-        maxAttempts = 30
+        maxAttempts = self.max_retries
         attempts = 0
         while attempts < maxAttempts:
             with modbus_lock:
