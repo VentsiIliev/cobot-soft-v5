@@ -7,6 +7,7 @@ from communication_layer.api.v1 import Constants
 from communication_layer.api.v1.Response import Response
 from communication_layer.api.v1.endpoints import glue_endpoints, settings_endpoints
 from communication_layer.api_gateway.interfaces.dispatch import IDispatcher
+from applications.glue_dispensing_application.handlers.glue_types_handler import GlueTypesHandler
 
 
 class SettingsDispatch(IDispatcher):
@@ -24,7 +25,8 @@ class SettingsDispatch(IDispatcher):
             settingsController: Settings controller instance
         """
         self.settingsController = settingsController
-    
+        self.glue_types_handler = GlueTypesHandler()
+
     def dispatch(self, parts: list, request: str, data: dict = None) -> dict:
         """
         Route settings requests to appropriate handlers.
@@ -40,8 +42,14 @@ class SettingsDispatch(IDispatcher):
         print(f"SettingsDispatch: Handling request: {request} with parts: {parts} and data: {data}")
         
         # Handle both new RESTful endpoints and legacy endpoints
+        # Glue types endpoints (NEW)
+        if request in [glue_endpoints.GLUE_TYPES_GET,
+                       glue_endpoints.GLUE_TYPE_ADD_CUSTOM,
+                       glue_endpoints.GLUE_TYPES_SET,
+                       glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM]:
+            return self.handle_glue_types(parts, request, data)
         # Robot settings
-        if request in [settings_endpoints.SETTINGS_ROBOT_GET]:
+        elif request in [settings_endpoints.SETTINGS_ROBOT_GET]:
             return self.handle_robot_settings(parts, request, data)
         elif request in [settings_endpoints.SETTINGS_ROBOT_SET]:
             return self.handle_robot_settings(parts, request, data)
@@ -253,55 +261,66 @@ class SettingsDispatch(IDispatcher):
         
         return self.settingsController.handle(request, parts, data)
     
-    def handle_settings_get(self, domain=None):
+    def handle_glue_types(self, parts, request, data=None):
         """
-        Handle settings retrieval operations.
-        
+        Handle glue types management operations.
+
         Args:
-            domain (str): Settings domain (robot, camera, glue, or None for all)
-            
+            parts (list): Parsed request parts
+            request (str): Full request string
+            data: Request data
+
         Returns:
-            dict: Response with settings data
+            dict: Response with glue types data or operation result
         """
-        print(f"SettingsHandler: Handling settings get for domain: {domain}")
-        
+        print(f"SettingsHandler: Handling glue types: {request} with data: {data}")
+
         try:
-            if domain:
-                # Domain-specific settings
-                request = f"settings/{domain}/get"
+            if request == glue_endpoints.GLUE_TYPES_GET:
+                # Get all glue types
+                success, message, glue_types = self.glue_types_handler.handle_get_glue_types(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message,
+                    data={"glue_types": glue_types}
+                ).to_dict()
+
+            elif request == glue_endpoints.GLUE_TYPE_ADD_CUSTOM:
+                # Add new glue type
+                success, message, glue_data = self.glue_types_handler.handle_add_glue_type(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message,
+                    data={"glue": glue_data} if glue_data else None
+                ).to_dict()
+
+            elif request == glue_endpoints.GLUE_TYPES_SET:
+                # Update existing glue type
+                success, message = self.glue_types_handler.handle_update_glue_type(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message
+                ).to_dict()
+
+            elif request == glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM:
+                # Remove glue type
+                success, message = self.glue_types_handler.handle_remove_glue_type(data)
+                return Response(
+                    Constants.RESPONSE_STATUS_SUCCESS if success else Constants.RESPONSE_STATUS_ERROR,
+                    message=message
+                ).to_dict()
+
             else:
-                # All settings
-                request = "settings/get"
-            
-            return self.settingsController.handle(request, [], None)
-            
+                return Response(
+                    Constants.RESPONSE_STATUS_ERROR,
+                    message=f"Unknown glue types request: {request}"
+                ).to_dict()
+
         except Exception as e:
-            print(f"SettingsHandler: Error getting settings: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"SettingsHandler: Error handling glue types: {e}")
             return Response(
                 Constants.RESPONSE_STATUS_ERROR,
-                message=f"Error getting settings: {e}"
-            ).to_dict()
-    
-    def handle_settings_set(self, domain, data):
-        """
-        Handle settings update operations.
-        
-        Args:
-            domain (str): Settings domain (robot, camera, glue)
-            data (dict): Settings data to update
-            
-        Returns:
-            dict: Response indicating success or failure
-        """
-        print(f"SettingsHandler: Handling settings set for domain: {domain}")
-        
-        try:
-            request = f"settings/{domain}/set"
-            return self.settingsController.handle(request, [], data)
-            
-        except Exception as e:
-            print(f"SettingsHandler: Error setting settings: {e}")
-            return Response(
-                Constants.RESPONSE_STATUS_ERROR,
-                message=f"Error setting settings: {e}"
+                message=f"Error handling glue types: {e}"
             ).to_dict()

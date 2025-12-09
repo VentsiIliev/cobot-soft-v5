@@ -34,6 +34,12 @@ class UIController:
             settings_endpoints.SETTINGS_ROBOT_CALIBRATION_SET: self.handle_update_robot_calibration_settings,
             settings_endpoints.SETTINGS_ROBOT_CALIBRATION_GET: self.handle_get_robot_calibration_settings,
             
+            # Glue types endpoints
+            glue_endpoints.GLUE_TYPES_GET: self.handleGetGlueTypes,
+            glue_endpoints.GLUE_TYPE_ADD_CUSTOM: self.handleAddGlueType,
+            glue_endpoints.GLUE_TYPES_SET: self.handleUpdateGlueType,
+            glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM: self.handleRemoveGlueType,
+
             # Authentication endpoints
             auth_endpoints.LOGIN: self.handleLogin,
             auth_endpoints.QR_LOGIN: self.handleQrLogin,
@@ -734,4 +740,44 @@ class UIController:
 
     def handleExecuteFromGallery(self, workpiece):
         self.requestSender.send_request("handleExecuteFromGallery", workpiece)
+
+    # Glue Types Management Methods
+    def handleGetGlueTypes(self):
+        """Get all glue types"""
+        request = glue_endpoints.GLUE_TYPES_GET
+        response_dict = self.requestSender.send_request(request, {})
+        return response_dict
+
+    def handleAddGlueType(self, name, description=""):
+        """Add new glue type"""
+        request = glue_endpoints.GLUE_TYPE_ADD_CUSTOM
+        data = {
+            "header": glue_endpoints.REQUEST_RESOURCE_GLUE,
+            "name": name,
+            "description": description
+        }
+        response_dict = self.requestSender.send_request(request, data)
+        return response_dict
+
+    def handleUpdateGlueType(self, glue_id, name, description=""):
+        """Update existing glue type"""
+        request = glue_endpoints.GLUE_TYPES_SET
+        data = {
+            "header": glue_endpoints.REQUEST_RESOURCE_GLUE,
+            "id": glue_id,
+            "name": name,
+            "description": description
+        }
+        response_dict = self.requestSender.send_request(request, data)
+        return response_dict
+
+    def handleRemoveGlueType(self, glue_id):
+        """Remove glue type"""
+        request = glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM
+        data = {
+            "header": glue_endpoints.REQUEST_RESOURCE_GLUE,
+            "id": glue_id
+        }
+        response_dict = self.requestSender.send_request(request, data)
+        return response_dict
 

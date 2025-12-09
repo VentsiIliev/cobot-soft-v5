@@ -34,6 +34,12 @@ class GlueTypeManagementTab(QWidget):
     glue_type_removed = pyqtSignal(str)  # name
     glue_type_edited = pyqtSignal(str, str, str)  # old_name, new_name, description
 
+    # Request signals to communicate with parent plugin
+    glue_types_load_requested = pyqtSignal()  # Request to load all types
+    glue_type_add_requested = pyqtSignal(str, str)  # name, description
+    glue_type_update_requested = pyqtSignal(str, str, str)  # id, name, description
+    glue_type_remove_requested = pyqtSignal(str)  # id
+
     # Built-in glue types (cannot be removed or edited)
     BUILTIN_TYPES = ["Type A", "Type B", "Type C", "Type D"]
 
@@ -224,7 +230,7 @@ class GlueTypeManagementTab(QWidget):
         self.show_form("Edit Custom Glue Type")
 
     def save_glue_type(self):
-        """Save the glue type (add or edit)."""
+        """Emit signal to save glue type (parent will call API)."""
         name = self.input_name.text().strip()
         description = self.input_desc.text().strip()
 
@@ -237,84 +243,45 @@ class GlueTypeManagementTab(QWidget):
             return
 
         if self.editing_name is None:
-            # Adding new type
-            # Check for duplicates
-            all_types = self.BUILTIN_TYPES + [t['name'] for t in self.custom_glue_types]
-            if name in all_types:
-                QMessageBox.warning(
-                    self,
-                    "Duplicate Error",
-                    f"Glue type '{name}' already exists.\nPlease choose a different name."
-                )
-                return
-
-            # Add custom type
-            custom_type = {
-                'name': name,
-                'description': description
-            }
-
-            self.custom_glue_types.append(custom_type)
-
-            # Emit signal
-            self.glue_type_added.emit(name, description)
-
-            # Hide form and refresh
-            self.hide_form()
-            self.refresh_table()
-
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Custom glue type '{name}' added successfully!"
-            )
-
+            # Adding new type - emit add signal
+            self.glue_type_add_requested.emit(name, description)
         else:
-            # Editing existing type
-            # Check for duplicates (excluding current name)
-            all_types = self.BUILTIN_TYPES + [
-                t['name'] for t in self.custom_glue_types if t['name'] != self.editing_name
-            ]
-            if name in all_types:
-                QMessageBox.warning(
-                    self,
-                    "Duplicate Error",
-                    f"Glue type '{name}' already exists.\nPlease choose a different name."
-                )
+            # Editing existing type - emit update signal with ID
+            glue_id = None
+            for glue in self.custom_glue_types:
+                if glue['name'] == self.editing_name:
+                    glue_id = glue.get('id')
+                    break
+
+            if glue_id:
+                self.glue_type_update_requested.emit(glue_id, name, description)
+            else:
+                QMessageBox.warning(self, "Error", "Could not find glue type ID")
                 return
 
-            # Find and update custom type
-            custom_type = next((t for t in self.custom_glue_types if t['name'] == self.editing_name), None)
-            if custom_type:
-                old_name = self.editing_name
-                custom_type['name'] = name
-                custom_type['description'] = description
-
-                # Emit signal
-                self.glue_type_edited.emit(old_name, name, description)
-
-                # Hide form and refresh
-                self.hide_form()
-                self.refresh_table()
-
-                QMessageBox.information(
-                    self,
-                    "Success",
-                    f"Glue type updated successfully!"
-                )
+        self.hide_form()
 
     def cancel_edit(self):
         """Cancel adding/editing."""
         self.hide_form()
 
     def remove_selected_type(self):
-        """Remove selected custom glue type."""
+        """Emit signal to remove glue type."""
         selected_items = self.table.selectedItems()
         if not selected_items:
             return
 
         row = selected_items[0].row()
         name = self.table.item(row, 0).text()
+
+        # Built-in types cannot be removed
+        if name in self.BUILTIN_TYPES:
+            QMessageBox.warning(
+                self,
+                "Cannot Remove",
+                f"Built-in type '{name}' cannot be removed."
+            )
+            return
 
         # Confirm deletion
         reply = QMessageBox.question(
@@ -327,23 +294,17 @@ class GlueTypeManagementTab(QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Remove from list
-            self.custom_glue_types = [
-                t for t in self.custom_glue_types
-                if t['name'] != name
-            ]
+            # Find glue ID and emit signal
+            glue_id = None
+            for glue in self.custom_glue_types:
+                if glue['name'] == name:
+                    glue_id = glue.get('id')
+                    break
 
-            # Emit signal
-            self.glue_type_removed.emit(name)
-
-            # Refresh table
-            self.refresh_table()
-
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Glue type '{name}' deleted successfully."
-            )
+            if glue_id:
+                self.glue_type_remove_requested.emit(glue_id)
+            else:
+                QMessageBox.warning(self, "Error", "Could not find glue type ID")
 
     def refresh_table(self):
         """Refresh table with current glue types."""
@@ -421,6 +382,27 @@ class GlueTypeManagementTab(QWidget):
         """
         self.custom_glue_types = custom_types.copy()
         self.refresh_table()
+
+    def update_glue_types_from_response(self, response):
+        """
+        Update table from API response.
+
+        Args:
+            response: Response dictionary from API with glue types data
+        """
+        if isinstance(response, dict) and response.get("status") == "success":
+            glue_types_data = response.get("data", {}).get("glue_types", [])
+
+            # Clear and reload
+            self.custom_glue_types.clear()
+            for glue_data in glue_types_data:
+                self.custom_glue_types.append({
+                    "id": glue_data.get("id"),
+                    "name": glue_data.get("name"),
+                    "description": glue_data.get("description", "")
+                })
+
+            self.refresh_table()
 
 
 if __name__ == "__main__":

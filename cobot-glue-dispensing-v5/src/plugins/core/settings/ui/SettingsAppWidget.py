@@ -55,6 +55,9 @@ class SettingsAppWidget(AppWidget):
                 self.content_widget.update_camera_feed_requested.connect(lambda: updateCameraFeedCallback())
                 self.content_widget.raw_mode_requested.connect(lambda state: onRawModeRequested(state))
 
+                # Connect glue types management signals if glue settings tab exists
+                self._setup_glue_types_signals()
+
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -103,6 +106,82 @@ class SettingsAppWidget(AppWidget):
             print(f"❌ Settings update failed: {result.message}")
             # Could show error dialog here
     
+    def _setup_glue_types_signals(self):
+        """Setup signal connections for glue types management."""
+        if not hasattr(self.content_widget, 'glueSettingsTabLayout'):
+            return
+
+        glue_layout = self.content_widget.glueSettingsTabLayout
+        if not hasattr(glue_layout, 'glue_type_tab'):
+            return
+
+        tab = glue_layout.glue_type_tab
+
+        # Connect request signals to controller
+        tab.glue_types_load_requested.connect(self._handle_load_glue_types)
+        tab.glue_type_add_requested.connect(self._handle_add_glue_type)
+        tab.glue_type_update_requested.connect(self._handle_update_glue_type)
+        tab.glue_type_remove_requested.connect(self._handle_remove_glue_type)
+
+        # Initial load
+        self._handle_load_glue_types()
+
+    def _handle_load_glue_types(self):
+        """Load glue types via controller."""
+        from communication_layer.api.v1.endpoints import glue_endpoints
+        from communication_layer.api.v1.Response import Response
+
+        response_dict = self.controller.handle(glue_endpoints.GLUE_TYPES_GET)
+
+        # Update UI with response
+        if hasattr(self.content_widget, 'glueSettingsTabLayout'):
+            glue_layout = self.content_widget.glueSettingsTabLayout
+            if hasattr(glue_layout, 'glue_type_tab'):
+                glue_layout.glue_type_tab.update_glue_types_from_response(response_dict)
+
+    def _handle_add_glue_type(self, name: str, description: str):
+        """Add glue type via controller."""
+        from communication_layer.api.v1.Response import Response
+        from PyQt6.QtWidgets import QMessageBox
+
+        response_dict = self.controller.handleAddGlueType(name, description)
+        response = Response.from_dict(response_dict)
+
+        if response.status == "success":
+            # Reload all glue types
+            self._handle_load_glue_types()
+            QMessageBox.information(self, "Success", response.message or "Glue type added successfully")
+        else:
+            QMessageBox.warning(self, "Error", response.message or "Failed to add glue type")
+
+    def _handle_update_glue_type(self, glue_id: str, name: str, description: str):
+        """Update glue type via controller."""
+        from communication_layer.api.v1.Response import Response
+        from PyQt6.QtWidgets import QMessageBox
+
+        response_dict = self.controller.handleUpdateGlueType(glue_id, name, description)
+        response = Response.from_dict(response_dict)
+
+        if response.status == "success":
+            self._handle_load_glue_types()
+            QMessageBox.information(self, "Success", response.message or "Glue type updated successfully")
+        else:
+            QMessageBox.warning(self, "Error", response.message or "Failed to update glue type")
+
+    def _handle_remove_glue_type(self, glue_id: str):
+        """Remove glue type via controller."""
+        from communication_layer.api.v1.Response import Response
+        from PyQt6.QtWidgets import QMessageBox
+
+        response_dict = self.controller.handleRemoveGlueType(glue_id)
+        response = Response.from_dict(response_dict)
+
+        if response.status == "success":
+            self._handle_load_glue_types()
+            QMessageBox.information(self, "Success", response.message or "Glue type deleted successfully")
+        else:
+            QMessageBox.warning(self, "Error", response.message or "Failed to delete glue type")
+
     def clean_up(self):
         """Clean up resources when widget is destroyed"""
         if hasattr(self, 'content_widget') and self.content_widget:

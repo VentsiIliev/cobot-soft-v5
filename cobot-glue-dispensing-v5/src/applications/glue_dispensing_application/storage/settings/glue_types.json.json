@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "glue_types": [
+    {
+      "id": "3081c54c-fe04-424c-b5ae-28837d896a91",
+      "name": "TEST TYPE",
+      "description": "TEST DESC"
+    }
+  ]
+}
