@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt, QThread, QObject, QRunnable, pyqtSlot
 from PyQt6.QtWidgets import QScroller
 from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QWidget, QHBoxLayout,
                              QSizePolicy, QComboBox,
-                             QScrollArea, QGroupBox, QGridLayout)
+                             QScrollArea, QGroupBox, QGridLayout, QTabWidget)
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.core.utils.localization import TranslationKeys, get_app_translator
 from applications.glue_dispensing_application.settings.GlueSettings import GlueSettingKey
@@ -14,6 +14,7 @@ from frontend.widgets.SwitchButton import QToggle
 from frontend.widgets.ToastWidget import ToastWidget
 from plugins.core.glue_settings_plugin.ui.generator_workers import GeneratorWorker, RefreshGeneratorWorker
 from plugins.core.glue_settings_plugin.ui.motor_workers import MotorWorker, RefreshMotorsWorker
+from plugins.core.glue_settings_plugin.ui.GlueTypeManagementTab import GlueTypeManagementTab
 
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 # import pyqtSignal
@@ -124,13 +125,34 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             if child.widget():
                 child.widget().setParent(None)
     def create_main_content(self):
-        """Create the main scrollable content area with responsive layout"""
+        """Create the main content with tab widget structure"""
+        # Create tab widget
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setContentsMargins(0, 0, 0, 0)
+
+        # Create the main settings tab (contains all current content)
+        main_tab = self._create_main_settings_tab()
+        self.tab_widget.addTab(main_tab, "Glue Settings")
+
+        # Create and add the Glue Type Management tab
+        self.glue_type_tab = GlueTypeManagementTab(self.parent_widget)
+        self.tab_widget.addTab(self.glue_type_tab, "Glue Type Management")
+
+        # Connect signals from GlueTypeManagementTab if needed
+        self.glue_type_tab.glue_type_added.connect(self._on_glue_type_added)
+        self.glue_type_tab.glue_type_removed.connect(self._on_glue_type_removed)
+        self.glue_type_tab.glue_type_edited.connect(self._on_glue_type_edited)
+
+        # Add tab widget to main layout
+        self.addWidget(self.tab_widget)
+
+    def _create_main_settings_tab(self):
+        """Create the main settings tab content with all existing sections"""
         # Create scroll area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        # After self.table is created
         QScroller.grabGesture(scroll_area.viewport(), QScroller.ScrollerGestureType.TouchGesture)
 
         # Create main content widget
@@ -140,26 +162,18 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         content_layout.setSpacing(20)
         content_layout.setContentsMargins(20, 20, 20, 20)
 
+        # Add all existing content sections
         self.add_settings_desktop(content_layout)
-
         self.add_device_control_group(content_layout)
         self.add_glue_dispensing_group(content_layout)
         self.connectDeviceControlCallbacks()
-
         self.addRobotMotionButtonsGroup(content_layout)
 
         # Add stretch at the end
         content_layout.addStretch()
 
         scroll_area.setWidget(content_widget)
-
-        # Add scroll area to main layout
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.addWidget(scroll_area)
-
-        self.addWidget(scroll_widget)
+        return scroll_area
 
     def create_settings_control_groups(self):
         self.spray_group = self.create_spray_settings_group()
@@ -1159,5 +1173,25 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         if self.parent_widget:
             toast = ToastWidget(self.parent_widget, message, 5)
             toast.show()
+
+    # Signal handlers for Glue Type Management Tab
+    def _on_glue_type_added(self, name: str, description: str):
+        """Handle when a new custom glue type is added."""
+        print(f"Glue type added: {name} - {description}")
+        # TODO: Update glue type dropdown in main settings if needed
+        # self.dropdown.addItem(name)
+
+    def _on_glue_type_removed(self, name: str):
+        """Handle when a custom glue type is removed."""
+        print(f"Glue type removed: {name}")
+        # TODO: Remove from dropdown if needed
+        # index = self.dropdown.findText(name)
+        # if index >= 0:
+        #     self.dropdown.removeItem(index)
+
+    def _on_glue_type_edited(self, old_name: str, new_name: str, description: str):
+        """Handle when a custom glue type is edited."""
+        print(f"Glue type edited: {old_name} -> {new_name} - {description}")
+        # TODO: Update dropdown if needed
 
 

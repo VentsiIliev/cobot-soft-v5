@@ -23,6 +23,11 @@ GLUE_CELL_CALIBRATE = "/api/v1/settings/glue/cells/calibrate"
 GLUE_CELL_TARE = "/api/v1/settings/glue/cells/tare"
 GLUE_CELL_UPDATE_TYPE = "/api/v1/settings/glue/cells/type"
 
+GLUE_TYPES_GET = "/api/v1/settings/glue/types/get"
+GLUE_TYPES_SET = "/api/v1/settings/glue/types/set"
+GLUE_TYPE_ADD_CUSTOM = "/api/v1/settings/glue/types/add/custom"
+GLUE_TYPE_REMOVE_CUSTOM = "/api/v1/settings/glue/types/remove/custom"
+
 
 # Glue application specific operations
 GLUE_NOZZLE_CLEAN = "glue/nozzle/clean"
