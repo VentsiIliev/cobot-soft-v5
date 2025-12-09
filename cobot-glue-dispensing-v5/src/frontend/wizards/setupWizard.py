@@ -6,6 +6,7 @@ from PyQt6.QtGui import QPixmap, QFont, QColor, QIcon
 import sys
 
 from frontend.widgets.MaterialButton import MaterialButton
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 
 class WizardStep(QWizardPage):
@@ -147,26 +148,34 @@ class SelectGlueTypeStep(WizardStep):
         self.content_layout.addWidget(glue_label)
 
         self.glue_group = QButtonGroup(self)
+        self.radio_buttons = []
 
-        self.glue_type1_radio = QRadioButton("Type A")
-        self.glue_type2_radio = QRadioButton("Type B")
-        self.glue_type3_radio = QRadioButton("Type C")
-        self.glue_type4_radio = QRadioButton("Type D")
-        self.glue_type1_radio.setStyleSheet("font-size: 14px;")
-        self.glue_type2_radio.setStyleSheet("font-size: 14px;")
-        self.glue_type3_radio.setStyleSheet("font-size: 14px;")
-        self.glue_type4_radio.setStyleSheet("font-size: 14px;")
-        self.glue_type1_radio.setChecked(True)
+        # Load glue types dynamically from API
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
 
-        self.glue_group.addButton(self.glue_type1_radio, 1)
-        self.glue_group.addButton(self.glue_type2_radio, 2)
-        self.glue_group.addButton(self.glue_type3_radio, 3)
-        self.glue_group.addButton(self.glue_type4_radio, 4)
+        # Create radio button for each glue type
+        for idx, glue_type_name in enumerate(glue_type_names):
+            radio = QRadioButton(glue_type_name)
+            radio.setStyleSheet("font-size: 14px;")
 
-        self.content_layout.addWidget(self.glue_type1_radio)
-        self.content_layout.addWidget(self.glue_type2_radio)
-        self.content_layout.addWidget(self.glue_type3_radio)
-        self.content_layout.addWidget(self.glue_type4_radio)
+            # Set first option as default
+            if idx == 0:
+                radio.setChecked(True)
+
+            self.glue_group.addButton(radio, idx)
+            self.radio_buttons.append(radio)
+            self.content_layout.addWidget(radio)
+
+    def get_selected_glue_type(self):
+        """Get the currently selected glue type name."""
+        for radio in self.radio_buttons:
+            if radio.isChecked():
+                return radio.text()
+        return self.radio_buttons[0].text() if self.radio_buttons else "Type A"
 
 
 class SummaryStep(WizardStep):
@@ -189,11 +198,7 @@ class SummaryStep(WizardStep):
     def initializePage(self):
         """Update summary when page is shown"""
         glue_page = self.wizard().page(6)
-        glue_type = "Glue Type A"
-        if glue_page.glue_type2_radio.isChecked():
-            glue_type = "Glue Type B"
-        elif glue_page.glue_type3_radio.isChecked():
-            glue_type = "Glue Type C"
+        glue_type = glue_page.get_selected_glue_type()
 
         summary = f"""
 <b>Glue Change Steps Completed:</b><br>
@@ -252,15 +257,7 @@ class SetupWizard(QWizard):
     def get_selected_glue_type(self):
         """Get the selected glue type from the wizard"""
         glue_page = self.page(6)
-        if glue_page.glue_type1_radio.isChecked():
-            return "Type A"
-        elif glue_page.glue_type2_radio.isChecked():
-            return "Type B"
-        elif glue_page.glue_type3_radio.isChecked():
-            return "Type C"
-        elif hasattr(glue_page, 'glue_type4_radio') and glue_page.glue_type4_radio.isChecked():
-            return "Type D"
-        return "Type A"  # Default
+        return glue_page.get_selected_glue_type()
 
     def customize_buttons(self):
         """Replace wizard buttons with MaterialButton instances"""

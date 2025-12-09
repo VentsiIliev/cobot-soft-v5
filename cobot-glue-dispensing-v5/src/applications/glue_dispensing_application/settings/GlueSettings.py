@@ -6,7 +6,6 @@ from core.application.interfaces.application_settings_interface import Applicati
 from core.model.settings.BaseSettings import Settings
 
 from communication_layer.api.v1.endpoints import glue_endpoints
-from modules.shared.tools.GlueCell import GlueType
 
 
 class GlueSettings(Settings, ApplicationSettingsInterface):
@@ -29,7 +28,7 @@ class GlueSettings(Settings, ApplicationSettingsInterface):
         self.set_value(GlueSettingKey.REVERSE_DURATION.value, 1)
         self.set_value(GlueSettingKey.SPEED_REVERSE.value, 1000)
         self.set_value(GlueSettingKey.RZ_ANGLE.value, 0)
-        self.set_value(GlueSettingKey.GLUE_TYPE.value, GlueType.TypeA.value)
+        self.set_value(GlueSettingKey.GLUE_TYPE.value, "Type A")
         self.set_value(GlueSettingKey.GENERATOR_TIMEOUT.value, 5.0)
         self.set_value(GlueSettingKey.TIME_BEFORE_MOTION.value, 1.0)
         self.set_value(GlueSettingKey.TIME_BEFORE_STOP.value, 1)
@@ -62,7 +61,7 @@ class GlueSettings(Settings, ApplicationSettingsInterface):
             GlueSettingKey.REVERSE_DURATION.value: 1,
             GlueSettingKey.SPEED_REVERSE.value: 1000,
             GlueSettingKey.RZ_ANGLE.value: 0,
-            GlueSettingKey.GLUE_TYPE.value: GlueType.TypeA.value,
+            GlueSettingKey.GLUE_TYPE.value: "Type A",
             GlueSettingKey.GENERATOR_TIMEOUT.value: 5.0,
             GlueSettingKey.TIME_BEFORE_MOTION.value: 1.0,
             GlueSettingKey.TIME_BEFORE_STOP.value: 1,
@@ -96,10 +95,12 @@ class GlueSettings(Settings, ApplicationSettingsInterface):
                     return False, f"Fan speed must be between 0 and 100, got: {value}"
                 
                 if key == GlueSettingKey.GLUE_TYPE.value:
-                    valid_types = [glue_type.value for glue_type in GlueType]
-                    if value not in valid_types:
-                        return False, f"Invalid glue type: {value}, valid types: {valid_types}"
-                
+                    # Glue type validation - accept any string (dynamic types from database)
+                    if not isinstance(value, str):
+                        return False, f"Glue type must be a string, got: {type(value).__name__}"
+                    if not value.strip():
+                        return False, f"Glue type cannot be empty"
+
                 # Add more validations as needed
                 
             return True, ""

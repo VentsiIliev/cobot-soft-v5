@@ -4,7 +4,7 @@ from enum import Enum
 from typing_extensions import deprecated
 
 
-@deprecated
+# @deprecated
 class GlueType(Enum):
     """
     DEPRECATED: This enum is deprecated and will be removed in a future version.

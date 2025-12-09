@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QComboBox
 
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from plugins.core.dashboard.ui.widgets.DashboardCard import DashboardCard
 from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
 
@@ -37,18 +37,23 @@ class GlueCardFactory:
     def _create_combo_box(self, index: int) -> QComboBox:
         """Create and configure combo box"""
         combo = QComboBox()
-        combo.addItems([glue_type.value for glue_type in GlueType])
 
-        # Get the current glue type from the configuration
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+
+        combo.addItems(glue_type_names)
+
         cell = self.glue_cells_manager.getCellById(index)
         if cell:
-            combo.setCurrentText(cell.glueType.value)
+            combo.setCurrentText(str(cell.glueType))
         else:
-            combo.setCurrentText("Type A")  # Fallback to Type A if cell not found
+            combo.setCurrentText("Type A")
 
         combo.setObjectName(f"glue_combo_{index}")
 
-        # Apply styling
         stylesheet = self.config.combo_style.generate_stylesheet(f"glue_combo_{index}")
         combo.setStyleSheet(stylesheet)
 

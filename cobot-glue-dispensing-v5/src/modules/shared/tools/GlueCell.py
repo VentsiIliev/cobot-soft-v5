@@ -1,6 +1,6 @@
 from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
 from modules.shared.tools.glue_monitor_system.glue_meter import GlueMeter
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 
 class GlueCell:
     """
@@ -8,7 +8,7 @@ class GlueCell:
 
     Attributes:
         id (int): The unique identifier for the glue cell.
-        glueType (GlueType): The type of glue used in the cell.
+        glueType (str): The type of glue used in the cell (e.g., "Type A", "Custom Glue X").
         glueMeter (GlueMeter): The glue meter associated with the cell for measuring glue weight.
         capacity (int): The maximum capacity of the glue cell.
 
@@ -20,18 +20,18 @@ class GlueCell:
         getGlueInfo(): Retrieves the current glue weight and percentage of capacity used.
     """
 
-    def __init__(self, id, glueType, glueMeter, capacity):
+    def __init__(self, id, glueType: str, glueMeter, capacity):
         """
         Initializes a GlueCell instance.
 
         Args:
             id (int): The unique identifier for the glue cell.
-            glueType (GlueType): The type of glue used in the cell.
+            glueType (str): The type of glue (e.g., "Type A", "Custom Glue X").
             glueMeter (GlueMeter): The glue meter associated with the cell.
             capacity (int): The maximum capacity of the glue cell.
 
         Raises:
-            TypeError: If glueType is not an instance of GlueType or glueMeter is not an instance of GlueMeter.
+            TypeError: If glueMeter is not an instance of GlueMeter.
             ValueError: If capacity is less than or equal to 0.
         """
         self.logTag = "GlueCell"
@@ -49,19 +49,15 @@ class GlueCell:
         """
         self.id = id
 
-    def setGlueType(self, glueType):
+    def setGlueType(self, glueType: str):
         """
         Sets the type of glue used in the cell.
 
         Args:
-            glueType (GlueType): The type of glue used in the cell.
-
-        Raises:
-            TypeError: If glueType is not an instance of GlueType.
+            glueType (str): The type of glue (e.g., "Type A", "Custom Glue X").
         """
-        if not isinstance(glueType, GlueType):
-            raise TypeError(f"[DEBUG] [{self.logTag}] glueType must be an instance of GlueType class, got {type(glueType)}")
-        self.glueType = glueType
+        # Still use migration function for backward compatibility (handles enum if passed)
+        self.glueType = migrate_glue_type_to_string(glueType)
 
     def setGlueMeter(self, glueMeter):
         """

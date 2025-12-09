@@ -5,6 +5,11 @@
       "id": "3081c54c-fe04-424c-b5ae-28837d896a91",
       "name": "TEST TYPE",
       "description": "TEST DESC"
+    },
+    {
+      "id": "ff699e24-d0b1-4155-8922-aeaebe5d849d",
+      "name": "TEST TYPE 2",
+      "description": "TEST DESC 2"
     }
   ]
 }

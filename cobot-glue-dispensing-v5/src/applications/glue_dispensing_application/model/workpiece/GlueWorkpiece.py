@@ -5,7 +5,6 @@ from core.model.workpiece.Workpiece import BaseWorkpiece
 
 
 from modules.shared.core.interfaces.JsonSerializable import JsonSerializable
-from modules.shared.tools.GlueCell import GlueType
 from modules.shared.tools.enums.ToolID import ToolID
 from modules.shared.tools.enums.Program import Program
 from modules.shared.tools.enums.Gripper import Gripper
@@ -31,7 +30,7 @@ class GlueWorkpiece(BaseWorkpiece, JsonSerializable):
                   description (str): A description of the workpieces.
                   toolID (ToolID): The tool ID associated with the workpieces.
                   gripperID (Gripper): The gripper ID associated with the workpieces.
-                  glueType (GlueType): The type of glue used in the workpieces.
+                  glueType (str): The type of glue used in the workpieces (e.g., "Type A", "Custom Glue X").
                   program (Program): The program associated with the workpieces.
                   material (str): The material of the workpieces.
                   contour (list of np.ndarray): The contour points of the workpieces.
@@ -259,7 +258,7 @@ class GlueWorkpiece(BaseWorkpiece, JsonSerializable):
             GlueWorkpieceField.DESCRIPTION.value: self.description,
             GlueWorkpieceField.TOOL_ID.value: self.toolID.value,
             GlueWorkpieceField.GRIPPER_ID.value: self.gripperID.value,
-            GlueWorkpieceField.GLUE_TYPE.value: self.glueType.value,
+            GlueWorkpieceField.GLUE_TYPE.value: self.glueType,  # glueType is now a plain string
             GlueWorkpieceField.PROGRAM.value: self.program.value,
             GlueWorkpieceField.MATERIAL.value: self.material,
             GlueWorkpieceField.CONTOUR.value: self.contour,
@@ -352,7 +351,7 @@ class GlueWorkpiece(BaseWorkpiece, JsonSerializable):
             description=data[GlueWorkpieceField.DESCRIPTION.value],
             toolID=ToolID(data[GlueWorkpieceField.TOOL_ID.value]),
             gripperID=Gripper(data[GlueWorkpieceField.GRIPPER_ID.value]),
-            glueType=GlueType(data[GlueWorkpieceField.GLUE_TYPE.value]),
+            glueType=data[GlueWorkpieceField.GLUE_TYPE.value],  # Glue type is now a plain string
             program=Program(data[GlueWorkpieceField.PROGRAM.value]),
             material=data[GlueWorkpieceField.MATERIAL.value],
             contour=data[GlueWorkpieceField.CONTOUR.value],

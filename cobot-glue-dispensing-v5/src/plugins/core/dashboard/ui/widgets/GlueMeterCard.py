@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QFrame
 
 from modules.shared.MessageBroker import MessageBroker
 from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
-from modules.shared.tools.GlueCell import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 
 class GlueMeterCard(QFrame):
@@ -24,9 +24,16 @@ class GlueMeterCard(QFrame):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(5)
 
-        # Create the glue type combo box
+        # Create the glue type combo box with dynamic types from API
         self.glue_type_combo = QComboBox()
-        self.glue_type_combo.addItems([GlueType.TypeA.value, GlueType.TypeB.value, GlueType.TypeC.value])
+
+        try:
+            glue_types = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_types = ["Type A", "Type B", "Type C", "Type D"]
+
+        self.glue_type_combo.addItems(glue_types)
         self.glue_type_combo.setCurrentText("Type A")
         self.glue_type_combo.currentTextChanged.connect(lambda value: self.glue_type_changed.emit(value))
 

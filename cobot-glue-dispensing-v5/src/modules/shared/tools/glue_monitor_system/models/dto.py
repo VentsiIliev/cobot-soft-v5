@@ -7,7 +7,6 @@ enabling type-safe communication without circular dependencies.
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional
 from .cell_models import CellConfig, CalibrationConfig, MeasurementConfig
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
 
 
 @dataclass
@@ -90,7 +89,7 @@ class CellConfigDTO:
         """Convert CellConfig to DTO."""
         return cls(
             id=cell_config.id,
-            type=cell_config.type.name,
+            type=cell_config.type,
             url=cell_config.url,
             capacity=cell_config.capacity,
             fetch_timeout=cell_config.fetch_timeout,
@@ -102,7 +101,7 @@ class CellConfigDTO:
         """Convert DTO to CellConfig."""
         return CellConfig(
             id=self.id,
-            type=GlueType[self.type],
+            type=self.type,
             url=self.url,
             capacity=self.capacity,
             fetch_timeout=self.fetch_timeout,

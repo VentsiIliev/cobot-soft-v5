@@ -25,6 +25,7 @@ class GlueTypesHandler:
         # Get file path using ApplicationStorageResolver
         file_path = get_app_settings_path("glue_dispensing_application", "glue_types.json")
         repository = GlueTypesRepository(file_path)
+        repository.initialize_default_types()
         self.service = GlueTypesService(repository)
         self.repository = repository  # Keep reference for direct access if needed
 

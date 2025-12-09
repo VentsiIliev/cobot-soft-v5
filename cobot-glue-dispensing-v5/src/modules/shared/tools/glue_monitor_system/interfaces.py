@@ -4,7 +4,6 @@ Enables dependency injection and testability.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
 from modules.shared.tools.glue_monitor_system.config_validator import GlueMonitorConfig
 
 
@@ -48,8 +47,8 @@ class IGlueCell(ABC):
     
     @property
     @abstractmethod
-    def glue_type(self) -> GlueType:
-        """Current glue type in this cell."""
+    def glue_type(self) -> str:
+        """Current glue type in this cell (e.g., "Type A", "Custom Glue X")."""
         pass
     
     @property
@@ -69,7 +68,7 @@ class IGlueCell(ABC):
         pass
     
     @abstractmethod
-    def set_glue_type(self, glue_type: GlueType) -> None:
+    def set_glue_type(self, glue_type: str) -> None:
         """Set the glue type for this cell."""
         pass
 
@@ -88,7 +87,7 @@ class IGlueCellsManager(ABC):
         pass
     
     @abstractmethod
-    def update_glue_type_by_id(self, cell_id: int, glue_type: GlueType) -> bool:
+    def update_glue_type_by_id(self, cell_id: int, glue_type: str) -> bool:
         """Update glue type for a specific cell and persist changes."""
         pass
     

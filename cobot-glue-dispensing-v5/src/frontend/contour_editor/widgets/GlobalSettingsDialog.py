@@ -4,7 +4,7 @@ from applications.glue_dispensing_application.settings.enums import GlueSettingK
 from core.model.settings.RobotConfigKey import RobotSettingKey
 
 from frontend.contour_editor.widgets.SegmentSettingsWidget import SegmentSettingsWidget, update_default_settings
-from modules.shared.tools.GlueCell import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 
 class GlobalSettingsDialog(QDialog):
@@ -34,8 +34,16 @@ class GlobalSettingsDialog(QDialog):
         inputKeys.append(RobotSettingKey.VELOCITY.value)
         inputKeys.append(RobotSettingKey.ACCELERATION.value)
         
-        comboEnums = [[GlueSettingKey.GLUE_TYPE.value, GlueType]]
-        
+        # Get dynamic glue types from API instead of using enum
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+
+        # Pass glue type names as a list instead of enum class
+        comboEnums = [[GlueSettingKey.GLUE_TYPE.value, glue_type_names]]
+
         # Create the global settings widget
         self.segment_settings_widget = SegmentSettingsWidget(
             inputKeys + [GlueSettingKey.GLUE_TYPE.value], 

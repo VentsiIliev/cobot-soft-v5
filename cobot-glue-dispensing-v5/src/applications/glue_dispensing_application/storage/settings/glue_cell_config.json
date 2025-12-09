@@ -19,7 +19,7 @@
   "cells": [
     {
       "id": 1,
-      "type": "TypeD",
+      "type": "TEST TYPE 2",
       "url": "http://192.168.222.143/weight1",
       "capacity": 10000.0,
       "fetch_timeout": 1,

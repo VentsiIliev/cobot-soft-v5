@@ -21,7 +21,6 @@ from frontend.virtualKeyboard.VirtualKeyboard import FocusLineEdit
 from frontend.core.utils.IconLoader import WORKPIECE_ID_ICON_PATH, WORKPIECE_NAME_ICON_PATH, DESCRIPTION_ICON_PATH, \
     HEIGHT_ICON_PATH, GRIPPER_ID_ICON_PATH, GLUE_TYPE_ICON_PATH, ACCEPT_BUTTON_ICON_PATH, \
     CANCEL_BUTTON_ICON_PATH, GLUE_QTY_ICON_PATH
-from modules.shared.tools.GlueCell import GlueType
 from modules.shared.tools.enums.Gripper import Gripper
 from modules.shared.tools.enums.Program import Program
 from modules.shared.tools.enums.ToolID import ToolID
@@ -48,6 +47,7 @@ DEFAULT_FIELD_CONFIG = {
     GlueWorkpieceField.PROGRAM.value: {"visible": True, "mandatory": False},
     GlueWorkpieceField.MATERIAL.value: {"visible": True, "mandatory": False}
 }
+
 
 class FormConfigManager:
     """Manager class for handling form configuration save/load operations"""
@@ -92,6 +92,7 @@ class FormConfigManager:
         """Check if a field is mandatory"""
         field_key = field.value if isinstance(field, GlueWorkpieceField) else field
         return self.config.get(field_key, {}).get("mandatory", False)
+
 
 class FieldConfigWidget(QWidget):
     """Widget for configuring a single field"""
@@ -139,6 +140,7 @@ class FieldConfigWidget(QWidget):
             "visible": self.visible_checkbox.isChecked(),
             "mandatory": self.mandatory_checkbox.isChecked()
         }
+
 
 class FormConfigDialog(QDialog):
     """Dialog for configuring form fields"""
@@ -253,8 +255,9 @@ class FormConfigDialog(QDialog):
             )
 
 
-class CreateWorkpieceForm(Drawer,QFrame):
+class CreateWorkpieceForm(Drawer, QFrame):
     data_submitted = pyqtSignal(dict)
+
     def __init__(self, parent=None, showButtons=False, callBack=None, config_manager=None):
         super().__init__(parent)
 
@@ -318,7 +321,7 @@ class CreateWorkpieceForm(Drawer,QFrame):
                 enum_mapping = {
                     GlueWorkpieceField.TOOL_ID.value: ToolID,
                     GlueWorkpieceField.GRIPPER_ID.value: Gripper,
-                    GlueWorkpieceField.GLUE_TYPE.value: GlueType,
+                    # GlueWorkpieceField.GLUE_TYPE.value: GlueType,  # REMOVED - now a plain string field
                     GlueWorkpieceField.PROGRAM.value: Program,
                 }
                 if field_name in enum_mapping:
@@ -348,7 +351,6 @@ class CreateWorkpieceForm(Drawer,QFrame):
     def apply_stylesheet(self):
         styles = getStyles()
         self.setStyleSheet(styles)
-
 
     def add_config_button(self):
         """Add configuration button to the form"""
@@ -416,17 +418,25 @@ class CreateWorkpieceForm(Drawer,QFrame):
                 self.add_input_field(field, placeholder, icon_path)
 
         # Dropdown fields
+        # Load glue types dynamically from API
+        from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
+        try:
+            glue_types_list = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_types_list = ["Type A", "Type B", "Type C", "Type D"]
+
         dropdown_fields = [
             # (WorkpieceField.TOOL_ID, ToolID, TOOL_ID_ICON_PATH),
             (GlueWorkpieceField.GRIPPER_ID, Gripper, GRIPPER_ID_ICON_PATH),
-            (GlueWorkpieceField.GLUE_TYPE, GlueType, GLUE_TYPE_ICON_PATH),
+            (GlueWorkpieceField.GLUE_TYPE, glue_types_list, GLUE_TYPE_ICON_PATH),  # Dynamic glue types
             # (WorkpieceField.PROGRAM, Program, PROGRAM_ICON_PATH),
             # (WorkpieceField.MATERIAL, ["Material1", "Material2", "Material3"], MATERIAL_ICON_PATH),
         ]
 
-        for field, enum_class, icon_path in dropdown_fields:
+        for field, enum_class_or_list, icon_path in dropdown_fields:
             if self.config_manager.is_field_visible(field):
-                self.add_dropdown_field(field, enum_class, icon_path)
+                self.add_dropdown_field(field, enum_class_or_list, icon_path)
 
         # Add spacer
         spacer = QSpacerItem(0, 150, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
@@ -511,8 +521,6 @@ class CreateWorkpieceForm(Drawer,QFrame):
         self.field_widgets[field_name] = dropdown
         self.field_layouts[field_name] = container
 
-
-
     def add_button(self, button_type, icon_path, layout):
         """Helper method to add a button with an icon and click functionality"""
         button = QPushButton("")
@@ -574,14 +582,15 @@ class CreateWorkpieceForm(Drawer,QFrame):
                     elif hasattr(widget, 'currentText'):  # QComboBox
                         current_text = widget.currentText()
                         # Special handling for enum dropdowns - convert name back to value
-                        if field_name in [GlueWorkpieceField.TOOL_ID.value, GlueWorkpieceField.GRIPPER_ID.value, GlueWorkpieceField.GLUE_TYPE.value, GlueWorkpieceField.PROGRAM.value]:
-                            # Find the enum class for this field  
+                        # GLUE_TYPE is now a plain string field, not an enum
+                        if field_name in [GlueWorkpieceField.TOOL_ID.value, GlueWorkpieceField.GRIPPER_ID.value,
+                                          GlueWorkpieceField.PROGRAM.value]:
+                            # Find the enum class for this field
                             enum_mapping = {
                                 GlueWorkpieceField.TOOL_ID.value: ToolID,
                                 GlueWorkpieceField.GRIPPER_ID.value: Gripper,
-                                GlueWorkpieceField.GLUE_TYPE.value: GlueType,
+                                # GlueWorkpieceField.GLUE_TYPE.value: GlueType,  # REMOVED - now a plain string field
                                 GlueWorkpieceField.PROGRAM.value: Program,
-
 
                             }
                             enum_class = enum_mapping.get(field_name)
@@ -589,6 +598,9 @@ class CreateWorkpieceForm(Drawer,QFrame):
                                 data[field_name] = getattr(enum_class, current_text).value
                             else:
                                 data[field_name] = current_text
+                        elif field_name == GlueWorkpieceField.GLUE_TYPE.value:
+                            # Glue type is now a plain string - use as is
+                            data[field_name] = current_text
                         else:
                             data[field_name] = current_text
 
@@ -598,7 +610,9 @@ class CreateWorkpieceForm(Drawer,QFrame):
         data[GlueWorkpieceField.MATERIAL.value] = "Material1"  # Default material -> 'material'
         data[GlueWorkpieceField.OFFSET.value] = "0"  # Default offset -> 'offset'
         data[GlueWorkpieceField.SPRAY_WIDTH.value] = "10"  # Default spray width -> 'spray_width'
-        data[GlueWorkpieceField.HEIGHT.value] = getattr(self, f"{GlueWorkpieceField.HEIGHT.value}_edit").text().strip() if hasattr(self, f"{GlueWorkpieceField.HEIGHT.value}_edit") else ""
+        data[GlueWorkpieceField.HEIGHT.value] = getattr(self,
+                                                        f"{GlueWorkpieceField.HEIGHT.value}_edit").text().strip() if hasattr(
+            self, f"{GlueWorkpieceField.HEIGHT.value}_edit") else ""
         data[GlueWorkpieceField.CONTOUR_AREA.value] = "0"  # Default contour area -> 'contour_area'
         # Add pickup point if it exists
         if hasattr(self, 'pickup_point') and self.pickup_point:
@@ -606,16 +620,15 @@ class CreateWorkpieceForm(Drawer,QFrame):
             print(f"DEBUG: Including pickup_point in data: {self.pickup_point}")
         else:
             data[GlueWorkpieceField.PICKUP_POINT.value] = None
-            print(f"DEBUG: No pickup_point found. hasattr: {hasattr(self, 'pickup_point')}, value: {getattr(self, 'pickup_point', 'N/A')}")
+            print(
+                f"DEBUG: No pickup_point found. hasattr: {hasattr(self, 'pickup_point')}, value: {getattr(self, 'pickup_point', 'N/A')}")
 
         print("ON SUBMIT DATA:", data)
-
 
         self.data_submitted.emit(data)
 
         self.close()
         return True  # Form submission successful
-
 
     def onCancel(self):
         """Cancel the operation and close the form"""
@@ -629,7 +642,6 @@ class CreateWorkpieceForm(Drawer,QFrame):
                                       Qt.TransformationMode.SmoothTransformation))
         self.icon_widgets.append((label, pixmap))  # Store original pixmap for resizing
         return label
-
 
     def resizeEvent(self, event):
         """ Handle resizing of the window and icon sizes """
@@ -665,6 +677,7 @@ class CreateWorkpieceForm(Drawer,QFrame):
                 widget.setText("")
             elif hasattr(widget, 'setCurrentIndex'):  # QComboBox
                 widget.setCurrentIndex(0)
+
 
 if __name__ == "__main__":
     import sys

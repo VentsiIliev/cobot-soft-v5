@@ -8,9 +8,9 @@ from typing import List, Optional
 
 from modules.shared.tools.glue_monitor_system.interfaces import IGlueCellsManager, IGlueCell
 from modules.shared.tools.glue_monitor_system.config_validator import GlueMonitorConfig
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
 from modules.shared.tools.glue_monitor_system.config import log_if_enabled
 from modules.utils.custom_logging import LoggingLevel
+from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 
 
 class CellsManager(IGlueCellsManager):
@@ -66,57 +66,41 @@ class CellsManager(IGlueCellsManager):
 
         self._cells = cells
 
-    def update_glue_type_by_id(self, cell_id: int, glue_type: GlueType) -> bool:
+    def update_glue_type_by_id(self, cell_id: int, glue_type: str) -> bool:
         """
         Update glue type for a specific cell and persist changes.
 
         Args:
             cell_id: ID of the cell to update
-            glue_type: New glue type (enum or string)
+            glue_type: New glue type (e.g., "Type A", "Custom Glue X")
 
         Returns:
             True if successful, False if cell not found
         """
-        # Normalize glue type
-        if isinstance(glue_type, str):
-            try:
-                glue_type = GlueType[glue_type]
-            except KeyError:
-                valid_types = [t.name for t in GlueType]
-                log_if_enabled(LoggingLevel.ERROR,
-                              f"Invalid glue type '{glue_type}'. Must be one of: {valid_types}")
-                return False
-        elif not isinstance(glue_type, GlueType):
-            log_if_enabled(LoggingLevel.ERROR,
-                          f"Invalid glue type '{glue_type}'. Must be GlueType enum or string")
-            return False
+        glue_type_str = migrate_glue_type_to_string(glue_type)
 
-        log_if_enabled(LoggingLevel.INFO, f"🔄 UPDATING GLUE TYPE: Cell {cell_id} → {glue_type}")
+        log_if_enabled(LoggingLevel.INFO, f"🔄 UPDATING GLUE TYPE: Cell {cell_id} → {glue_type_str}")
 
-        # Find and update cell
         cell = self.get_cell_by_id(cell_id)
         if cell is None:
             log_if_enabled(LoggingLevel.ERROR, f"❌ CELL NOT FOUND: Cell {cell_id} does not exist")
             return False
 
         log_if_enabled(LoggingLevel.DEBUG,
-                      f"Setting cell {cell_id} glue type from {cell.glue_type} to {glue_type}")
+                      f"Setting cell {cell_id} glue type from {cell.glue_type} to {glue_type_str}")
 
         try:
-            cell.set_glue_type(glue_type)
+            cell.set_glue_type(glue_type_str)
         except Exception as e:
             log_if_enabled(LoggingLevel.ERROR, f"Failed to set glue type: {e}")
             return False
 
-        # Persist changes to configuration file
         try:
-            self._persist_glue_type_change(cell_id, glue_type)
+            self._persist_glue_type_change(cell_id, glue_type_str)
             return True
         except Exception as e:
             log_if_enabled(LoggingLevel.ERROR, f"Failed to persist glue type change: {e}")
-            # Try to revert the in-memory change
             try:
-                # We don't have the old value, so we need to reload config
                 self._reload_cell_config(cell_id)
             except Exception:
                 log_if_enabled(LoggingLevel.ERROR, "Failed to revert glue type change")
@@ -144,35 +128,32 @@ class CellsManager(IGlueCellsManager):
             log_if_enabled(LoggingLevel.ERROR, f"Error polling cell {cell_id}: {e}")
             return None, None
 
-    def _persist_glue_type_change(self, cell_id: int, glue_type: GlueType) -> None:
+    def _persist_glue_type_change(self, cell_id: int, glue_type: str) -> None:
         """
         Persist glue type change to configuration file.
 
         Args:
             cell_id: ID of the cell that was updated
-            glue_type: New glue type
+            glue_type: New glue type (string)
         """
-        # Load current config from file
         with self.config_path.open("r") as f:
             config_data = json.load(f)
 
-        # Update the specific cell
         updated = False
         for cell_data in config_data["cells"]:
             if cell_data["id"] == cell_id:
-                cell_data["type"] = glue_type.name
+                cell_data["type"] = glue_type
                 updated = True
                 break
 
         if not updated:
             raise ValueError(f"Cell {cell_id} not found in configuration file")
 
-        # Write back to file
         with self.config_path.open("w") as f:
             json.dump(config_data, f, indent=2)
 
         log_if_enabled(LoggingLevel.DEBUG,
-                      f"Persisted glue type change for cell {cell_id} to {glue_type.name}")
+                      f"Persisted glue type change for cell {cell_id} to {glue_type}")
 
     def _reload_cell_config(self, cell_id: int) -> None:
         """

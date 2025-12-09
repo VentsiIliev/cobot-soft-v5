@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from modules.shared.tools.GlueCell import GlueCell, GlueMeter
 from modules.shared.tools.glue_monitor_system.config import log_if_enabled, load_config
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 from modules.utils import PathResolver
 from modules.utils.custom_logging import LoggingLevel
 
@@ -94,46 +94,36 @@ class GlueCellsManager:
         self.config = config
 
 
-    def updateGlueTypeById(self, id, glueType):
+    def updateGlueTypeById(self, id, glueType: str):
         """
         Updates the glue type of a specific glue cell by its unique identifier
         and persists the change to the config file.
-        """
-        # Normalize string to enum
-        if glueType == GlueType.TypeA.value:
-            glueType = GlueType.TypeA
-        elif glueType == GlueType.TypeB.value:
-            glueType = GlueType.TypeB
-        elif glueType == GlueType.TypeC.value:
-            glueType = GlueType.TypeC
-        elif glueType == GlueType.TypeD.value:
-            glueType = GlueType.TypeD
-        elif isinstance(glueType, GlueType):
-            pass
-        else:
-            raise ValueError(f"[DEBUG] {self.logTag} Invalid glue type: {glueType}")
 
-        log_if_enabled(LoggingLevel.INFO, f"🔄 UPDATING GLUE TYPE: Cell {id} → {glueType}")
-        # Update in-memory object
+        Args:
+            id: Cell ID
+            glueType: New glue type (e.g., "Type A", "Custom Glue X")
+        """
+        glueType_str = migrate_glue_type_to_string(glueType)
+
+        log_if_enabled(LoggingLevel.INFO, f"🔄 UPDATING GLUE TYPE: Cell {id} → {glueType_str}")
+
         cell = self.getCellById(id)
         if cell is None:
             log_if_enabled(LoggingLevel.ERROR, f"❌ CELL NOT FOUND: Cell {id} does not exist")
             return False
 
-        log_if_enabled(LoggingLevel.DEBUG, f"Setting cell {id} glue type from {cell.glueType} to {glueType}")
-        cell.setGlueType(glueType)
+        log_if_enabled(LoggingLevel.DEBUG, f"Setting cell {id} glue type from {cell.glueType} to {glueType_str}")
+        cell.setGlueType(glueType_str)
 
-        # Update JSON data by reloading and modifying
         import json
         with self.config_path.open("r") as f:
             config_data = json.load(f)
         
         for c in config_data["cells"]:
             if c["id"] == id:
-                c["type"] = glueType.name  # store enum name like "TypeA"
+                c["type"] = glueType_str
                 break
 
-        # Persist to file
         with self.config_path.open("w") as f:
             json.dump(config_data, f, indent=2)
 

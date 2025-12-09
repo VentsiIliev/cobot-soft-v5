@@ -31,19 +31,12 @@ class GlueSprayService:
         self.generatorTurnOffTimeout = generatorTurnOffTimeout  # minutes
         self.timer = Timer(self.generatorTurnOffTimeout, self.generatorOff)
 
-        self.glueA_addresses = 0  # MOTOR
-        self.glueB_addresses = 2  # MOTOR
-        self.glueC_addresses = 4  # MOTOR
-        self.glueD_addresses = 6  # MOTOR
+        # NOTE: Glue type → motor address mapping is now handled by GlueDispatchService
+        # This service only controls hardware (motors, fan, generator)
+        # See: applications.glue_dispensing_application.services.glueSprayService.GlueDispatchService
 
         self.generatorCurrentState = False  # Initial generator state
 
-        self.glueMapping = {
-            1: self.glueA_addresses,
-            2: self.glueB_addresses,
-            3: self.glueC_addresses,
-            4: self.glueD_addresses
-        }
         self.broker=MessageBroker()
         self.topics = GlueSprayServiceTopics()
 

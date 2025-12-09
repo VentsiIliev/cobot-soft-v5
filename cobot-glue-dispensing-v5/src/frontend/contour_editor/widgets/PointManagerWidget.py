@@ -15,7 +15,7 @@ from frontend.contour_editor.widgets.LayerButtonsWidget import LayerButtonsWidge
 from frontend.contour_editor.widgets.SegmentButtonsAndComboWidget import SegmentButtonsAndComboWidget
 from PyQt6.QtWidgets import QApplication
 
-from modules.shared.tools.GlueCell import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 RESOURCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..","icons")
 HIDE_ICON = os.path.join(RESOURCE_DIR, "hide.png")
@@ -510,7 +510,14 @@ class PointManagerWidget(QWidget):
         inputKeys.append(RobotSettingKey.VELOCITY.value)
         inputKeys.append(RobotSettingKey.ACCELERATION.value)
 
-        comboEnums = [[GlueSettingKey.GLUE_TYPE.value, GlueType]]
+        # Get dynamic glue types from API instead of using enum
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+
+        comboEnums = [[GlueSettingKey.GLUE_TYPE.value, glue_type_names]]
 
         # Create the settings widget
         from PyQt6.QtWidgets import QDialog, QVBoxLayout

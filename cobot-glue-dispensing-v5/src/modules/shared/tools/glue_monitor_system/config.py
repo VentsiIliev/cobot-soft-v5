@@ -1,7 +1,6 @@
 import inspect
 import logging
 from pathlib import Path
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
 from modules.shared.tools.glue_monitor_system.config_validator import (
     ConfigValidator, GlueMonitorConfig, ConfigurationError
 )

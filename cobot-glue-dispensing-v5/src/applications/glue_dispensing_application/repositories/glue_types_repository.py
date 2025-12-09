@@ -103,6 +103,24 @@ class GlueTypesRepository:
             self.logger.error(f"Error saving glue types: {e}")
             return False
 
+    def initialize_default_types(self) -> None:
+        """
+        Initialize default glue types (Type A-D) if file doesn't exist.
+        These replace the hardcoded enum values.
+        """
+        if self.file_path.exists():
+            return
+
+        default_types = [
+            Glue(name="Type A", description="Built-in glue type A"),
+            Glue(name="Type B", description="Built-in glue type B"),
+            Glue(name="Type C", description="Built-in glue type C"),
+            Glue(name="Type D", description="Built-in glue type D"),
+        ]
+
+        self.save(default_types)
+        self.logger.info(f"Initialized default glue types at {self.file_path}")
+
     def get_file_path(self) -> str:
         """Get the repository file path."""
         return str(self.file_path)

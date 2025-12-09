@@ -9,7 +9,6 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
 from modules.shared.tools.glue_monitor_system.models import (
     CalibrationConfig,
     MeasurementConfig,
@@ -197,14 +196,30 @@ class ConfigValidator:
             raise ConfigurationError(f"Cell {index} ID '{cell_id}' must be positive integer")
         
         # Validate glue type
-        try:
-            glue_type = GlueType[cell_data["type"]]
-        except KeyError:
-            valid_types = [t.name for t in GlueType]
+        type_str = cell_data["type"]
+
+        # Map old enum names to full names for backward compatibility
+        enum_mapping = {
+            "TypeA": "Type A",
+            "TypeB": "Type B",
+            "TypeC": "Type C",
+            "TypeD": "Type D",
+        }
+
+        if type_str in enum_mapping:
+            glue_type = enum_mapping[type_str]
+        elif isinstance(type_str, str):
+            glue_type = type_str.strip()
+        else:
             raise ConfigurationError(
-                f"Cell {index} invalid type '{cell_data['type']}'. Must be one of: {valid_types}"
+                f"Cell {index} invalid type '{type_str}'. Must be a string."
             )
-        
+
+        # Note: Validation against registered types happens during runtime
+        # to allow custom types. We just ensure it's a non-empty string here.
+        if not glue_type:
+            raise ConfigurationError(f"Cell {index} type cannot be empty")
+
         # Validate capacity and timeout
         capacity = cell_data["capacity"]
         if not isinstance(capacity, (int, float)) or capacity <= 0:

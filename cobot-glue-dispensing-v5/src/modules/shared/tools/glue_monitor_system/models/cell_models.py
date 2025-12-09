@@ -6,7 +6,7 @@ All models are immutable (frozen=True) to prevent accidental mutations.
 """
 from dataclasses import dataclass
 from typing import List, Optional
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 
 
 @dataclass(frozen=True)
@@ -27,16 +27,20 @@ class MeasurementConfig:
     max_weight_threshold: float
 
 
-@dataclass(frozen=True)
+@dataclass
 class CellConfig:
     """Individual cell configuration - all fields required."""
     id: int
-    type: GlueType
+    type: str
     url: str
     capacity: float
     fetch_timeout: int
     calibration: CalibrationConfig
     measurement: MeasurementConfig
+
+    def __post_init__(self):
+        """Ensure type is always a string"""
+        object.__setattr__(self, 'type', migrate_glue_type_to_string(self.type))
 
 
 @dataclass(frozen=True)
@@ -52,10 +56,11 @@ class GlueCellsConfig:
         """Get list of all cell IDs."""
         return [cell.id for cell in self.cells]
     
-    def get_cells_by_type(self, glue_type: GlueType) -> List[CellConfig]:
+    def get_cells_by_type(self, glue_type: str) -> List[CellConfig]:
         """Get all cells of a specific glue type."""
-        return [cell for cell in self.cells if cell.type == glue_type]
-    
+        glue_type_str = migrate_glue_type_to_string(glue_type)
+        return [cell for cell in self.cells if cell.type == glue_type_str]
+
     @property
     def cell_count(self) -> int:
         """Get total number of cells."""

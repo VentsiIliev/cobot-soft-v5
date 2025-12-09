@@ -14,7 +14,7 @@ from modules.shared.tools.glue_monitor_system.config import (
 )
 from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-from modules.shared.tools.glue_monitor_system.glue_type import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from modules.utils import PathResolver
 from core.application.ApplicationContext import get_core_settings_path
 from frontend.widgets.MaterialButton import MaterialButton
@@ -274,8 +274,12 @@ class LoadCellsSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.glue_type_dropdown = QComboBox()
         self.glue_type_dropdown.setMinimumHeight(40)
         self.glue_type_dropdown.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        # Populate with available glue types from enum
-        available_types = [glue_type.name for glue_type in GlueType]
+        # Populate with available glue types from API
+        try:
+            available_types = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            available_types = ["Type A", "Type B", "Type C", "Type D"]
         self.glue_type_dropdown.addItems(available_types)
         layout.addWidget(self.glue_type_dropdown, row, 1)
 

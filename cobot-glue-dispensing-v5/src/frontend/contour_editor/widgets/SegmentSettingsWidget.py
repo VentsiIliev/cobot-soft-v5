@@ -17,7 +17,7 @@ from frontend.virtualKeyboard.VirtualKeyboard import VirtualKeyboardSingleton
 import json
 import os
 
-from modules.shared.tools.GlueCell import GlueType
+# NOTE: GlueType enum no longer used - glue types loaded dynamically from API
 
 default_settings = {
     GlueSettingKey.SPRAY_WIDTH.value: "10",
@@ -146,13 +146,21 @@ class SegmentSettingsWidget(QWidget):
                 label.setMinimumWidth(150)
                 row_layout.addWidget(label)
 
-                # ComboBox if enum exists
+                # ComboBox for dynamic values (e.g., glue types from API)
                 if key in self.combo_enums:
                     combo_box = QComboBox()
                     combo_box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                    enum_class = self.combo_enums[key]
-                    for enum_member in enum_class:
-                        combo_box.addItem(enum_member.value)
+                    items_list = self.combo_enums[key]
+
+                    # Expect a list of strings (dynamic values from API)
+                    if isinstance(items_list, list):
+                        for item in items_list:
+                            combo_box.addItem(str(item))
+                    else:
+                        # Should not happen - log error
+                        print(f"ERROR: combo_enums[{key}] should be a list, got {type(items_list)}")
+                        combo_box.addItem("Error loading values")
+
                     combo_box.currentTextChanged.connect(lambda val, k=key: self.on_value_changed(k, val))
                     row_layout.addWidget(combo_box)
                     self.inputs[key] = combo_box

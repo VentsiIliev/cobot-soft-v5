@@ -20,7 +20,8 @@ from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 # import pyqtSignal
 from PyQt6.QtCore import pyqtSignal
 
-from modules.shared.tools.GlueCell import GlueType
+from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
+from applications.glue_dispensing_application.services.glueSprayService.GlueDispatchService import GlueDispatchService
 
 
 class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
@@ -33,6 +34,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.parent_widget = parent_widget
 
         self.glueSprayService = GlueSprayService(glueSettings)
+        self.glueDispatchService = GlueDispatchService(self.glueSprayService)
         self.translator = get_app_translator()
         self.translator.language_changed.connect(self.translate)
         self.create_main_content()
@@ -390,12 +392,18 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.dropdown.setMinimumHeight(40)
         self.dropdown.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        if isinstance(GlueType, type) and issubclass(GlueType, Enum):
-            self.dropdown.addItems([item.value for item in GlueType])
+        # Populate with glue types from API (supports custom types)
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to load glue types from API: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+
+        self.dropdown.addItems(glue_type_names)
 
         self.dropdown.setCurrentIndex(0)
         layout.addWidget(self.dropdown, row, 1)
-        setattr(self, f"{GlueType.TypeA.value}_combo", self.dropdown)
+        setattr(self, f"Type A_combo", self.dropdown)
 
         layout.setColumnStretch(1, 1)
         return group
@@ -669,49 +677,54 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 toggle_btn.blockSignals(False)
 
     def toggleGlueDispense(self, state):
-        glue_type = getattr(self, f"{GlueType.TypeA.value}_combo").currentText()
-        glueNumber = -1
+        glue_type = getattr(self, f"Type A_combo").currentText()
         print(f"Glue Type: {glue_type}")
-        if glue_type == GlueType.TypeA.value:
-            glueType_addresses = self.glueSprayService.glueMapping.get(1)
-            glueNumber = 1
-        elif glue_type == GlueType.TypeB.value:
-            glueType_addresses = self.glueSprayService.glueMapping.get(2)
-            glueNumber = 2
-        elif glue_type == GlueType.TypeC.value:
-            glueType_addresses = self.glueSprayService.glueMapping.get(3)
-            glueNumber = 3
-        elif glue_type == GlueType.TypeD.value:
-            glueType_addresses = self.glueSprayService.glueMapping.get(4)
-            glueNumber = 4
-        else:
-            raise ValueError(f"Unknown glue type: {glue_type}")
 
         result = False
         if state:
-            print(f"Glue {glueNumber} dispensing started")
-            result = self.glueSprayService.startGlueDispensing(glueType_addresses=glueType_addresses,
-                                                               speed=self.motor_speed_input.value(),
-                                                               reverse_time=self.reverse_duration_input.value(),
-                                                               speedReverse=self.speed_reverse_input.value(),
-                                                               gen_pump_delay=self.time_between_generator_and_glue_input.value(),
-                                                               fanSpeed=self.fan_speed_input.value())
-        else:
-            self.glueDispenseButton.setText(f"Dispense Glue {glueNumber} Off")
-            result = self.glueSprayService.stopGlueDispensing(glueType_addresses=glueType_addresses,
-                                                              speed_reverse=self.speed_reverse_input.value(),
-                                                              pump_reverse_time=self.reverse_duration_input.value(),
-                                                              pump_gen_delay=self.time_between_generator_and_glue_input.value(),
-                                                              ramp_steps=self.reverse_ramp_steps.value())
+            # Start dispensing using GlueDispatchService
+            success, message = self.glueDispatchService.start_glue_dispensing_by_type(
+                glue_type=glue_type,
+                speed=self.motor_speed_input.value(),
+                reverse_time=self.reverse_duration_input.value(),
+                speed_reverse=self.speed_reverse_input.value(),
+                gen_pump_delay=self.time_between_generator_and_glue_input.value(),
+                fan_speed=self.fan_speed_input.value(),
+                ramp_steps=self.forward_ramp_steps.value()
+            )
 
+            if success:
+                print(f"✅ {message}")
+                result = True
+            else:
+                print(f"❌ {message}")
+                self.showToast(message)
+                result = False
+        else:
+            # Stop dispensing using GlueDispatchService
+            success, message = self.glueDispatchService.stop_glue_dispensing_by_type(
+                glue_type=glue_type,
+                speed_reverse=self.speed_reverse_input.value(),
+                pump_reverse_time=self.reverse_duration_input.value(),
+                ramp_steps=self.reverse_ramp_steps.value(),
+                pump_gen_delay=self.time_between_generator_and_glue_input.value()
+            )
+
+            if success:
+                print(f"✅ {message}")
+                result = True
+            else:
+                print(f"❌ {message}")
+                self.showToast(message)
+                result = False
+
+        # Handle UI feedback
         if result is False:
-            self.showToast(f"Error toggling glue dispense for glue {glueNumber}")
             toggle_btn = getattr(self, "glueDispenseButton", None)
             if toggle_btn:
                 toggle_btn.blockSignals(True)
                 toggle_btn.setChecked(not state)
                 toggle_btn.blockSignals(False)
-            return
 
     def connectDeviceControlCallbacks(self):
         # Motor toggles
@@ -914,7 +927,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             GlueSettingKey.REVERSE_DURATION.value: self.reverse_duration_input.value(),
             GlueSettingKey.SPEED_REVERSE.value: self.speed_reverse_input.value(),
             GlueSettingKey.RZ_ANGLE.value: self.rz_angle_input.value(),
-            GlueSettingKey.GLUE_TYPE.value: getattr(self, f"{GlueType.TypeA.value}_combo").currentText(),
+            GlueSettingKey.GLUE_TYPE.value: getattr(self, f"Type A_combo").currentText(),
             GlueSettingKey.GENERATOR_TIMEOUT.value: self.generator_timeout_input.value() / 60 ,  # Convert seconds to minutes
             GlueSettingKey.TIME_BEFORE_MOTION.value: self.time_before_motion.value(),
             GlueSettingKey.INITIAL_RAMP_SPEED.value: self.initial_ramp_speed.value(),
@@ -1178,20 +1191,44 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     def _on_glue_type_added(self, name: str, description: str):
         """Handle when a new custom glue type is added."""
         print(f"Glue type added: {name} - {description}")
-        # TODO: Update glue type dropdown in main settings if needed
-        # self.dropdown.addItem(name)
+        self._refresh_glue_type_dropdown()
 
     def _on_glue_type_removed(self, name: str):
         """Handle when a custom glue type is removed."""
         print(f"Glue type removed: {name}")
-        # TODO: Remove from dropdown if needed
-        # index = self.dropdown.findText(name)
-        # if index >= 0:
-        #     self.dropdown.removeItem(index)
+        self._refresh_glue_type_dropdown()
 
     def _on_glue_type_edited(self, old_name: str, new_name: str, description: str):
         """Handle when a custom glue type is edited."""
         print(f"Glue type edited: {old_name} -> {new_name} - {description}")
-        # TODO: Update dropdown if needed
+        self._refresh_glue_type_dropdown()
+
+    def _refresh_glue_type_dropdown(self):
+        """Refresh the glue type dropdown with current types from API."""
+        if not hasattr(self, 'dropdown') or self.dropdown is None:
+            return
+
+        # Remember current selection
+        current_text = self.dropdown.currentText()
+
+        # Clear and repopulate
+        self.dropdown.clear()
+
+        try:
+            glue_type_names = get_all_glue_type_names()
+        except Exception as e:
+            print(f"Failed to refresh glue types: {e}, using defaults")
+            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+
+        self.dropdown.addItems(glue_type_names)
+
+        # Restore selection if still exists
+        index = self.dropdown.findText(current_text)
+        if index >= 0:
+            self.dropdown.setCurrentIndex(index)
+        else:
+            self.dropdown.setCurrentIndex(0)
+
+        print(f"Glue type dropdown refreshed with {len(glue_type_names)} types")
 
 
