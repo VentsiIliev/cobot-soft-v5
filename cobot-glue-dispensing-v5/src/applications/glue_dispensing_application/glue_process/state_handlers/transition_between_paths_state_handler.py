@@ -34,6 +34,9 @@ def handle_transition_between_paths(context,logger_context,turn_off_pump_between
 
                 # Get motor address for current path
                 motor_address = context.get_motor_address_for_current_path()
+                if motor_address == -1:
+                    log_error_message(logger_context, message=f"Invalid motor address for current path during transition")
+                    raise RuntimeError(f"Invalid motor address for current path during transition {motor_address}")
 
                 context.pump_controller.pump_off(context.service,context.robot_service,motor_address,context.current_settings)
                 context.motor_started = False

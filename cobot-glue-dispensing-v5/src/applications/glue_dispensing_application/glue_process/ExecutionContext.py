@@ -68,7 +68,7 @@ class ExecutionContext(Context):
 
         if not glue_type:
             print(f"[ExecutionContext] No glue_type in current_settings, returning default motor address 0")
-            return 0
+            return -1
 
         # Resolve motor address from glue cell configuration
         try:
@@ -84,8 +84,8 @@ class ExecutionContext(Context):
                     return motor_address
 
             # Glue type not found in cells
-            print(f"[ExecutionContext] Glue type '{glue_type}' not found in cell configuration, returning default motor address 0")
-            return 0
+            print(f"[ExecutionContext] Glue type '{glue_type}' not found in cell configuration!")
+            return -1
 
         except Exception as e:
             print(f"[ExecutionContext] Error resolving motor address: {e}, returning default motor address 0")

@@ -39,6 +39,11 @@ def pause_operation(glue_dispensing_operation, context,logger_context):
 
         # Get motor address for the current path
         motor_address = context.get_motor_address_for_current_path()
+        if motor_address == -1:
+            log_debug_message(logger_context,
+                           message=f"Invalid motor address for current path during pause")
+            raise RuntimeError(f"Invalid motor address for current path during pause {motor_address}")
+
 
         context.pump_controller.pump_off(context.service, context.robot_service, motor_address,
                                          context.current_settings)

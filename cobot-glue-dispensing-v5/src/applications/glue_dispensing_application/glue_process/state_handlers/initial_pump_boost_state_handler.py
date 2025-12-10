@@ -32,6 +32,24 @@ def handle_pump_initial_boost(context,logger_context) -> GlueProcessState:
     if spray_on and not context.motor_started:
         # Get motor address for current path
         motor_address = context.get_motor_address_for_current_path()
+        if motor_address == -1:
+            # stop processing due to invalid motor address
+            log_error_message(
+                logger_context,
+                message=f"Invalid motor address for path {path_index}, point_offset={point_index}"
+            )
+            result = InitialPumpBoostResult(
+                handled=False,
+                resume=False,
+                next_state=GlueProcessState.ERROR,
+                next_path_index=path_index,
+                next_point_index=point_index,
+                next_path=context.current_path,
+                next_settings=context.current_settings,
+                motor_started=False
+            )
+            update_context_from_initial_pump_boost_result(context, result)
+            return result.next_state
 
         result = context.pump_controller.pump_on(context.service,context.robot_service,motor_address,context.current_settings)
 
