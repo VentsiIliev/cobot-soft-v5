@@ -534,9 +534,8 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             # Determine new mode
             new_mode = "test" if state else "production"
 
-            # Get SettingsService from controller
-            controller = self.controller_service.get_controller()
-            settings_service = controller.controller_service.settings
+            # Access SettingsService directly from controller_service
+            settings_service = self.controller_service.settings
 
             # Update via SettingsService
             result = settings_service.update_glue_cells_config({"MODE": new_mode})
@@ -1221,9 +1220,8 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Get SettingsService from controller
-            controller = self.controller_service.get_controller()
-            settings_service = controller.controller_service.settings
+            # Access SettingsService directly from controller_service
+            settings_service = self.controller_service.settings
 
             # Update via SettingsService
             result = settings_service.update_glue_cell(
@@ -1246,9 +1244,8 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Get SettingsService from controller
-            controller = self.controller_service.get_controller()
-            settings_service = controller.controller_service.settings
+            # Access SettingsService directly from controller_service
+            settings_service = self.controller_service.settings
 
             # Update via SettingsService with nested calibration structure
             result = settings_service.update_glue_cell(
@@ -1271,9 +1268,8 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Get SettingsService from controller
-            controller = self.controller_service.get_controller()
-            settings_service = controller.controller_service.settings
+            # Access SettingsService directly from controller_service
+            settings_service = self.controller_service.settings
 
             # Update via SettingsService with nested measurement structure
             result = settings_service.update_glue_cell(

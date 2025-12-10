@@ -407,6 +407,7 @@ class SettingsService:
         Args:
             cell_id: The cell ID to update
             cell_data: Dictionary with cell configuration updates
+                      Can be: {"type": "TypeA"} or {"calibration": {"zero_offset": 22.5}}
 
         Returns:
             ServiceResult with success/failure status
@@ -414,24 +415,29 @@ class SettingsService:
         try:
             print(f"[SettingsService] Updating cell {cell_id} configuration: {cell_data}")
 
-            request_data = {
-                "cell_id": cell_id,
-                **cell_data
-            }
+            # The API expects: {"cell_id": X, "field": "fieldname", "value": value}
+            # We need to convert cell_data into multiple requests if needed
 
-            response_dict = self.controller.requestSender.send_request(
-                glue_endpoints.GLUE_CELL_UPDATE,
-                data=request_data
-            )
-            response = Response.from_dict(response_dict)
+            for field, value in cell_data.items():
+                request_data = {
+                    "cell_id": cell_id,
+                    "field": field,
+                    "value": value
+                }
 
-            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
-                return ServiceResult.success_result(
-                    f"Cell {cell_id} updated successfully",
-                    data={"cell_id": cell_id, **cell_data}
+                response_dict = self.controller.requestSender.send_request(
+                    glue_endpoints.GLUE_CELL_UPDATE,
+                    data=request_data
                 )
-            else:
-                return ServiceResult.error_result(f"Failed to update cell {cell_id}: {response.message}")
+                response = Response.from_dict(response_dict)
+
+                if response.status != Constants.RESPONSE_STATUS_SUCCESS:
+                    return ServiceResult.error_result(f"Failed to update cell {cell_id}: {response.message}")
+
+            return ServiceResult.success_result(
+                f"Cell {cell_id} updated successfully",
+                data={"cell_id": cell_id, **cell_data}
+            )
 
         except Exception as e:
             error_msg = f"Failed to update cell {cell_id}: {str(e)}"
@@ -446,7 +452,7 @@ class SettingsService:
     
     def _validate_setting_value(self, key: str, value: Any, component_type: str) -> ServiceResult:
         """
-        Validate setting key and value based on component type.
+        Validate setting key and value based on the component type.
         
         Args:
             key: Setting key to validate
