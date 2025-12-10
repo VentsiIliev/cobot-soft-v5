@@ -1,106 +1,101 @@
-# Robot Calibration Module - Comprehensive Documentation
-
-**Version:** 5.0  
-**Date:** December 2025  
-**Module Path:** `/src/modules/robot_calibration`
+# Модул за Калибриране на Робот
 
 ---
 
-## Table of Contents
+## Съдържание
 
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [State Machine Design](#state-machine-design)
-4. [State Definitions](#state-definitions)
-5. [Execution Context](#execution-context)
-6. [State Flow Diagrams](#state-flow-diagrams)
-7. [Transition Rules](#transition-rules)
-8. [Usage Guide](#usage-guide)
-9. [Configuration](#configuration)
-10. [Error Handling](#error-handling)
-
----
-
-## Overview
-
-### Purpose
-
-The Robot Calibration Module performs **camera-to-robot coordinate system calibration** using a state machine architecture. It establishes the spatial transformation between camera pixel coordinates and robot workspace coordinates by detecting visual markers (chessboard pattern and ArUco markers) and computing a homography matrix.
-
-### What It Does
-
-1. **Detects a chessboard pattern** to establish a reference coordinate system
-2. **Maps camera axes to robot axes** (automatic axis mapping calibration)
-3. **Detects multiple ArUco markers** placed at known positions on the calibration plate
-4. **Iteratively aligns the robot** to center each marker in the camera view
-5. **Records corresponding points** (camera coordinates ↔ robot coordinates)
-6. **Computes a homography matrix** for camera-to-robot transformation
-7. **Validates calibration accuracy** through reprojection error analysis
-
-### Why It Exists
-
-Robot vision systems need accurate spatial calibration to:
-- Convert detected object positions from camera coordinates to robot workspace coordinates
-- Enable precise pick-and-place operations
-- Compensate for camera mounting variations
-- Account for lens distortion and perspective effects
-- Adapt to different robot configurations automatically
+1. [Общ Преглед](#общ-преглед)
+2. [Архитектура](#архитектура)
+3. [Дизайн на Машината на Състоянията](#дизайн-на-машината-на-състоянията)
+4. [Дефиниции на Състоянията](#дефиниции-на-състоянията)
+5. [Контекст на Изпълнение](#контекст-на-изпълнение)
+6. [Диаграми на Потока на Състоянията](#диаграми-на-потока-на-състоянията)
+7. [Правила за Преход](#правила-за-преход)
+8. [Ръководство за Употреба](#ръководство-за-употреба)
+9. [Конфигурация](#конфигурация)
+10. [Обработка на Грешки](#обработка-на-грешки)
 
 ---
 
-## Architecture
+## Общ Преглед
 
-### Core Components
+### Предназначение
+
+Модулът за Калибриране на Робот извършва **калибриране на координатната система камера-робот** използвайки архитектура на машина на състоянията. Той установява пространствената трансформация между пикселните координати на камерата и координатите на работното пространство на робота чрез откриване на визуални маркери (шахматен модел и ArUco маркери) и изчисляване на хомографска матрица.
+
+### Какво Прави
+
+1. **Открива шахматен модел** за установяване на референтна координатна система
+2. **Картографира осите на камерата към осите на робота** (автоматично калибриране на картографирането на осите)
+3. **Открива множество ArUco маркери** поставени на известни позиции върху калибрационната плоча
+4. **Итеративно подравнява робота** за центриране на всеки маркер в изгледа на камерата
+5. **Записва съответстващи точки** (координати на камерата ↔ координати на робота)
+6. **Изчислява хомографска матрица** за трансформация камера-робот
+7. **Валидира точността на калибрирането** чрез анализ на грешката при обратна проекция
+
+### Защо Съществува
+
+Системите за машинно/компютърно зрение се нуждаят от точно пространствено калибриране за да:
+- Преобразуват открити позиции на обекти от координати на камерата в координати на работното пространство на робота
+- Позволяват прецизни операции вземане и поставяне
+- Компенсират вариации в монтажа на камерата
+- Отчитат изкривяване на лещата и ефекти на перспективата
+- Адаптират се автоматично към различни конфигурации на робота
+
+---
+
+## Архитектура
+
+### Основни Компоненти
 
 ```
 robot_calibration/
-├── newRobotCalibUsingExecutableStateMachine.py   # Main pipeline orchestrator
-├── RobotCalibrationContext.py                     # Execution context (state storage)
-├── CalibrationVision.py                           # Computer vision algorithms
-├── robot_controller.py                            # Robot motion control
-├── config_helpers.py                              # Configuration dataclasses
-├── states/                                        # State handler implementations
-│   ├── robot_calibration_states.py               # State enum & transition rules
-│   ├── state_result.py                           # State result wrapper
-│   ├── initializing.py                           # INITIALIZING state
-│   ├── axis_mapping.py                           # AXIS_MAPPING state
-│   ├── looking_for_chessboard_handler.py         # LOOKING_FOR_CHESSBOARD state
-│   ├── chessboard_found_handler.py               # CHESSBOARD_FOUND state
-│   ├── looking_for_aruco_markers_handler.py      # LOOKING_FOR_ARUCO_MARKERS state
-│   ├── all_aruco_found_handler.py                # ALL_ARUCO_FOUND state
-│   ├── compute_offsets_handler.py                # COMPUTE_OFFSETS state
-│   ├── handle_height_sample_state.py             # SAMPLE_HEIGHT state
+├── newRobotCalibUsingExecutableStateMachine.py   # Главен оркестратор на конвейера
+├── RobotCalibrationContext.py                     # Контекст на изпълнение (съхранение на състояние)
+├── CalibrationVision.py                           # Алгоритми за компютърно зрение
+├── robot_controller.py                            # Управление на движението на робота
+├── config_helpers.py                              # Конфигурационни dataclass-ове
+├── states/                                        # Имплементации на обработчици на състояния
+│   ├── robot_calibration_states.py               # State enum и правила за преход
+│   ├── state_result.py                           # Обвивка за резултат от състояние
+│   ├── initializing.py                           # INITIALIZING състояние
+│   ├── axis_mapping.py                           # AXIS_MAPPING състояние
+│   ├── looking_for_chessboard_handler.py         # LOOKING_FOR_CHESSBOARD състояние
+│   ├── chessboard_found_handler.py               # CHESSBOARD_FOUND състояние
+│   ├── looking_for_aruco_markers_handler.py      # LOOKING_FOR_ARUCO_MARKERS състояние
+│   ├── all_aruco_found_handler.py                # ALL_ARUCO_FOUND състояние
+│   ├── compute_offsets_handler.py                # COMPUTE_OFFSETS състояние
+│   ├── handle_height_sample_state.py             # SAMPLE_HEIGHT състояние
 │   └── remaining_handlers.py                     # ALIGN_ROBOT, ITERATE_ALIGNMENT, DONE, ERROR
-├── metrics.py                                     # Calibration validation
-├── logging.py                                     # Structured logging utilities
-├── debug.py                                       # Debug visualization
-└── visualizer.py                                  # Live feed visualization
+├── metrics.py                                     # Валидиране на калибрирането
+├── logging.py                                     # Утилити за структурирано логване
+├── debug.py                                       # Визуализация за отстраняване на грешки
+└── visualizer.py                                  # Визуализация на живо предаване
 ```
 
-### Design Pattern
+### Дизайн Шаблон
 
-**Executable State Machine Pattern**
-- Decouples state logic from state transitions
-- Each state is a pure function: `(Context) → NextState`
-- Context holds all mutable state
-- Transition rules are declarative and validated
-- State handlers are testable in isolation
+**Изпълним Шаблон на Машина на Състоянията**
+- Разделя логиката на състоянията от преходите между състоянията
+- Всяко състояние е чиста функция: `(Context) → NextState`
+- Контекстът съхранява всички променливи състояния
+- Правилата за преход са декларативни и валидирани
+- Обработчиците на състояния са тестваеми изолирано
 
 ---
 
-## State Machine Design
+## Дизайн на Машината на Състоянията
 
-### Why State Machine?
+### Защо Машина на Състоянията?
 
-The calibration process is inherently **sequential** and **condition-dependent**:
-- Each step depends on the success of previous steps
-- Some states may need to retry (e.g., marker detection)
-- Error conditions can occur at any stage
-- Clear state transitions make the process auditable
+Процесът на калибриране е по същество **последователен** и **зависим от условия**:
+- Всяка стъпка зависи от успеха на предишните стъпки
+- Някои състояния може да се нуждаят от повторен опит (напр. откриване на маркери)
+- Грешки могат да се появят на всеки етап
 
-### State Machine Components
+### Компоненти на Машината на Състоянията
 
-#### 1. **States (Enum)**
+#### 1. **Състояния (Enum)**
 ```python
 class RobotCalibrationStates(Enum):
     INITIALIZING = auto()
@@ -117,474 +112,474 @@ class RobotCalibrationStates(Enum):
     ERROR = auto()
 ```
 
-#### 2. **Context (Shared State)**
-- `RobotCalibrationContext`: Holds all calibration data, configuration, and system components
-- Passed to every state handler
-- Modified by state handlers to progress calibration
+#### 2. **Контекст (Споделено Състояние)**
+- `RobotCalibrationContext`: Съхранява всички данни за калибриране, конфигурация и системни компоненти
+- Предава се на всеки обработчик на състояние
+- Модифицира се от обработчиците на състояния за напредък на калибрирането
 
-#### 3. **State Handlers (Functions)**
-- Pure functions: `handle_<state_name>(context) → NextState`
-- Read from context, perform operations, modify context, return next state
-- No side effects outside context modification
+#### 3. **Обработчици на Състояния (Функции)**
+- Чисти функции: `handle_<state_name>(context) → NextState`
+- Четат от контекста, извършват операции, модифицират контекста, връщат следващо състояние
+- Няма странични ефекти извън модификацията на контекста
 
-#### 4. **Transition Rules (Declarative)**
-- Dict mapping: `CurrentState → Set[ValidNextStates]`
-- Enforced by state machine framework
-- Invalid transitions raise errors
+#### 4. **Правила за Преход (Декларативни)**
+- Dict картографиране: `CurrentState → Set[ValidNextStates]`
+- Налагат се от framework-а на машината на състоянията
+- Невалидни преходи предизвикват грешки
 
-#### 5. **ExecutableStateMachine (Orchestrator)**
-- Manages state transitions
-- Validates transitions against rules
-- Invokes state handlers
-- Broadcasts state changes via message broker
-- Handles timing and performance tracking
+#### 5. **ExecutableStateMachine (Оркестратор)**
+- Управлява преходите между състоянията
+- Валидира преходите спрямо правилата
+- Извиква обработчиците на състоянията
+- Излъчва промени в състоянията чрез message broker
+- Обработва хронометраж и проследяване на производителността
 
 ---
 
-## State Definitions
+## Дефиниции на Състоянията
 
 ### 1. INITIALIZING
 
-**Purpose:** Verify camera system is ready and initialized
+**Цел:** Проверка, че системата на камерата е готова и инициализирана
 
-**Context Reads:**
+**Контекст Чете:**
 - `context.system` (VisionSystem)
 
-**Context Writes:**
-- None (validation only)
+**Контекст Записва:**
+- Няма (само валидация)
 
-**Logic:**
+**Логика:**
 ```python
 if frame_provider is None:
-    return INITIALIZING  # Stay in state, camera not ready
+    return INITIALIZING  # Остава в състоянието, камерата не е готова
 else:
-    return AXIS_MAPPING  # Camera ready, proceed
+    return AXIS_MAPPING  # Камерата е готова, продължава
 ```
 
-**Next States:**
-- `AXIS_MAPPING` (success)
-- `INITIALIZING` (retry if camera not ready)
+**Следващи Състояния:**
+- `AXIS_MAPPING` (успех)
+- `INITIALIZING` (повторен опит ако камерата не е готова)
 
-**Failure Conditions:** None (waits until camera ready)
+**Условия за Грешка:** Няма (чака докато камерата е готова)
 
 ---
 
 ### 2. AXIS_MAPPING
 
-**Purpose:** Automatically calibrate the mapping between camera image axes and robot movement axes
+**Цел:** Автоматично калибриране на картографирането между осите на изображението на камерата и осите на движение на робота
 
-**Context Reads:**
-- `context.system` (camera)
-- `context.calibration_vision` (marker detection)
-- `context.calibration_robot_controller` (movement)
+**Контекст Чете:**
+- `context.system` (камера)
+- `context.calibration_vision` (откриване на маркери)
+- `context.calibration_robot_controller` (движение)
 
-**Context Writes:**
-- `context.image_to_robot_mapping` (ImageToRobotMapping object)
+**Контекст Записва:**
+- `context.image_to_robot_mapping` (ImageToRobotMapping обект)
 
-**Logic:**
-1. Detect reference marker (ID=4) at initial position → `(x1, y1)` pixels
-2. Move robot **+100mm in X axis**
-3. Detect marker at new position → `(x2, y2)` pixels
-4. Calculate image delta: `(Δx_img, Δy_img) = (x2-x1, y2-y1)`
-5. Determine which image axis (X or Y) changed most → Robot X maps to this image axis
-6. Determine direction (PLUS or MINUS) based on sign correlation
-7. Move robot back to initial position
-8. Move robot **-100mm in Y axis**
-9. Repeat detection and analysis for Robot Y mapping
-10. Create `ImageToRobotMapping` object with both axis mappings
+**Логика:**
+1. Открива референтен маркер (ID=4) на начална позиция → `(x1, y1)` пиксели
+2. Движи робота **+100mm по ос X**
+3. Открива маркера на нова позиция → `(x2, y2)` пиксели
+4. Изчислява делта на изображението: `(Δx_img, Δy_img) = (x2-x1, y2-y1)`
+5. Определя коя ос на изображението (X или Y) се е променила най-много → Робот X се картографира на тази ос на изображението
+6. Определя посоката (PLUS или MINUS) на базата на корелация на знака
+7. Движи робота обратно на начална позиция
+8. Движи робота **-100mm по ос Y**
+9. Повтаря откриване и анализ за картографиране на Робот Y
+10. Създава `ImageToRobotMapping` обект с двете картографирания на осите
 
-**Example Output:**
+**Примерен Изход:**
 ```
 Robot X: AxisMapping(image_axis=ImageAxis.X, direction=Direction.PLUS)
 Robot Y: AxisMapping(image_axis=ImageAxis.Y, direction=Direction.PLUS)
 ```
 
-This means:
-- Robot +X → Image -X (because direction is PLUS and image moved negative)
+Това означава:
+- Robot +X → Image -X (защото посоката е PLUS и изображението се е движило негативно)
 - Robot +Y → Image -Y
 
-**Next States:**
-- `LOOKING_FOR_CHESSBOARD` (success)
-- `ERROR` (if marker not found or robot movement failed)
+**Следващи Състояния:**
+- `LOOKING_FOR_CHESSBOARD` (успех)
+- `ERROR` (ако маркерът не е намерен или движението на робота е неуспешно)
 
-**Failure Conditions:**
-- Marker ID=4 not visible after MAX_ATTEMPTS
-- Robot movement command fails
-- Vision system error
+**Условия за Грешка:**
+- Маркер ID=4 не е видим след MAX_ATTEMPTS
+- Командата за движение на робота е неуспешна
+- Грешка в системата
 
 ---
 
 ### 3. LOOKING_FOR_CHESSBOARD
 
-**Purpose:** Detect chessboard calibration pattern to establish reference coordinate system and calculate pixels-per-millimeter scale
+**Цел:** Откриване на шахматен калибрационен модел за установяване на референтна координатна система и изчисляване на мащаб пиксели-на-милиметър
 
-**Context Reads:**
-- `context.system` (camera)
-- `context.calibration_vision` (chessboard detection)
-- `context.chessboard_size` (pattern dimensions)
-- `context.square_size_mm` (physical square size)
+**Контекст Чете:**
+- `context.system` (камера)
+- `context.calibration_vision` (откриване на шахматна дъска)
+- `context.chessboard_size` (размери на модела)
+- `context.square_size_mm` (физически размер на квадрата)
 
-**Context Writes:**
-- `context.calibration_vision.PPM` (pixels per millimeter)
-- `context.bottom_left_chessboard_corner_px` (reference point in pixels)
+**Контекст Записва:**
+- `context.calibration_vision.PPM` (пиксели на милиметър)
+- `context.bottom_left_chessboard_corner_px` (референтна точка в пиксели)
 
-**Logic:**
-1. Capture camera frame
-2. Call `calibration_vision.find_chessboard_and_compute_ppm(frame)`
-   - Uses OpenCV `cv2.findChessboardCorners()`
-   - Calculates distance between corners in pixels
-   - Divides by known physical distance → PPM
-3. Store bottom-left corner as reference point
-4. If not found, stay in state (retry on next iteration)
+**Логика:**
+1. Улавя кадър от камерата
+2. Извиква `calibration_vision.find_chessboard_and_compute_ppm(frame)`
+   - Използва OpenCV `cv2.findChessboardCorners()`
+   - Изчислява разстояние между ъглите в пиксели
+   - Дели на известно физическо разстояние → PPM
+3. Запазва долния ляв ъгъл като референтна точка
+4. Ако не е намерен, остава в състоянието (повторен опит на следваща итерация)
 
-**Next States:**
-- `CHESSBOARD_FOUND` (pattern detected)
-- `LOOKING_FOR_CHESSBOARD` (retry if not found)
+**Следващи Състояния:**
+- `CHESSBOARD_FOUND` (моделът е открит)
+- `LOOKING_FOR_CHESSBOARD` (повторен опит ако не е намерен)
 
-**Failure Conditions:** None (retries indefinitely until found)
+**Условия за Грешка:** Няма (повтаря безкрайно докато не е намерен)
 
-**Critical Data:**
-- **PPM (Pixels Per Millimeter):** Conversion factor from pixel distances to real-world millimeters
-- **Bottom-Left Corner:** Reference point (0,0) in chessboard coordinate system
+**Критични Данни:**
+- **PPM (Пиксели на Милиметър):** Фактор на преобразуване от пикселни разстояния към реални милиметри
+- **Долен Ляв Ъгъл:** Референтна точка (0,0) в координатната система на шахматната дъска
 
 ---
 
 ### 4. CHESSBOARD_FOUND
 
-**Purpose:** Transition state confirming chessboard detection
+**Цел:** Преходно състояние потвърждаващо откриването на шахматната дъска
 
-**Context Reads:**
+**Контекст Чете:**
 - `context.chessboard_center_px`
 
-**Context Writes:** None
+**Контекст Записва:** Няма
 
-**Logic:**
-- Log confirmation message
-- Immediately transition to next state
+**Логика:**
+- Логва съобщение за потвърждение
+- Незабавно преминава към следващото състояние
 
-**Next States:**
-- `LOOKING_FOR_ARUCO_MARKERS` (always)
+**Следващи Състояния:**
+- `LOOKING_FOR_ARUCO_MARKERS` (винаги)
 
-**Failure Conditions:** None
+**Условия за Грешка:** Няма
 
 ---
 
 ### 5. LOOKING_FOR_ARUCO_MARKERS
 
-**Purpose:** Detect all required ArUco markers in camera view
+**Цел:** Откриване на всички необходими ArUco маркери в изгледа на камерата
 
-**Context Reads:**
-- `context.system` (camera)
-- `context.calibration_vision.required_ids` (set of marker IDs to find)
-- `context.live_visualization` (display flag)
+**Контекст Чете:**
+- `context.system` (камера)
+- `context.calibration_vision.required_ids` (множество от ID-та на маркери за намиране)
+- `context.live_visualization` (флаг за визуализация)
 
-**Context Writes:**
-- `context.calibration_vision.detected_ids` (set of found marker IDs)
-- `context.calibration_vision.marker_top_left_corners` (dict: marker_id → (x, y) pixels)
+**Контекст Записва:**
+- `context.calibration_vision.detected_ids` (множество от намерени ID-та на маркери)
+- `context.calibration_vision.marker_top_left_corners` (речник: marker_id → (x, y) пиксели)
 
-**Logic:**
-1. Flush camera buffer (discard old frames)
-2. Capture fresh frame
-3. Call `calibration_vision.find_required_aruco_markers(frame)`
-   - Uses OpenCV `cv2.aruco.detectMarkers()`
-   - Checks if all required IDs are present
-4. Show live feed visualization (optional)
-5. If all markers found → proceed
-6. If not all found → retry
+**Логика:**
+1. Изчиства буфера на камерата (отхвърля стари кадри)
+2. Улавя свеж кадър
+3. Извиква `calibration_vision.find_required_aruco_markers(frame)`
+   - Използва OpenCV `cv2.aruco.detectMarkers()`
+   - Проверява дали всички необходими ID-та са налични
+4. Показва визуализация на живо предаване (опционално)
+5. Ако всички маркери са намерени → продължава
+6. Ако не всички са намерени → повторен опит
 
-**Next States:**
-- `ALL_ARUCO_FOUND` (all required markers detected)
-- `LOOKING_FOR_ARUCO_MARKERS` (retry if incomplete)
+**Следващи Състояния:**
+- `ALL_ARUCO_FOUND` (всички необходими маркери са открити)
+- `LOOKING_FOR_ARUCO_MARKERS` (повторен опит ако е непълно)
 
-**Failure Conditions:** None (retries indefinitely)
+**Условия за Грешка:** Няма (повтаря безкрайно)
 
-**Performance Note:** Uses background thread for non-blocking visualization
+**Бележка за Производителност:** Използва фонова нишка за неблокираща визуализация
 
 ---
 
 ### 6. ALL_ARUCO_FOUND
 
-**Purpose:** Process detected markers and convert coordinates to millimeters
+**Цел:** Обработка на открити маркери и преобразуване на координати в милиметри
 
-**Context Reads:**
-- `context.calibration_vision.marker_top_left_corners` (pixels)
-- `context.calibration_vision.PPM` (conversion factor)
-- `context.bottom_left_chessboard_corner_px` (reference point)
+**Контекст Чете:**
+- `context.calibration_vision.marker_top_left_corners` (пиксели)
+- `context.calibration_vision.PPM` (фактор на преобразуване)
+- `context.bottom_left_chessboard_corner_px` (референтна точка)
 
-**Context Writes:**
-- `context.calibration_vision.marker_top_left_corners_mm` (dict: marker_id → (x_mm, y_mm))
-- `context.camera_points_for_homography` (copy of pixel coordinates)
+**Контекст Записва:**
+- `context.calibration_vision.marker_top_left_corners_mm` (речник: marker_id → (x_mm, y_mm))
+- `context.camera_points_for_homography` (копие на пикселни координати)
 
-**Logic:**
-For each detected marker:
+**Логика:**
+За всеки открит маркер:
 ```python
 x_mm = (marker_x_px - bottom_left_x_px) / PPM
 y_mm = (marker_y_px - bottom_left_y_px) / PPM
 ```
 
-**Next States:**
-- `COMPUTE_OFFSETS` (always)
+**Следващи Състояния:**
+- `COMPUTE_OFFSETS` (винаги)
 
-**Failure Conditions:** None (data already validated in previous state)
+**Условия за Грешка:** Няма (данните вече са валидирани в предишното състояние)
 
 ---
 
 ### 7. COMPUTE_OFFSETS
 
-**Purpose:** Calculate offset of each marker from image center (in millimeters)
+**Цел:** Изчисляване на отместването на всеки маркер от центъра на изображението (в милиметри)
 
-**Context Reads:**
+**Контекст Чете:**
 - `context.calibration_vision.marker_top_left_corners_mm`
-- `context.system.camera_settings` (image dimensions)
+- `context.system.camera_settings` (размери на изображението)
 - `context.bottom_left_chessboard_corner_px`
 - `context.calibration_vision.PPM`
 
-**Context Writes:**
-- `context.markers_offsets_mm` (dict: marker_id → (offset_x_mm, offset_y_mm))
+**Контекст Записва:**
+- `context.markers_offsets_mm` (речник: marker_id → (offset_x_mm, offset_y_mm))
 
-**Logic:**
-1. Get image center in pixels: `(width/2, height/2)`
-2. Convert image center to mm relative to chessboard:
+**Логика:**
+1. Взема центъра на изображението в пиксели: `(width/2, height/2)`
+2. Преобразува центъра на изображението в mm спрямо шахматната дъска:
    ```python
    center_x_mm = (center_x_px - bottom_left_x_px) / PPM
    center_y_mm = (center_y_px - bottom_left_y_px) / PPM
    ```
-3. For each marker, compute offset from image center:
+3. За всеки маркер изчислява отместване от центъра на изображението:
    ```python
    offset_x_mm = marker_x_mm - center_x_mm
    offset_y_mm = marker_y_mm - center_y_mm
    ```
 
-**Next States:**
-- `ALIGN_ROBOT` (success)
-- `ERROR` (if PPM or chessboard data missing)
+**Следващи Състояния:**
+- `ALIGN_ROBOT` (успех)
+- `ERROR` (ако липсват PPM или данни за шахматната дъска)
 
-**Failure Conditions:**
-- `PPM is None` (chessboard detection failed earlier)
+**Условия за Грешка:**
+- `PPM is None` (откриването на шахматната дъска е било неуспешно по-рано)
 - `bottom_left_chessboard_corner_px is None`
 
-**Why Offsets Matter:** These offsets tell the robot how far to move to center each marker in the camera view
+**Защо Отместванията Са Важни:** Тези отмествания казват на робота колко далеч да се движи, за да центрира всеки маркер в изгледа на камерата
 
 ---
 
 ### 8. ALIGN_ROBOT
 
-**Purpose:** Move robot to approximately align with current marker
+**Цел:** Движене на робота за приблизително подравняване с текущия маркер
 
-**Context Reads:**
-- `context.required_ids` (sorted list of markers)
-- `context.current_marker_id` (index into sorted list)
-- `context.markers_offsets_mm` (target offsets)
-- `context.image_to_robot_mapping` (axis mapping)
-- `context.calibration_robot_controller` (movement)
-- `context.Z_target` (target Z height)
+**Контекст Чете:**
+- `context.required_ids` (сортиран списък от маркери)
+- `context.current_marker_id` (индекс в сортирания списък)
+- `context.markers_offsets_mm` (целеви отмествания)
+- `context.image_to_robot_mapping` (картографиране на осите)
+- `context.calibration_robot_controller` (движение)
+- `context.Z_target` (целева Z височина)
 
-**Context Writes:**
-- `context.iteration_count = 0` (reset for new marker)
+**Контекст Записва:**
+- `context.iteration_count = 0` (нулиране за нов маркер)
 
-**Logic:**
-1. Get current marker ID from sorted list
-2. Get marker's offset from image center (in mm)
-3. Apply axis mapping to convert image offsets → robot offsets:
+**Логика:**
+1. Взема текущото ID на маркера от сортирания списък
+2. Взема отместването на маркера от центъра на изображението (в mm)
+3. Прилага картографиране на осите за преобразуване на отмествания на изображението → отмествания на робота:
    ```python
    robot_offset = image_to_robot_mapping.map(offset_x_mm, offset_y_mm)
    ```
-4. Calculate current robot position relative to calibration position
-5. Compute target position:
+4. Изчислява текущата позиция на робота спрямо калибрационната позиция
+5. Изчислява целева позиция:
    ```python
    new_x = current_x + (marker_offset_x - current_offset_x)
    new_y = current_y + (marker_offset_y - current_offset_y)
    new_z = Z_target
    ```
-6. Move robot to target position (blocking)
-7. If movement fails, retry from previous successful position
-8. Wait 1 second for stabilization
+6. Движи робота до целевата позиция (блокиращо)
+7. Ако движението е неуспешно, повторен опит от предишната успешна позиция
+8. Чака 1 секунда за стабилизация
 
-**Next States:**
-- `ITERATE_ALIGNMENT` (movement successful)
-- `ERROR` (movement failed after retry)
+**Следващи Състояния:**
+- `ITERATE_ALIGNMENT` (движението е успешно)
+- `ERROR` (движението е неуспешно след повторен опит)
 
-**Failure Conditions:**
-- Robot movement returns non-zero error code
-- Safety limits exceeded
-- Robot communication failure
+**Условия за Грешка:**
+- Движението на робота връща ненулев код за грешка
+- Превишени са границите на безопасност
+- Неуспешна комуникация с робота
 
-**Retry Logic:** If first move fails, return to last known good position, then retry
+**Логика за Повторен Опит:** Ако първото движение е неуспешно, връща се към последната известна добра позиция, след което повторен опит
 
 ---
 
 ### 9. ITERATE_ALIGNMENT
 
-**Purpose:** Iteratively refine robot position until marker is centered in image within threshold
+**Цел:** Итеративно рафиниране на позицията на робота докато маркерът не бъде центриран в изображението в рамките на прага
 
-**Context Reads:**
+**Контекст Чете:**
 - `context.current_marker_id`
 - `context.iteration_count`
-- `context.max_iterations` (default: 50)
-- `context.alignment_threshold_mm` (target precision)
-- `context.system` (camera)
-- `context.calibration_vision` (marker detection)
-- `context.image_to_robot_mapping` (axis mapping)
-- `context.ppm_scale` (Z-height correction factor)
+- `context.max_iterations` (по подразбиране: 50)
+- `context.alignment_threshold_mm` (целева прецизност)
+- `context.system` (камера)
+- `context.calibration_vision` (откриване на маркери)
+- `context.image_to_robot_mapping` (картографиране на осите)
+- `context.ppm_scale` (фактор на корекция за Z-височина)
 
-**Context Writes:**
-- `context.iteration_count` (incremented)
-- `context.robot_positions_for_calibration[marker_id]` (on success)
-- `context.calibration_error_message` (on failure)
+**Контекст Записва:**
+- `context.iteration_count` (увеличен)
+- `context.robot_positions_for_calibration[marker_id]` (при успех)
+- `context.calibration_error_message` (при грешка)
 
-**Logic:**
-1. **Check iteration limit:**
+**Логика:**
+1. **Проверка на лимита на итерации:**
    ```python
    if iteration_count > max_iterations:
-       return ERROR  # Failed to converge
+       return ERROR  # Неуспешна конвергенция
    ```
 
-2. **Capture and detect marker:**
-   - Get fresh camera frame
-   - Detect specific marker using `detect_specific_marker(frame, marker_id)`
-   - If not found → stay in state (retry)
+2. **Улавяне и откриване на маркер:**
+   - Взема свеж кадър от камерата
+   - Открива специфичен маркер използвайки `detect_specific_marker(frame, marker_id)`
+   - Ако не е намерен → остава в състоянието (повторен опит)
 
-3. **Compute alignment error:**
+3. **Изчисляване на грешка при подравняване:**
    ```python
    image_center = (width/2, height/2)
    marker_position = marker_top_left_corner_px
    offset_px = marker_position - image_center
    error_px = sqrt(offset_x² + offset_y²)
    
-   # Adjust PPM for current Z-height
+   # Коригира PPM за текущата Z-височина
    adjusted_PPM = PPM * ppm_scale
    error_mm = error_px / adjusted_PPM
    ```
 
-4. **Check if aligned:**
+4. **Проверка дали е подравнен:**
    ```python
    if error_mm <= alignment_threshold_mm:
-       # Success! Store robot position
+       # Успех! Запазва позицията на робота
        robot_positions_for_calibration[marker_id] = get_current_position()
-       return SAMPLE_HEIGHT  # Measure height at this position
+       return SAMPLE_HEIGHT  # Измерва височина на тази позиция
    ```
 
-5. **Compute corrective movement:**
-   - Convert pixel offsets to mm: `offset_mm = offset_px / adjusted_PPM`
-   - Apply axis mapping: `robot_offset_mm = image_to_robot_mapping.map(offset_x_mm, offset_y_mm)`
-   - Calculate iterative position with adaptive scaling (see below)
-   - Move robot to new position (blocking)
-   - Wait for stabilization
+5. **Изчисляване на коригиращо движение:**
+   - Преобразува пикселни отмествания в mm: `offset_mm = offset_px / adjusted_PPM`
+   - Прилага картографиране на осите: `robot_offset_mm = image_to_robot_mapping.map(offset_x_mm, offset_y_mm)`
+   - Изчислява итеративна позиция с адаптивно скалиране (вижте по-долу)
+   - Движи робота до нова позиция (блокиращо)
+   - Чака за стабилизация
 
-6. **Adaptive Movement Scaling:**
+6. **Адаптивно Скалиране на Движението:**
    ```python
-   # Scale movement based on error magnitude
+   # Скалира движението на базата на величината на грешката
    normalized_error = min(error_mm / max_error_ref, 1.0)
    step_scale = tanh(k * normalized_error)
    max_move = min_step + step_scale * (max_step - min_step)
    
-   # Near target, apply damping to prevent overshoot
+   # Близо до целта, прилага амортизация за предотвратяване на надхвърляне
    if error_mm < threshold * 2:
        damping = (error_mm / (threshold * 2))²
        max_move *= max(damping, 0.05)
    
-   # Derivative control (anti-overshoot)
+   # Производно управление (анти-надхвърляне)
    if has_previous_error:
        error_change = current_error - previous_error
        derivative_factor = 1.0 / (1.0 + derivative_scaling * abs(error_change))
        max_move *= derivative_factor
    ```
 
-**Next States:**
-- `ITERATE_ALIGNMENT` (not aligned yet, retry)
-- `SAMPLE_HEIGHT` (aligned, measure height)
-- `ERROR` (max iterations exceeded or movement failed)
+**Следващи Състояния:**
+- `ITERATE_ALIGNMENT` (още не е подравнен, повторен опит)
+- `SAMPLE_HEIGHT` (подравнен, измерва височина)
+- `ERROR` (превишени са максималните итерации или движението е неуспешно)
 
-**Failure Conditions:**
-- `iteration_count > max_iterations` → Calibration failed, marker cannot be aligned
-- Marker not detected during iteration (stays in state)
-- Robot movement fails (returns ERROR)
+**Условия за Грешка:**
+- `iteration_count > max_iterations` → Калибрирането е неуспешно, маркерът не може да бъде подравнен
+- Маркерът не е открит по време на итерация (остава в състоянието)
+- Движението на робота е неуспешно (връща ERROR)
 
-**Performance Timing:** Tracks capture_time, detection_time, processing_time, movement_time, stability_time
+**Хронометраж на Производителност:** Проследява capture_time, detection_time, processing_time, movement_time, stability_time
 
 ---
 
 ### 10. SAMPLE_HEIGHT
 
-**Purpose:** Measure workpiece height at current aligned position using laser detection
+**Цел:** Измерване на височината на работната повърхност на текущата подравнена позиция използвайки лазерно откриване
 
-**Context Reads:**
-- `context.height_measuring_service` (laser height sensor)
-- `context.calibration_robot_controller.robot_service` (current position)
+**Контекст Чете:**
+- `context.height_measuring_service` (лазерен датчик за височина)
+- `context.calibration_robot_controller.robot_service` (текуща позиция)
 
-**Context Writes:**
-- Measured height data (logged, not stored in context currently)
+**Контекст Записва:**
+- Измерени данни за височина (логнати, в момента не се съхраняват в контекста)
 
-**Logic:**
-1. Get current robot position `(x, y, z, rx, ry, rz)`
-2. Call `height_measuring_service.measure_at(x, y)`
-3. Receive `(height_mm, pixel_data)`
-4. Log measurement
+**Логика:**
+1. Взема текущата позиция на робота `(x, y, z, rx, ry, rz)`
+2. Извиква `height_measuring_service.measure_at(x, y)`
+3. Получава `(height_mm, pixel_data)`
+4. Логва измерването
 
-**Next States:**
-- `DONE` (always)
+**Следващи Състояния:**
+- `DONE` (винаги)
 
-**Failure Conditions:** None (measurements logged but don't affect calibration flow)
+**Условия за Грешка:** Няма (измерванията се логват, но не влияят на потока на калибриране)
 
-**Future Enhancement:** Store height measurements in context for surface profiling
+**Бъдещо Подобрение:** Съхранява измервания на височина в контекста за профилиране на повърхността
 
 ---
 
 ### 11. DONE
 
-**Purpose:** Manage transition between markers and final completion
+**Цел:** Управление на прехода между маркери и финално завършване
 
-**Context Reads:**
+**Контекст Чете:**
 - `context.current_marker_id`
-- `context.required_ids` (total marker count)
+- `context.required_ids` (общ брой маркери)
 
-**Context Writes:**
-- `context.current_marker_id` (incremented if more markers remain)
+**Контекст Записва:**
+- `context.current_marker_id` (увеличен ако остават още маркери)
 
-**Logic:**
+**Логика:**
 ```python
 if current_marker_id < len(required_ids) - 1:
     current_marker_id += 1
-    return ALIGN_ROBOT  # Process next marker
+    return ALIGN_ROBOT  # Обработва следващ маркер
 else:
-    return DONE  # All markers complete, finalize
+    return DONE  # Всички маркери са завършени, финализира
 ```
 
-**Next States:**
-- `ALIGN_ROBOT` (more markers to process)
-- `DONE` (final completion - state machine stops)
+**Следващи Състояния:**
+- `ALIGN_ROBOT` (още маркери за обработка)
+- `DONE` (финално завършване - машината на състоянията спира)
 
-**State Machine Stop Condition:**
-When `DONE` is returned and all markers are processed, the main pipeline detects this and calls `state_machine.stop_execution()`
+**Условие за Спиране на Машината на Състоянията:**
+Когато `DONE` е върнат и всички маркери са обработени, главният конвейер открива това и извиква `state_machine.stop_execution()`
 
 ---
 
 ### 12. ERROR
 
-**Purpose:** Handle calibration failure, log details, notify UI, stop process
+**Цел:** Обработка на неуспех при калибриране, логване на детайли, известяване на UI, спиране на процеса
 
-**Context Reads:**
-- `context.calibration_error_message` (detailed error description)
+**Контекст Чете:**
+- `context.calibration_error_message` (детайлно описание на грешката)
 - `context.current_marker_id`
 - `context.iteration_count`
-- `context.robot_positions_for_calibration` (successful markers)
-- `context.broadcast_events` (UI notification flag)
+- `context.robot_positions_for_calibration` (успешни маркери)
+- `context.broadcast_events` (флаг за известяване на UI)
 
-**Context Writes:**
-- None (terminal state)
+**Контекст Записва:**
+- Няма (терминално състояние)
 
-**Logic:**
-1. Retrieve specific error message from context (or use default)
-2. Log detailed error with context:
-   - Which marker failed
-   - Current iteration count
-   - How many markers were successfully calibrated
-3. If UI events enabled:
-   - Create structured error notification JSON
-   - Publish to `CALIBRATION_STOP_TOPIC` via message broker
-4. Stay in ERROR state (terminal)
+**Логика:**
+1. Извлича специфично съобщение за грешка от контекста (или използва по подразбиране)
+2. Логва детайлна грешка с контекст:
+   - Кой маркер е неуспешен
+   - Текущ брой итерации
+   - Колко маркера са успешно калибрирани
+3. Ако UI събитията са активирани:
+   - Създава структурирано известие за грешка JSON
+   - Публикува към `CALIBRATION_STOP_TOPIC` чрез message broker
+4. Остава в ERROR състояние (терминално)
 
-**Error Notification Structure:**
+**Структура на Известие за Грешка:**
 ```json
 {
   "status": "error",
@@ -599,147 +594,146 @@ When `DONE` is returned and all markers are processed, the main pipeline detects
 }
 ```
 
-**Next States:**
-- `ERROR` (stays in state, state machine stops)
+**Следващи Състояния:**
+- `ERROR` (остава в състоянието, машината на състоянията спира)
 
-**When ERROR is Triggered:**
-- Robot movement fails (after retries)
-- Maximum iterations exceeded without convergence
-- Missing critical calibration data (PPM, chessboard)
-- Vision system errors
-- Any unhandled exception in state handlers
+**Кога ERROR се Задейства:**
+- Движението на робота е неуспешно (след повторни опити)
+- Превишени са максималните итерации без конвергенция
+- Липсват критични данни за калибриране (PPM, шахматна дъска)
+- Грешки в системата
+- Всяко необработено изключение в обработчиците на състояния
 
 ---
 
-## Execution Context
+## Контекст на Изпълнение
 
 ### RobotCalibrationContext
 
-The execution context is the **shared state container** passed to every state handler. It stores all data needed during calibration.
+Контекстът на изпълнение е **контейнер на споделено състояние**, който се предава на всеки обработчик на състояние. Той съхранява всички данни необходими по време на калибриране.
 
-#### System Components
+#### Системни Компоненти
 ```python
-context.system                          # VisionSystem (camera interface)
-context.height_measuring_service        # Laser height sensor
-context.calibration_robot_controller    # Robot motion control wrapper
-context.calibration_vision              # Computer vision algorithms
-context.debug_draw                      # Debug visualization helper
-context.broker                          # MessageBroker for UI events
-context.state_machine                   # Reference to state machine
+context.system                          # VisionSystem (интерфейс на камера)
+context.height_measuring_service        # Лазерен датчик за височина
+context.calibration_robot_controller    # Обвивка за управление на движението на робота
+context.calibration_vision              # Алгоритми за компютърно зрение
+context.debug_draw                      # Помощник за визуализация при отстраняване на грешки
+context.broker                          # MessageBroker за UI събития
+context.state_machine                   # Референция към машината на състоянията
 ```
 
-#### Configuration
+#### Конфигурация
 ```python
-context.required_ids                    # Set of ArUco marker IDs to calibrate
+context.required_ids                    # Множество от ArUco маркер ID-та за калибриране
 context.chessboard_size                 # (cols, rows) tuple
-context.square_size_mm                  # Physical size of chessboard squares
-context.alignment_threshold_mm          # Target precision (default: 1.0mm)
-context.max_iterations                  # Max refinement iterations (default: 50)
-context.debug                           # Enable debug outputs
-context.step_by_step                    # Pause between steps
-context.live_visualization              # Show camera feed
-context.broadcast_events                # Send UI notifications
+context.square_size_mm                  # Физически размер на квадратите на шахматната дъска
+context.alignment_threshold_mm          # Целева прецизност (по подразбиране: 1.0mm)
+context.max_iterations                  # Макс. итерации на рафиниране (по подразбиране: 50)
+context.debug                           # Активиране на debug изходи
+context.step_by_step                    # Пауза между стъпки
+context.live_visualization              # Показване на камерно предаване
+context.broadcast_events                # Изпращане на UI известия
 ```
 
-#### Calibration State
+#### Състояние на Калибриране
 ```python
-context.bottom_left_chessboard_corner_px  # Reference point (x, y) in pixels
-context.chessboard_center_px              # Chessboard center (x, y) in pixels
-context.markers_offsets_mm                # Dict: marker_id → (offset_x_mm, offset_y_mm)
-context.current_marker_id                 # Index of current marker being aligned
-context.iteration_count                   # Current refinement iteration
+context.bottom_left_chessboard_corner_px  # Референтна точка (x, y) в пиксели
+context.chessboard_center_px              # Център на шахматната дъска (x, y) в пиксели
+context.markers_offsets_mm                # Речник: marker_id → (offset_x_mm, offset_y_mm)
+context.current_marker_id                 # Индекс на текущия маркер който се подравнява
+context.iteration_count                   # Текуща итерация на рафиниране
 ```
 
-#### Z-Axis Configuration
+#### Конфигурация на Z-Ос
 ```python
-context.Z_current                       # Robot Z position at calibration start
-context.Z_target                        # Target Z height during calibration
-context.ppm_scale                       # Z_current / Z_target (PPM adjustment factor)
+context.Z_current                       # Z позиция на робота при начало на калибриране
+context.Z_target                        # Целева Z височина по време на калибриране
+context.ppm_scale                       # Z_current / Z_target (фактор за корекция на PPM)
 ```
 
-#### Calibration Results
+#### Резултати от Калибриране
 ```python
-context.robot_positions_for_calibration  # Dict: marker_id → [x, y, z, rx, ry, rz]
-context.camera_points_for_homography     # Dict: marker_id → (x_px, y_px)
-context.image_to_robot_mapping           # ImageToRobotMapping (axis mapping)
+context.robot_positions_for_calibration  # Речник: marker_id → [x, y, z, rx, ry, rz]
+context.camera_points_for_homography     # Речник: marker_id → (x_px, y_px)
+context.image_to_robot_mapping           # ImageToRobotMapping (картографиране на осите)
 ```
 
-#### Performance Tracking
+#### Проследяване на Производителност
 ```python
-context.state_timings                   # Dict: state_name → [duration1, duration2, ...]
-context.current_state_start_time        # Timestamp when current state started
-context.total_calibration_start_time    # Timestamp when calibration began
+context.state_timings                   # Речник: state_name → [duration1, duration2, ...]
+context.current_state_start_time        # Времеви печат кога текущото състояние е започнало
+context.total_calibration_start_time    # Времеви печат кога калибрирането е започнало
 ```
 
-#### Methods
+#### Методи
 ```python
-context.start_state_timer(state_name)   # Begin timing a state
-context.end_state_timer()               # End timing current state
-context.flush_camera_buffer()           # Discard old camera frames
-context.get_current_state_name()        # Get state name string
-context.to_debug_dict()                 # Serialize to dict for debugging
-context.reset()                         # Reset to initial state
+context.start_state_timer(state_name)   # Започва хронометраж на състояние
+context.end_state_timer()               # Завършва хронометраж на текущо състояние
+context.flush_camera_buffer()           # Отхвърля стари кадри от камерата
+context.get_current_state_name()        # Взема име на състоянието като string
+context.to_debug_dict()                 # Сериализира в dict за отстраняване на грешки
+context.reset()                         # Нулира до начално състояние
 ```
 
 ---
 
-## State Flow Diagrams
+## Диаграми на Потока на Състоянията
 
-### High-Level Calibration Flow
+### Високо-Ниво Поток на Калибриране
 
 ```
 ┌─────────────────┐
-│  INITIALIZING   │  Wait for camera ready
+│  INITIALIZING   │  Чака камерата да е готова
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  AXIS_MAPPING   │  Calibrate image-to-robot axes
+│  AXIS_MAPPING   │  Калибрира осите изображение-робот
 └────────┬────────┘
          │
          ▼
-┌─────────────────────────┐
-│ LOOKING_FOR_CHESSBOARD  │◄─┐ Retry until found
+│ LOOKING_FOR_CHESSBOARD  │◄─┐ Повторен опит докато не е намерена
 └────────┬────────────────┘  │
-         │ Found             │
+         │ Намерена          │
          ▼                   │
 ┌─────────────────────┐      │
-│  CHESSBOARD_FOUND   │      │ Not found
+│  CHESSBOARD_FOUND   │      │ Не е намерена
 └────────┬────────────┘      │
          │                   │
          ▼                   │
 ┌──────────────────────────┐ │
-│ LOOKING_FOR_ARUCO_MARKERS│◄┘ Retry until all found
+│ LOOKING_FOR_ARUCO_MARKERS│◄┘ Повторен опит докато всички не са намерени
 └────────┬─────────────────┘
-         │ All found
+         │ Всички намерени
          ▼
 ┌─────────────────────┐
-│  ALL_ARUCO_FOUND    │  Convert to mm coordinates
+│  ALL_ARUCO_FOUND    │  Преобразува в mm координати
 └────────┬────────────┘
          │
          ▼
 ┌─────────────────┐
-│ COMPUTE_OFFSETS │  Calculate marker offsets from center
+│ COMPUTE_OFFSETS │  Изчислява отмествания на маркери от центъра
 └────────┬────────┘
          │
          ▼
     ┌────────────────────────────────┐
-    │   FOR EACH MARKER (Loop)       │
+    │   ЗА ВСЕКИ МАРКЕР (Цикъл)      │
     │                                 │
     │  ┌──────────────┐              │
-    │  │ ALIGN_ROBOT  │  Initial move│
+    │  │ ALIGN_ROBOT  │  Начално движение│
     │  └──────┬───────┘              │
     │         │                       │
     │         ▼                       │
     │  ┌──────────────────┐          │
     │  │ ITERATE_ALIGNMENT│◄─┐       │
     │  └──────┬───────────┘  │       │
-    │         │ Not aligned  │       │
-    │         │ Refine move ─┘       │
-    │         │ Aligned              │
+    │         │ Не е подравнен│      │
+    │         │ Рафинира движение ─┘ │
+    │         │ Подравнен            │
     │         ▼                       │
     │  ┌──────────────┐              │
-    │  │SAMPLE_HEIGHT │  Measure Z   │
+    │  │SAMPLE_HEIGHT │  Измерва Z   │
     │  └──────┬───────┘              │
     │         │                       │
     │         ▼                       │
@@ -748,44 +742,44 @@ context.reset()                         # Reset to initial state
     │  └──────┬───────┘              │
     │         │                       │
     └─────────┼───────────────────────┘
-              │ More markers? → ALIGN_ROBOT
-              │ All done? → DONE (final)
+              │ Още маркери? → ALIGN_ROBOT
+              │ Всичко завършено? → DONE (финално)
               ▼
     ┌─────────────────┐
-    │  DONE (final)   │  Compute homography, save matrix
+    │  DONE (финално) │  Изчислява хомография, запазва матрица
     └─────────────────┘
 
-         Any error
+         Всяка грешка
               ↓
     ┌─────────────────┐
-    │      ERROR      │  Log, notify UI, stop
+    │      ERROR      │  Логва, известява UI, спира
     └─────────────────┘
 ```
 
-### Detailed Iteration Loop (Per Marker)
+### Детайлен Цикъл на Итерация (На Маркер)
 
 ```
                   ┌──────────────┐
                   │ ALIGN_ROBOT  │
                   └──────┬───────┘
                          │
-                         │ 1. Get marker offset from image center
-                         │ 2. Apply axis mapping
-                         │ 3. Calculate target position
-                         │ 4. Move robot (coarse alignment)
+                         │ 1. Взема отместване на маркера от центъра на изображението
+                         │ 2. Прилага картографиране на осите
+                         │ 3. Изчислява целева позиция
+                         │ 4. Движи робота (груба подравняване)
                          │
                          ▼
                   ┌──────────────────┐
              ┌────┤ ITERATE_ALIGNMENT├────┐
              │    └──────────────────┘    │
              │                             │
-             │ 1. Capture frame            │
-             │ 2. Detect marker            │ Marker not found → retry
-             │ 3. Calculate error_mm       │
+             │ 1. Улавя кадър             │
+             │ 2. Открива маркер          │ Маркерът не е намерен → повторен опит
+             │ 3. Изчислява error_mm      │
              │                             │
-             │    error_mm ≤ threshold?    │
+             │    error_mm ≤ праг?         │
              │           │                 │
-             │          YES                │
+             │          ДА                 │
              │           │                 │
              │           ▼                 │
              │    ┌──────────────┐        │
@@ -794,88 +788,88 @@ context.reset()                         # Reset to initial state
              │           │                 │
              │           ▼                 │
              │    ┌──────────────┐        │
-             │    │     DONE     │        │ Max iterations
-             │    └──────────────┘        │ exceeded?
+             │    │     DONE     │        │ Макс. итерации
+             │    └──────────────┘        │ превишени?
              │                             │    │
-             │                             │   YES
-             │          NO                 │    │
+             │                             │   ДА
+             │          НЕ                 │    │
              │           │                 │    ▼
              │           ▼                 │ ┌───────┐
-             │    4. Calculate move        │ │ ERROR │
-             │    5. Apply adaptive        │ └───────┘
-             │       scaling               │
-             │    6. Move robot ───────────┘
-             │       (fine adjustment)
-             │    7. Wait for stability
+             │    4. Изчислява движение   │ │ ERROR │
+             │    5. Прилага адаптивно    │ └───────┘
+             │       скалиране            │
+             │    6. Движи робота ────────┘
+             │       (фина корекция)
+             │    7. Чака за стабилност
              │
-             └──► Back to step 1 (next iteration)
+             └──► Обратно към стъпка 1 (следваща итерация)
 ```
 
-### Decision Tree for Next State Selection
+### Дърво на Решения за Избор на Следващо Състояние
 
 ```
 ITERATE_ALIGNMENT:
 │
-├─ iteration_count > max_iterations? ──YES──► ERROR
-│                                              (calibration_error_message set)
-├─ NO
+├─ iteration_count > max_iterations? ──ДА──► ERROR
+│                                              (calibration_error_message зададено)
+├─ НЕ
 │
-├─ Marker detected?
-│  ├─ NO ──────────────────────────────────► ITERATE_ALIGNMENT (retry)
+├─ Маркер открит?
+│  ├─ НЕ ──────────────────────────────────► ITERATE_ALIGNMENT (повторен опит)
 │  │
-│  └─ YES
+│  └─ ДА
 │     │
-│     └─ Calculate error_mm
+│     └─ Изчислява error_mm
 │        │
-│        ├─ error_mm ≤ alignment_threshold? ──YES──► SAMPLE_HEIGHT
-│        │                                            (store robot position)
+│        ├─ error_mm ≤ alignment_threshold? ──ДА──► SAMPLE_HEIGHT
+│        │                                            (съхранява позиция на робота)
 │        │
-│        └─ NO
+│        └─ НЕ
 │           │
-│           └─ Robot move successful?
-│              ├─ YES ──────────────────────► ITERATE_ALIGNMENT (next iteration)
+│           └─ Движението на робота успешно?
+│              ├─ ДА ──────────────────────► ITERATE_ALIGNMENT (следваща итерация)
 │              │
-│              └─ NO ────────────────────────► ERROR
-│                                              (movement failed)
+│              └─ НЕ ────────────────────────► ERROR
+│                                              (движението неуспешно)
 
 SAMPLE_HEIGHT:
 │
-└─ Always ──────────────────────────────────► DONE
+└─ Винаги ──────────────────────────────────► DONE
 
 DONE:
 │
-├─ current_marker_id < total_markers - 1? ──YES──► ALIGN_ROBOT
-│                                                   (increment current_marker_id)
+├─ current_marker_id < total_markers - 1? ──ДА──► ALIGN_ROBOT
+│                                                   (увеличава current_marker_id)
 │
-└─ NO ──────────────────────────────────────────► DONE (final)
-                                                   (stop state machine)
+└─ НЕ ──────────────────────────────────────────► DONE (финално)
+                                                   (спира машината на състоянията)
 ```
 
 ---
 
-## Transition Rules
+## Правила за Преход
 
-### Complete Transition Table
+### Пълна Таблица на Преходите
 
-| Current State               | Valid Next States                                                     |
+| Текущо Състояние            | Валидни Следващи Състояния                                            |
 |----------------------------|-----------------------------------------------------------------------|
 | `INITIALIZING`             | `AXIS_MAPPING`, `ERROR`                                               |
 | `AXIS_MAPPING`             | `LOOKING_FOR_CHESSBOARD`, `ERROR`                                     |
-| `LOOKING_FOR_CHESSBOARD`   | `CHESSBOARD_FOUND`, `LOOKING_FOR_CHESSBOARD` (retry), `ERROR`        |
+| `LOOKING_FOR_CHESSBOARD`   | `CHESSBOARD_FOUND`, `LOOKING_FOR_CHESSBOARD` (повторен опит), `ERROR`|
 | `CHESSBOARD_FOUND`         | `LOOKING_FOR_ARUCO_MARKERS`, `ALIGN_TO_CHESSBOARD_CENTER`, `ERROR`   |
 | `ALIGN_TO_CHESSBOARD_CENTER` | `LOOKING_FOR_ARUCO_MARKERS`, `ERROR`                                |
-| `LOOKING_FOR_ARUCO_MARKERS`| `ALL_ARUCO_FOUND`, `LOOKING_FOR_ARUCO_MARKERS` (retry), `ERROR`      |
+| `LOOKING_FOR_ARUCO_MARKERS`| `ALL_ARUCO_FOUND`, `LOOKING_FOR_ARUCO_MARKERS` (повторен опит), `ERROR`|
 | `ALL_ARUCO_FOUND`          | `COMPUTE_OFFSETS`, `ERROR`                                            |
 | `COMPUTE_OFFSETS`          | `ALIGN_ROBOT`, `ERROR`                                                |
 | `ALIGN_ROBOT`              | `ITERATE_ALIGNMENT`, `ERROR`                                          |
-| `ITERATE_ALIGNMENT`        | `ITERATE_ALIGNMENT` (retry), `SAMPLE_HEIGHT`, `ALIGN_ROBOT`, `DONE`, `ERROR` |
+| `ITERATE_ALIGNMENT`        | `ITERATE_ALIGNMENT` (повторен опит), `SAMPLE_HEIGHT`, `ALIGN_ROBOT`, `DONE`, `ERROR` |
 | `SAMPLE_HEIGHT`            | `DONE`, `ERROR`                                                       |
-| `DONE`                     | `ALIGN_ROBOT` (next marker), `DONE` (final), `ERROR`                 |
-| `ERROR`                    | `ERROR` (terminal)                                                    |
+| `DONE`                     | `ALIGN_ROBOT` (следващ маркер), `DONE` (финално), `ERROR`            |
+| `ERROR`                    | `ERROR` (терминално)                                                  |
 
-### Transition Enforcement
+### Налагане на Преходи
 
-The `ExecutableStateMachine` validates every transition:
+`ExecutableStateMachine` валидира всеки преход:
 
 ```python
 def transition_to(self, next_state):
@@ -891,16 +885,16 @@ def transition_to(self, next_state):
     self.current_state = next_state
 ```
 
-This prevents:
-- Logic errors (skipping required states)
-- Invalid state sequences
-- Unintended state transitions
+Това предотвратява:
+- Логически грешки (пропускане на необходими състояния)
+- Невалидни последователности на състояния
+- Непредвидени преходи между състояния
 
 ---
 
-## Usage Guide
+## Ръководство за Употреба
 
-### Basic Usage
+### Основна Употреба
 
 ```python
 from modules.robot_calibration.config_helpers import (
@@ -912,29 +906,29 @@ from modules.robot_calibration.newRobotCalibUsingExecutableStateMachine import (
     RefactoredRobotCalibrationPipeline
 )
 
-# Configure calibration
+# Конфигуриране на калибриране
 config = RobotCalibrationConfig(
     vision_system=my_vision_system,
     robot_service=my_robot_service,
     height_measuring_service=my_laser_service,
-    required_ids=[0, 1, 2, 3],  # ArUco marker IDs
-    z_target=400.0,  # Target Z height in mm
+    required_ids=[0, 1, 2, 3],  # ArUco маркер ID-та
+    z_target=400.0,  # Целева Z височина в mm
     debug=False,
     step_by_step=False,
     live_visualization=True
 )
 
-# Configure adaptive movement (optional)
+# Конфигуриране на адаптивно движение (опционално)
 adaptive_config = AdaptiveMovementConfig(
-    target_error_mm=0.5,        # Target precision
-    min_step_mm=0.1,            # Minimum movement
-    max_step_mm=10.0,           # Maximum movement
-    max_error_ref=20.0,         # Error at max step
-    k=1.5,                      # Responsiveness
-    derivative_scaling=0.3       # Anti-overshoot
+    target_error_mm=0.5,        # Целева прецизност
+    min_step_mm=0.1,            # Минимално движение
+    max_step_mm=10.0,           # Максимално движение
+    max_error_ref=20.0,         # Грешка при макс стъпка
+    k=1.5,                      # Отзивчивост
+    derivative_scaling=0.3       # Анти-надхвърляне
 )
 
-# Configure event broadcasting (optional)
+# Конфигуриране на излъчване на събития (опционално)
 events_config = RobotCalibrationEventsConfig(
     broker=message_broker,
     calibration_log_topic="calibration/log",
@@ -943,146 +937,146 @@ events_config = RobotCalibrationEventsConfig(
     calibration_image_topic="calibration/image"
 )
 
-# Create pipeline
+# Създаване на конвейер
 pipeline = RefactoredRobotCalibrationPipeline(
     config=config,
     adaptive_movement_config=adaptive_config,
     events_config=events_config
 )
 
-# Run calibration
+# Изпълнение на калибриране
 success = pipeline.run()
 
 if success:
-    print("Calibration successful!")
+    print("Калибрирането е успешно!")
     context = pipeline.get_context()
-    print(f"Calibrated {len(context.robot_positions_for_calibration)} markers")
+    print(f"Калибрирани {len(context.robot_positions_for_calibration)} маркера")
 else:
-    print("Calibration failed!")
+    print("Калибрирането е неуспешно!")
     context = pipeline.get_context()
-    print(f"Error: {context.calibration_error_message}")
+    print(f"Грешка: {context.calibration_error_message}")
 ```
 
-### Accessing Results
+### Достъп до Резултатите
 
 ```python
 context = pipeline.get_context()
 
-# Get robot positions for each marker
+# Взема позициите на робота за всеки маркер
 for marker_id, position in context.robot_positions_for_calibration.items():
     x, y, z, rx, ry, rz = position
-    print(f"Marker {marker_id}: ({x:.2f}, {y:.2f}, {z:.2f})")
+    print(f"Маркер {marker_id}: ({x:.2f}, {y:.2f}, {z:.2f})")
 
-# Get camera points
+# Взема точките на камерата
 for marker_id, point in context.camera_points_for_homography.items():
     x_px, y_px = point
-    print(f"Marker {marker_id}: ({x_px:.2f}, {y_px:.2f}) pixels")
+    print(f"Маркер {marker_id}: ({x_px:.2f}, {y_px:.2f}) пиксели")
 
-# Get timing statistics
+# Взема статистики за времето
 for state_name, durations in context.state_timings.items():
     avg_duration = sum(durations) / len(durations)
-    print(f"{state_name}: {avg_duration:.2f}s average")
+    print(f"{state_name}: {avg_duration:.2f}s средно")
 ```
 
-### Monitoring State Machine
+### Мониторинг на Машината на Състоянията
 
 ```python
 state_machine = pipeline.get_state_machine()
 
-# Get current state
+# Взема текущото състояние
 current = state_machine.current_state
-print(f"Current state: {current.name}")
+print(f"Текущо състояние: {current.name}")
 
-# Check if running
+# Проверка дали се изпълнява
 if state_machine.is_running:
-    print("Calibration in progress...")
+    print("Калибрирането е в процес...")
 ```
 
 ---
 
-## Configuration
+## Конфигурация
 
 ### RobotCalibrationConfig
 
-| Parameter | Type | Required | Description |
+| Параметър | Тип | Задължителен | Описание |
 |-----------|------|----------|-------------|
-| `vision_system` | VisionSystem | Yes | Camera interface |
-| `robot_service` | RobotService | Yes | Robot control interface |
-| `height_measuring_service` | HeightMeasuringService | Yes | Laser height sensor |
-| `required_ids` | List[int] | Yes | ArUco marker IDs to calibrate |
-| `z_target` | float | Yes | Target Z height (mm) |
-| `debug` | bool | No | Enable debug outputs (default: False) |
-| `step_by_step` | bool | No | Pause between steps (default: False) |
-| `live_visualization` | bool | No | Show camera feed (default: True) |
+| `vision_system` | VisionSystem | Да | Интерфейс на камера |
+| `robot_service` | RobotService | Да | Интерфейс за управление на робота |
+| `height_measuring_service` | HeightMeasuringService | Да | Лазерен датчик за височина |
+| `required_ids` | List[int] | Да | ArUco маркер ID-та за калибриране |
+| `z_target` | float | Да | Целева Z височина (mm) |
+| `debug` | bool | Не | Активира debug изходи (по подразбиране: False) |
+| `step_by_step` | bool | Не | Пауза между стъпки (по подразбиране: False) |
+| `live_visualization` | bool | Не | Показва камерно предаване (по подразбиране: True) |
 
 ### AdaptiveMovementConfig
 
-| Parameter | Type | Default | Description |
+| Параметър | Тип | По подразбиране | Описание |
 |-----------|------|---------|-------------|
-| `target_error_mm` | float | 1.0 | Target alignment precision (mm) |
-| `min_step_mm` | float | 0.1 | Minimum movement step (mm) |
-| `max_step_mm` | float | 10.0 | Maximum movement step (mm) |
-| `max_error_ref` | float | 20.0 | Error magnitude at max step (mm) |
-| `k` | float | 1.5 | Responsiveness factor (1.0=smooth, 2.0=aggressive) |
-| `derivative_scaling` | float | 0.3 | Anti-overshoot damping |
+| `target_error_mm` | float | 1.0 | Целева прецизност на подравняване (mm) |
+| `min_step_mm` | float | 0.1 | Минимална стъпка на движение (mm) |
+| `max_step_mm` | float | 10.0 | Максимална стъпка на движение (mm) |
+| `max_error_ref` | float | 20.0 | Величина на грешката при макс стъпка (mm) |
+| `k` | float | 1.5 | Фактор на отзивчивост (1.0=гладко, 2.0=агресивно) |
+| `derivative_scaling` | float | 0.3 | Амортизация анти-надхвърляне |
 
 ### RobotCalibrationEventsConfig
 
-| Parameter | Type | Required | Description |
+| Параметър | Тип | Задължителен | Описание |
 |-----------|------|----------|-------------|
-| `broker` | MessageBroker | Yes | Event publisher |
-| `calibration_log_topic` | str | Yes | Topic for log messages |
-| `calibration_start_topic` | str | Yes | Topic for start event |
-| `calibration_stop_topic` | str | Yes | Topic for stop/error events |
-| `calibration_image_topic` | str | Yes | Topic for camera images |
+| `broker` | MessageBroker | Да | Издател на събития |
+| `calibration_log_topic` | str | Да | Topic за лог съобщения |
+| `calibration_start_topic` | str | Да | Topic за събитие за стартиране |
+| `calibration_stop_topic` | str | Да | Topic за събитие за спиране/грешка |
+| `calibration_image_topic` | str | Да | Topic за изображения от камерата |
 
 ---
 
-## Error Handling
+## Обработка на Грешки
 
-### Error Categories
+### Категории Грешки
 
-#### 1. **System Errors**
-- Camera not initialized → Wait in `INITIALIZING` state
-- Camera feed failure → Retry frame capture
-- Robot communication failure → Transition to `ERROR`
+#### 1. **Системни Грешки**
+- Камерата не е инициализирана → Чака в `INITIALIZING` състояние
+- Неуспех на камерно предаване → Повторен опит на улавяне на кадър
+- Неуспех на комуникация с робота → Преход към `ERROR`
 
-#### 2. **Detection Errors**
-- Chessboard not found → Retry in `LOOKING_FOR_CHESSBOARD`
-- Not all ArUco markers found → Retry in `LOOKING_FOR_ARUCO_MARKERS`
-- Marker lost during alignment → Retry in `ITERATE_ALIGNMENT`
+#### 2. **Грешки при Откриване**
+- Шахматната дъска не е намерена → Повторен опит в `LOOKING_FOR_CHESSBOARD`
+- Не всички ArUco маркери са намерени → Повторен опит в `LOOKING_FOR_ARUCO_MARKERS`
+- Маркер загубен по време на подравняване → Повторен опит в `ITERATE_ALIGNMENT`
 
-#### 3. **Movement Errors**
-- Robot movement failed → Retry once, then `ERROR`
-- Safety limits exceeded → Immediate `ERROR`
-- Position unreachable → `ERROR`
+#### 3. **Грешки при Движение**
+- Движението на робота е неуспешно → Повторен опит веднъж, след това `ERROR`
+- Превишени граници на безопасност → Незабавен `ERROR`
+- Позицията е недостижима → `ERROR`
 
-#### 4. **Convergence Errors**
-- Max iterations exceeded → `ERROR` with detailed message
-- Alignment oscillation → Handled by adaptive movement + derivative control
+#### 4. **Грешки при Конвергенция**
+- Превишени макс итерации → `ERROR` с детайлно съобщение
+- Осцилация при подравняване → Обработва се от адаптивно движение + производно управление
 
-#### 5. **Data Errors**
-- Missing PPM (chessboard detection failed) → `ERROR` in `COMPUTE_OFFSETS`
-- Invalid marker data → `ERROR` with description
+#### 5. **Грешки в Данните**
+- Липсващ PPM (откриването на шахматната дъска е неуспешно) → `ERROR` в `COMPUTE_OFFSETS`
+- Невалидни данни за маркер → `ERROR` с описание
 
-### Error Messages
+### Съобщения за Грешки
 
-All errors set `context.calibration_error_message` with details:
+Всички грешки задават `context.calibration_error_message` с детайли:
 
 ```python
-# Example error messages
-"Calibration failed during offset computation. Missing required data: pixels-per-mm (PPM). Chessboard detection may have failed."
+# Примерни съобщения за грешки
+"Калибрирането е неуспешно по време на изчисляване на отместване. Липсват необходими данни: пиксели-на-mm (PPM). Откриването на шахматната дъска може да е било неуспешно."
 
-"Robot movement failed for marker 2. Could not reach target position after retry. Check robot safety limits and workspace boundaries."
+"Движението на робота е неуспешно за маркер 2. Не може да достигне целевата позиция след повторен опит. Проверете границите на безопасност и границите на работното пространство на робота."
 
-"Calibration failed: Could not align with marker 3 after 50 iterations. Required precision: 1.0mm"
+"Калибрирането е неуспешно: Не може да се подравни с маркер 3 след 50 итерации. Необходима прецизност: 1.0mm"
 
-"Iterative robot movement failed for marker 1 during iteration 23. Check robot connectivity and safety systems."
+"Итеративното движение на робота е неуспешно за маркер 1 по време на итерация 23. Проверете свързаността на робота и системите за безопасност."
 ```
 
-### UI Notifications
+### UI Известия
 
-When `broadcast_events=True`, errors are published to UI:
+Когато `broadcast_events=True`, грешките се публикуват към UI:
 
 ```json
 {
@@ -1098,49 +1092,49 @@ When `broadcast_events=True`, errors are published to UI:
 }
 ```
 
-### Recovery Strategies
+### Стратегии за Възстановяване
 
-| Error Type | Recovery | State Transition |
+| Тип Грешка | Възстановяване | Преход на Състояние |
 |------------|----------|------------------|
-| Camera frame capture fails | Retry immediately | Stay in state |
-| Chessboard not detected | Retry indefinitely | `LOOKING_FOR_CHESSBOARD` |
-| Marker not detected | Retry indefinitely | `LOOKING_FOR_ARUCO_MARKERS` |
-| Robot move fails (first attempt) | Retry from last position | Stay in state |
-| Robot move fails (second attempt) | Stop calibration | `ERROR` |
-| Marker lost during iteration | Continue trying | `ITERATE_ALIGNMENT` |
-| Max iterations exceeded | Stop calibration | `ERROR` |
+| Неуспешно улавяне на кадър от камерата | Незабавен повторен опит | Остава в състоянието |
+| Шахматната дъска не е открита | Безкраен повторен опит | `LOOKING_FOR_CHESSBOARD` |
+| Маркерът не е открит | Безкраен повторен опит | `LOOKING_FOR_ARUCO_MARKERS` |
+| Движението на робота е неуспешно (първи опит) | Повторен опит от последна позиция | Остава в състоянието |
+| Движението на робота е неуспешно (втори опит) | Спиране на калибрирането | `ERROR` |
+| Маркер загубен по време на итерация | Продължава да опитва | `ITERATE_ALIGNMENT` |
+| Превишени макс итерации | Спиране на калибрирането | `ERROR` |
 
 ---
 
-## Performance Optimization
+## Оптимизация на Производителността
 
-### Camera Buffer Flushing
+### Изчистване на Буфера на Камерата
 
 ```python
-context.min_camera_flush = 5  # Discard 5 old frames
+context.min_camera_flush = 5  # Отхвърля 5 стари кадъра
 ```
 
-Ensures fresh, stable frames for critical detections (chessboard, markers).
+Гарантира свежи, стабилни кадри за критични открития (шахматна дъска, маркери).
 
-### Non-Blocking Visualization
+### Неблокираща Визуализация
 
-Live camera feed uses background thread to avoid blocking state machine execution.
+Живото камерно предаване използва фонова нишка за да избегне блокиране на изпълнението на машината на състоянията.
 
-### Adaptive Movement
+### Адаптивно Движение
 
-Progressive movement scaling:
-- **Large errors** → Large steps (fast convergence)
-- **Medium errors** → Scaled steps (balanced)
-- **Small errors** → Tiny steps with damping (precision)
+Прогресивно скалиране на движението:
+- **Големи грешки** → Големи стъпки (бърза конвергенция)
+- **Средни грешки** → Скалирани стъпки (балансирано)
+- **Малки грешки** → Минимални стъпки с амортизация (прецизност)
 
-Prevents:
-- Slow convergence (too cautious)
-- Overshoot (too aggressive)
-- Oscillation (derivative control)
+Предотвратява:
+- Бавна конвергенция (твърде предпазливо)
+- Надхвърляне (твърде агресивно)
+- Осцилация (производно управление)
 
-### State Timing
+### Хронометраж на Състоянията
 
-Every state execution is timed:
+Всяко изпълнение на състояние се хронометрира:
 ```python
 context.state_timings = {
     'INITIALIZING': [0.15],
@@ -1151,52 +1145,52 @@ context.state_timings = {
 }
 ```
 
-Use for:
-- Performance analysis
-- Bottleneck identification
-- Calibration optimization
+Използва се за:
+- Анализ на производителността
+- Идентификация на тесни места
+- Оптимизация на калибрирането
 
 ---
 
-## Homography Computation (Final Step)
+## Изчисляване на Хомография (Финална Стъпка)
 
-After all markers are aligned, the pipeline computes the homography matrix:
+След като всички маркери са подравнени, конвейерът изчислява хомографската матрица:
 
 ```python
 def _finalize_calibration(self):
-    # Sort by marker ID
+    # Сортира по маркер ID
     sorted_robot_items = sorted(context.robot_positions_for_calibration.items())
     sorted_camera_items = sorted(context.camera_points_for_homography.items())
     
-    # Extract coordinates
+    # Извлича координати
     robot_positions = [pos[:2] for _, pos in sorted_robot_items]  # (x, y)
     camera_points = [pt for _, pt in sorted_camera_items]  # (x_px, y_px)
     
-    # Compute homography
+    # Изчислява хомография
     src_pts = np.array(camera_points, dtype=np.float32)
     dst_pts = np.array(robot_positions, dtype=np.float32)
     H, status = cv2.findHomography(src_pts, dst_pts)
     
-    # Validate
+    # Валидира
     avg_error, _ = metrics.test_calibration(H, src_pts, dst_pts)
     
-    # Save if accurate
+    # Запазва ако е точно
     if avg_error <= 1.0:
         np.save(camera_to_robot_matrix_path, H)
-        log_info("Calibration successful, matrix saved")
+        log_info("Калибрирането е успешно, матрицата е запазена")
     else:
-        log_warning(f"High error ({avg_error:.2f}mm), recalibration suggested")
+        log_warning(f"Висока грешка ({avg_error:.2f}mm), препоръчва се повторно калибриране")
 ```
 
-### Homography Matrix
+### Хомографска Матрица
 
-The 3x3 homography matrix `H` transforms camera coordinates to robot coordinates:
+3x3 хомографската матрица `H` трансформира координати на камерата в координати на робота:
 
 ```python
-# Camera point (in pixels)
+# Точка на камерата (в пиксели)
 camera_point = [x_px, y_px, 1]
 
-# Transform to robot coordinates (in mm)
+# Трансформация към координати на робота (в mm)
 robot_point_homogeneous = H @ camera_point
 robot_x = robot_point_homogeneous[0] / robot_point_homogeneous[2]
 robot_y = robot_point_homogeneous[1] / robot_point_homogeneous[2]
@@ -1204,94 +1198,94 @@ robot_y = robot_point_homogeneous[1] / robot_point_homogeneous[2]
 
 ---
 
-## Troubleshooting
+## Отстраняване на Проблеми
 
-### Calibration Fails at Chessboard Detection
+### Калибрирането е Неуспешно при Откриване на Шахматна Дъска
 
-**Symptoms:** Stuck in `LOOKING_FOR_CHESSBOARD`
+**Симптоми:** Заседнало в `LOOKING_FOR_CHESSBOARD`
 
-**Solutions:**
-1. Ensure chessboard is flat, well-lit, in camera view
-2. Check `chessboard_size` matches physical pattern
-3. Check `square_size_mm` is correct
-4. Reduce glare/reflections on chessboard
-5. Ensure camera focus is correct
+**Решения:**
+1. Уверете се, че шахматната дъска е плоска, добре осветена, в изгледа на камерата
+2. Проверете дали `chessboard_size` съответства на физическия модел
+3. Проверете дали `square_size_mm` е правилен
+4. Намалете блясъка/отраженията върху шахматната дъска
+5. Уверете се, че фокусът на камерата е правилен
 
-### Calibration Fails at ArUco Detection
+### Калибрирането е Неуспешно при Откриване на ArUco
 
-**Symptoms:** Stuck in `LOOKING_FOR_ARUCO_MARKERS`
+**Симптоми:** Заседнало в `LOOKING_FOR_ARUCO_MARKERS`
 
-**Solutions:**
-1. Ensure all required markers are visible
-2. Check marker IDs match `required_ids`
-3. Ensure markers are not occluded
-4. Check lighting conditions
-5. Verify marker print quality (sharp edges)
+**Решения:**
+1. Уверете се, че всички необходими маркери са видими
+2. Проверете дали ID-тата на маркерите съответстват на `required_ids`
+3. Уверете се, че маркерите не са закрити
+4. Проверете условията на осветление
+5. Проверете качеството на печат на маркера (остри ръбове)
 
-### Alignment Iterations Never Converge
+### Итерациите за Подравняване Никога Не Конвергират
 
-**Symptoms:** `ERROR` with "max iterations exceeded"
+**Симптоми:** `ERROR` с "max iterations exceeded"
 
-**Solutions:**
-1. Increase `max_iterations` (default: 50)
-2. Relax `alignment_threshold_mm` (e.g., 1.5mm instead of 1.0mm)
-3. Check robot movement precision
-4. Verify axis mapping is correct (check AXIS_MAPPING logs)
-5. Reduce `derivative_scaling` if oscillating
-6. Check camera stability (vibrations)
+**Решения:**
+1. Увеличете `max_iterations` (по подразбиране: 50)
+2. Разхлабете `alignment_threshold_mm` (напр., 1.5mm вместо 1.0mm)
+3. Проверете прецизността на движение на робота
+4. Проверете дали картографирането на осите е правилно (проверете AXIS_MAPPING логове)
+5. Намалете `derivative_scaling` ако осцилира
+6. Проверете стабилността на камерата (вибрации)
 
-### High Reprojection Error
+### Висока Грешка при Обратна Проекция
 
-**Symptoms:** `avg_error > 1.0mm` after calibration completes
+**Симптоми:** `avg_error > 1.0mm` след завършване на калибрирането
 
-**Solutions:**
-1. Re-run calibration
-2. Check marker placement accuracy
-3. Verify chessboard is truly flat
-4. Ensure robot positions were stable during alignment
-5. Check for camera lens distortion
-6. Use more markers (better coverage of workspace)
+**Решения:**
+1. Пуснете калибрирането отново
+2. Проверете точността на поставяне на маркера
+3. Проверете дали шахматната дъска е наистина плоска
+4. Уверете се, че позициите на робота са били стабилни по време на подравняване
+5. Проверете за изкривяване на лещата на камерата
+6. Използвайте повече маркери (по-добро покритие на работното пространство)
 
-### Robot Movement Failures
+### Неуспехи при Движение на Робота
 
-**Symptoms:** `ERROR` with "Robot movement failed"
+**Симптоми:** `ERROR` с "Robot movement failed"
 
-**Solutions:**
-1. Check robot safety limits
-2. Verify workspace boundaries
-3. Check robot communication
-4. Ensure target positions are reachable
-5. Check for obstacles
-6. Verify robot calibration
-
----
-
-## Summary
-
-The Robot Calibration Module uses a **state machine architecture** to perform systematic camera-to-robot calibration:
-
-1. **Initialize** camera system
-2. **Map axes** automatically (image ↔ robot)
-3. **Detect chessboard** to establish reference and compute PPM
-4. **Detect ArUco markers** and convert to millimeters
-5. **Compute offsets** from image center
-6. **Align robot** to each marker iteratively with adaptive movement
-7. **Measure height** at each position (optional)
-8. **Compute homography** matrix from corresponding points
-9. **Validate and save** calibration data
-
-**Key Features:**
-- Fully automated (no manual intervention)
-- Robust error handling and retry logic
-- Adaptive movement for fast, precise convergence
-- Real-time UI feedback via message broker
-- Performance tracking and timing analysis
-- Declarative state transitions (validated)
-- Comprehensive logging and debugging
-
-**Result:** Accurate camera-to-robot transformation enabling precise vision-guided robotic operations.
+**Решения:**
+1. Проверете границите на безопасност на робота
+2. Проверете границите на работното пространство
+3. Проверете комуникацията с робота
+4. Уверете се, че целевите позиции са достижими
+5. Проверете за препятствия
+6. Проверете калибрирането на робота
 
 ---
 
-**End of Documentation**
+## Резюме
+
+Модулът за Калибриране на Робот използва **архитектура на машина на състоянията** за извършване на систематично калибриране камера-робот:
+
+1. **Инициализира** системата на камерата
+2. **Картографира осите** автоматично (изображение ↔ робот)
+3. **Открива шахматна дъска** за установяване на референция и изчисляване на PPM
+4. **Открива ArUco маркери** и преобразува в милиметри
+5. **Изчислява отмествания** от центъра на изображението
+6. **Подравнява робота** към всеки маркер итеративно с адаптивно движение
+7. **Измерва височина** на всяка позиция (опционално)
+8. **Изчислява хомографска** матрица от съответстващи точки
+9. **Валидира и запазва** данни за калибриране
+
+**Ключови Характеристики:**
+- Напълно автоматизирано (без ръчна намеса)
+- Robust обработка на грешки и логика за повторен опит
+- Адаптивно движение за бърза, прецизна конвергенция
+- Обратна връзка към UI в реално време чрез message broker
+- Проследяване на производителност и анализ на времето
+- Декларативни преходи на състояния (валидирани)
+- Изчерпателно логване и отстраняване на грешки
+
+**Резултат:** Точна трансформация камера-робот позволяваща прецизни роботни операции управлявани от машинно/компютърно зрение.
+
+---
+
+**Край на Документацията**
 
