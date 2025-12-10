@@ -14,7 +14,9 @@ class CellHardwareHandler:
     def __init__(self):
         """Initialize handler with service instance."""
         # Get file path using ApplicationStorageResolver
-        file_path = get_app_settings_path("glue_dispensing_application", "cell_hardware_config.json")
+        # Now using glue_cell_config which contains motor_address for each cell
+        # Note: get_app_settings_path adds .json extension automatically
+        file_path = get_app_settings_path("glue_dispensing_application", "glue_cell_config")
         repository = CellHardwareRepository(file_path)
         self.service = CellHardwareService(repository)
         self.repository = repository
