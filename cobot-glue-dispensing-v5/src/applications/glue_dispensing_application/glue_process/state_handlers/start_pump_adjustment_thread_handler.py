@@ -22,11 +22,14 @@ def handle_start_pump_adjustment_thread(context,logger_context,should_adjust_pum
         log_debug_message(logger_context, message="Starting pump adjustment thread (spray_on=True, adjustment enabled).")
 
         try:
+            # Get motor address for current path
+            motor_address = context.get_motor_address_for_current_path()
+
             pump_thread = start_dynamic_pump_speed_adjustment_thread(
                 service=context.service,
                 robotService=context.robot_service,
                 settings=context.current_settings,
-                glueType=context.glue_type,
+                glueType=motor_address,
                 path=context.current_path,
                 reach_end_threshold=float(context.current_settings.get(GlueSettingKey.REACH_END_THRESHOLD.value, 1.0)),
                 pump_ready_event=pump_ready_event,

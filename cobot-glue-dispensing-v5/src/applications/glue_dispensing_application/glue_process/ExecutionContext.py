@@ -20,7 +20,8 @@ class ExecutionContext(Context):
         self.service = None
         self.robot_service = None
         self.state_machine = None
-        self.glue_type = None
+        self.glue_type = None  # Legacy: Will be resolved dynamically per path
+        self.glue_operation = None  # Reference to GlueDispensingOperation for motor address resolution
         self.current_path_index = 0
         self.current_point_index = 0
         self.target_point_index = 0  # Point robot is moving towards (for resume)
@@ -47,6 +48,35 @@ class ExecutionContext(Context):
     def has_valid_context(self) -> bool:
         """Check if context has valid execution data"""
         return self.paths is not None and len(self.paths) > 0
+
+    def get_motor_address_for_current_path(self) -> int:
+        """
+        Get motor address for the current path's glue type.
+        Resolves dynamically from glue cell configuration.
+
+        Returns:
+            Motor address (Modbus address) for current path's glue type
+        """
+        if not self.paths or self.current_path_index >= len(self.paths):
+            print(f"[ExecutionContext] No valid path, returning default motor address 0")
+            return 0
+
+        current_path = self.paths[self.current_path_index]
+
+        # Get glue type from current path
+        glue_type = getattr(current_path, 'glue_type', None)
+
+        if not glue_type:
+            print(f"[ExecutionContext] No glue_type in path {self.current_path_index}, returning default motor address 0")
+            return 0
+
+        # Resolve motor address via operation
+        if self.glue_operation:
+            motor_address = self.glue_operation.get_motor_address_for_glue_type(glue_type)
+            return motor_address
+        else:
+            print(f"[ExecutionContext] No glue_operation reference, cannot resolve motor address for '{glue_type}'")
+            return 0
 
     def to_debug_dict(self) -> dict:
         """

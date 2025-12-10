@@ -1,7 +1,8 @@
 import time
 
-from modbusCommunication.ModbusClient import ModbusClient
 import minimalmodbus
+
+from modules.modbusCommunication import ModbusClient
 from modules.shared.utils.linuxUtils import get_modbus_port
 port = get_modbus_port()
 client = ModbusClient(slave=1,

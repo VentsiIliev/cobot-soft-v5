@@ -21,10 +21,14 @@ def stop_operation(glue_dispensing_operation,context,logger_context):
         except Exception as e:
             log_debug_message(logger_context,
                            message=f"Error stopping robot on pause: {e}")
-        context.pump_controller.pump_off(context.service, context.robot_service, context.glue_type,
+
+        # Get motor address for current path
+        motor_address = context.get_motor_address_for_current_path()
+
+        context.pump_controller.pump_off(context.service, context.robot_service, motor_address,
                                          context.current_settings)
         context.service.generatorOff()
-        context.pump_controller.pump_off(context.service,context.robot_service,context.glue_type,context.current_settings)
+        context.pump_controller.pump_off(context.service,context.robot_service,motor_address,context.current_settings)
         context.service.generatorOff()
         log_debug_message(logger_context,
                           message=f"Operation stopped from current state: {context.state_machine.state}")

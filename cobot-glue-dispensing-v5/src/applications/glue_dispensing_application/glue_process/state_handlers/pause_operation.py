@@ -3,7 +3,7 @@ from modules.utils.custom_logging import log_debug_message
 
 
 def pause_operation(glue_dispensing_operation, context,logger_context):
-    """Pause current operation or resume if already paused with debouncing"""
+    """Pause the current operation or resume if already paused with debouncing"""
 
     # Safety check: ensure state machine exists
     if not hasattr(context, 'state_machine') or context.state_machine is None:
@@ -36,7 +36,11 @@ def pause_operation(glue_dispensing_operation, context,logger_context):
         except Exception as e:
             log_debug_message(logger_context,
                            message=f"Error stopping robot on pause: {e}")
-        context.pump_controller.pump_off(context.service, context.robot_service, context.glue_type,
+
+        # Get motor address for the current path
+        motor_address = context.get_motor_address_for_current_path()
+
+        context.pump_controller.pump_off(context.service, context.robot_service, motor_address,
                                          context.current_settings)
         context.service.generatorOff()
         return True, "Operation paused"

@@ -30,7 +30,10 @@ def handle_pump_initial_boost(context,logger_context) -> GlueProcessState:
 
     # --- Case 1: Spray mode active and motor not started ---
     if spray_on and not context.motor_started:
-        result = context.pump_controller.pump_on(context.service,context.robot_service,context.glue_type,context.current_settings)
+        # Get motor address for current path
+        motor_address = context.get_motor_address_for_current_path()
+
+        result = context.pump_controller.pump_on(context.service,context.robot_service,motor_address,context.current_settings)
 
         if not result:
             log_error_message(

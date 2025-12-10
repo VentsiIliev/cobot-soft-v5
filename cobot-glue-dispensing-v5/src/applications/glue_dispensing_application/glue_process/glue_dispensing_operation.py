@@ -124,7 +124,13 @@ class GlueDispensingOperation(IOperation):
         self.execution_context.robot_service = self.robot_service
         self.execution_context.state_machine = self.glue_process_state_machine
         self.execution_context.operation = self  # ✅ Store reference to operation for completion
-        self.execution_context.glue_type = self.glue_service.glueA_addresses
+
+        # ❌ REMOVED: Old hardcoded glue_type assignment
+        # self.execution_context.glue_type = self.glue_service.glueA_addresses
+
+        # ✅ NEW: Store operation reference for motor address resolution
+        self.execution_context.glue_operation = self
+
         self.execution_context.current_path_index = 0
         self.execution_context.current_point_index = 0
         self.execution_context.is_resuming = False
@@ -134,6 +140,44 @@ class GlueDispensingOperation(IOperation):
         # ✅ Add these for pump adjustment
         self.execution_context.pump_thread = None
         self.execution_context.pump_ready_event = None
+
+    def get_motor_address_for_glue_type(self, glue_type: str) -> int:
+        """
+        Resolve motor address from glue cell configuration based on glue type.
+
+        Args:
+            glue_type: The glue type name (e.g., "TypeA", "TypeB", "TEST TYPE")
+
+        Returns:
+            Motor address (Modbus address) for the specified glue type
+
+        Raises:
+            ValueError: If glue type is not found in configuration
+        """
+        try:
+            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+
+            # Get cells manager
+            cells_manager = GlueCellsManagerSingleton.get_instance()
+
+            # Find cell with matching glue type
+            for cell in cells_manager.cells:
+                if cell.glueType == glue_type:
+                    motor_address = cell.motor_address
+                    print(f"[GlueOperation] Resolved glue type '{glue_type}' → motor address: {motor_address}")
+                    return motor_address
+
+            # Glue type not found
+            raise ValueError(f"Glue type '{glue_type}' not found in cell configuration")
+
+        except Exception as e:
+            log_error_message(
+                glue_dispensing_logger_context,
+                message=f"Error resolving motor address for glue type '{glue_type}': {e}"
+            )
+            # Fallback to motor address 0
+            print(f"[GlueOperation] Falling back to motor address 0 for glue type '{glue_type}'")
+            return 0
 
     @log_calls_with_timestamp_decorator(enabled=ENABLE_GLUE_DISPENSING_LOGGING, logger=glue_dispensing_logger)
     def _do_start(self, paths, spray_on=False, resume=False) -> OperationResult:
