@@ -147,25 +147,23 @@ class DashboardWidget(TranslatableWidget):
             card.title_label.setText(f"{self.tr(TranslationKeys.Dashboard.GLUE)} {card.card_index}")
 
     """GLUE DISPENSING APPLICATION SPECIFIC"""
-    def create_glue_card(self, index: int, label_text: str) -> DashboardCard:
+    def create_glue_card(self, index: int, label_text: str):
         """Create glue card using factory"""
         card = self.card_factory.create_glue_card(index, label_text, self.shared_card_container)
-        # Connect signals
-        card.glue_type_combo.currentTextChanged.connect(
-            lambda value, idx=index: self.glue_type_changed_signal.emit(idx, value)
-        )
-        card.long_press_detected.connect(self.on_glue_card_long_press)
+
+        # Connect the change glue button signal to open wizard
+        card.change_glue_requested.connect(self.on_change_glue_requested)
 
         return card
 
     """GLUE DISPENSING APPLICATION SPECIFIC"""
-    def on_glue_card_long_press(self, card_index: int):
-        """Handle long press on glue card - show glue change wizard"""
+    def on_change_glue_requested(self, cell_index: int):
+        """Handle change glue button click - show glue change wizard"""
         wizard = SetupWizard()
-        wizard.setWindowTitle(f"Change Glue for Cell {card_index}")
+        wizard.setWindowTitle(f"Change Glue for Cell {cell_index}")
 
         # Store the card index in the wizard for later use
-        wizard.card_index = card_index
+        wizard.card_index = cell_index
 
         # Connect wizard finished signal
         wizard.finished.connect(lambda result: self.on_wizard_finished(result, wizard))

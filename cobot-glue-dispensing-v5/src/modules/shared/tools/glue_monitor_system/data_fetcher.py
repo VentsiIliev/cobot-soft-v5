@@ -161,4 +161,14 @@ class GlueDataFetcher:
         if self.thread is not None:
             self.thread.join()
 
+if __name__ == "__main__":
+    fetcher = GlueDataFetcher()
+    fetcher.start()
 
+    broker = MessageBroker()
+    def print_weight_1(message):
+        print(f"Received Weight 1: {message}")
+    broker.subscribe(GlueTopics.GLUE_METER_1_VALUE, print_weight_1)
+
+    while True:
+        time.sleep(1)  # Keep the main thread alive

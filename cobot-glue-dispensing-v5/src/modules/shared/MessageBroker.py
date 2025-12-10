@@ -18,6 +18,7 @@ class MessageBroker:
 
     def subscribe(self, topic: str, callback: Callable):
         """Subscribe to a topic with automatic cleanup of dead references"""
+        print(f"[MessageBroker] Subscribing to topic '{topic}' with callback {callback.__name__ if hasattr(callback, '__name__') else str(callback)}")
         if topic not in self.subscribers:
             self.subscribers[topic] = []
 

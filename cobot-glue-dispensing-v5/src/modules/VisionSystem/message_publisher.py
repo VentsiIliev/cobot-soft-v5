@@ -19,7 +19,7 @@ class MessagePublisher:
         self.broker.publish(self.thresh_image_topic, thresh_image)
 
     def publish_state(self,state):
-        # print("[VisionMessagePublisher] Publishing vision service state:", state)
+        # print(f"[VisionMessagePublisher] Publishing vision service state on topic {self.stateTopic}:", state)
         self.broker.publish(self.stateTopic, state)
 
     def publish_calibration_feedback(self,feedback):
