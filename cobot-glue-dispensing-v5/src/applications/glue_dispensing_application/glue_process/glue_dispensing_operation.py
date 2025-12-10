@@ -29,6 +29,7 @@ from applications.glue_dispensing_application.settings.GlueSettings import GlueS
 
 from applications.glue_dispensing_application.glue_process.state_machine.GlueProcessState import GlueProcessState, \
     GlueProcessTransitionRules
+from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 
 from modules.utils.custom_logging import log_debug_message, log_error_message, \
     log_calls_with_timestamp_decorator, setup_logger, LoggerContext
@@ -125,11 +126,7 @@ class GlueDispensingOperation(IOperation):
         self.execution_context.state_machine = self.glue_process_state_machine
         self.execution_context.operation = self  # ✅ Store reference to operation for completion
 
-        # ❌ REMOVED: Old hardcoded glue_type assignment
-        # self.execution_context.glue_type = self.glue_service.glueA_addresses
-
-        # ✅ NEW: Store operation reference for motor address resolution
-        self.execution_context.glue_operation = self
+        # Motor address is now resolved from current_settings in ExecutionContext
 
         self.execution_context.current_path_index = 0
         self.execution_context.current_point_index = 0
@@ -155,7 +152,6 @@ class GlueDispensingOperation(IOperation):
             ValueError: If glue type is not found in configuration
         """
         try:
-            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 
             # Get cells manager
             cells_manager = GlueCellsManagerSingleton.get_instance()
@@ -165,7 +161,7 @@ class GlueDispensingOperation(IOperation):
                 if cell.glueType == glue_type:
                     motor_address = cell.motor_address
                     print(f"[GlueOperation] Resolved glue type '{glue_type}' → motor address: {motor_address}")
-                    return motor_address
+                    return int(motor_address)
 
             # Glue type not found
             raise ValueError(f"Glue type '{glue_type}' not found in cell configuration")

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from applications.glue_dispensing_application.settings.enums import GlueSettingKey
+
 
 @dataclass
 class Context:
@@ -21,7 +23,6 @@ class ExecutionContext(Context):
         self.robot_service = None
         self.state_machine = None
         self.glue_type = None  # Legacy: Will be resolved dynamically per path
-        self.glue_operation = None  # Reference to GlueDispensingOperation for motor address resolution
         self.current_path_index = 0
         self.current_point_index = 0
         self.target_point_index = 0  # Point robot is moving towards (for resume)
@@ -52,30 +53,44 @@ class ExecutionContext(Context):
     def get_motor_address_for_current_path(self) -> int:
         """
         Get motor address for the current path's glue type.
-        Resolves dynamically from glue cell configuration.
+        Resolves from current_settings in ExecutionContext.
 
         Returns:
             Motor address (Modbus address) for current path's glue type
         """
-        if not self.paths or self.current_path_index >= len(self.paths):
-            print(f"[ExecutionContext] No valid path, returning default motor address 0")
+        if not self.current_settings:
+            print(f"[ExecutionContext] No current_settings, returning default motor address 0")
             return 0
 
-        current_path = self.paths[self.current_path_index]
+        # Get glue type from current settings
 
-        # Get glue type from current path
-        glue_type = getattr(current_path, 'glue_type', None)
+        glue_type = self.current_settings.get(GlueSettingKey.GLUE_TYPE.value, None)
 
         if not glue_type:
-            print(f"[ExecutionContext] No glue_type in path {self.current_path_index}, returning default motor address 0")
+            print(f"[ExecutionContext] No glue_type in current_settings, returning default motor address 0")
             return 0
 
-        # Resolve motor address via operation
-        if self.glue_operation:
-            motor_address = self.glue_operation.get_motor_address_for_glue_type(glue_type)
-            return motor_address
-        else:
-            print(f"[ExecutionContext] No glue_operation reference, cannot resolve motor address for '{glue_type}'")
+        # Resolve motor address from glue cell configuration
+        try:
+            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+
+            cells_manager = GlueCellsManagerSingleton.get_instance()
+
+            # Find cell with matching glue type
+            for cell in cells_manager.cells:
+                if cell.glueType == glue_type:
+                    motor_address = cell.motor_address
+                    print(f"[ExecutionContext] Resolved glue type '{glue_type}' → motor address: {motor_address}")
+                    return motor_address
+
+            # Glue type not found in cells
+            print(f"[ExecutionContext] Glue type '{glue_type}' not found in cell configuration, returning default motor address 0")
+            return 0
+
+        except Exception as e:
+            print(f"[ExecutionContext] Error resolving motor address: {e}, returning default motor address 0")
+            import traceback
+            traceback.print_exc()
             return 0
 
     def to_debug_dict(self) -> dict:
