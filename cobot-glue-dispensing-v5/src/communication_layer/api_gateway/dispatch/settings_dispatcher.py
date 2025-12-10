@@ -89,7 +89,7 @@ class SettingsDispatch(IDispatcher):
         elif request in [settings_endpoints.SETTINGS_ROBOT_CALIBRATION_GET]:
             return self.handle_robot_calibration_settings(parts, request, data)
         else:
-            # Delegate to settings controller which handles all the logic
+            # Delegate to a settings controller which handles all the logic
             return self.settingsController.handle(request, parts, data)
 
     def handle_robot_calibration_settings(self, parts, request, data=None):
@@ -472,39 +472,21 @@ class SettingsDispatch(IDispatcher):
         try:
             from pathlib import Path
             from core.application.ApplicationStorageResolver import get_app_settings_path
-            import json
+            from core.database.settings.ModbusSettingsRepository import ModbusSettingsRepository
 
             print(f"handle_modbus_settings: Handling request: {request} with data: {data}")
 
-            # Get application-specific config path
+            # Get application-specific config path and create repository
             config_path = Path(get_app_settings_path("glue_dispensing_application", "modbus_config"))
+            modbus_repo = ModbusSettingsRepository(file_path=str(config_path))
 
             if request == modbus_endpoints.MODBUS_CONFIG_GET:
                 # Load and return Modbus configuration
                 try:
-                    if config_path.exists():
-                        with open(config_path, 'r') as f:
-                            config = json.load(f)
-                    else:
-                        # Create default config
-                        config = {
-                            'port': 'COM5',
-                            'baudrate': 115200,
-                            'bytesize': 8,
-                            'stopbits': 1,
-                            'parity': 'N',
-                            'timeout': 0.01,
-                            'slave_address': 10,
-                            'max_retries': 30
-                        }
-                        # Save default config
-                        config_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(config_path, 'w') as f:
-                            json.dump(config, f, indent=2)
-
+                    config = modbus_repo.load()
                     return Response(
                         Constants.RESPONSE_STATUS_SUCCESS,
-                        data=config
+                        data=config.to_dict()
                     ).to_dict()
 
                 except Exception as e:
@@ -523,22 +505,10 @@ class SettingsDispatch(IDispatcher):
                     ).to_dict()
 
                 try:
-                    # Load current config
-                    if config_path.exists():
-                        with open(config_path, 'r') as f:
-                            config = json.load(f)
-                    else:
-                        config = {}
-
-                    # Update field
                     field = data['field']
                     value = data['value']
-                    config[field] = value
 
-                    # Save updated config
-                    config_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(config_path, 'w') as f:
-                        json.dump(config, f, indent=2)
+                    modbus_repo.update_field(field, value)
 
                     print(f"Updated Modbus config: {field} = {value}")
 
@@ -557,15 +527,7 @@ class SettingsDispatch(IDispatcher):
             elif request == modbus_endpoints.MODBUS_TEST_CONNECTION:
                 # Test Modbus connection
                 try:
-                    # Load config
-                    if config_path.exists():
-                        with open(config_path, 'r') as f:
-                            config = json.load(f)
-                    else:
-                        return Response(
-                            Constants.RESPONSE_STATUS_ERROR,
-                            message="No Modbus configuration found"
-                        ).to_dict()
+                    config = modbus_repo.load()
 
                     # Try to create a test connection
                     from modules.modbusCommunication.ModbusClient import ModbusClient
@@ -580,14 +542,14 @@ class SettingsDispatch(IDispatcher):
                     }
 
                     test_client = ModbusClient(
-                        slave=config.get('slave_address', 10),
-                        port=config.get('port', 'COM5'),
-                        baudrate=config.get('baudrate', 115200),
-                        bytesize=config.get('bytesize', 8),
-                        stopbits=config.get('stopbits', 1),
-                        timeout=config.get('timeout', 0.01),
-                        parity=parity_map.get(config.get('parity', 'N'), minimalmodbus.serial.PARITY_NONE),
-                        max_retries=config.get('max_retries', 30)
+                        slave=config.slave_address,
+                        port=config.port,
+                        baudrate=config.baudrate,
+                        bytesize=config.bytesize,
+                        stopbits=config.stopbits,
+                        timeout=config.timeout,
+                        parity=parity_map.get(config.parity, minimalmodbus.serial.PARITY_NONE),
+                        max_retries=config.max_retries
                     )
 
                     # Close the test connection
@@ -596,7 +558,7 @@ class SettingsDispatch(IDispatcher):
 
                     return Response(
                         Constants.RESPONSE_STATUS_SUCCESS,
-                        message=f"Successfully connected to Modbus slave at {config.get('port')}"
+                        message=f"Successfully connected to Modbus slave at {config.port}"
                     ).to_dict()
 
                 except Exception as e:
@@ -651,4 +613,6 @@ class SettingsDispatch(IDispatcher):
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling Modbus settings: {e}"
             ).to_dict()
+
+
 

@@ -3,7 +3,6 @@ import minimalmodbus
 from enum import Enum
 from dataclasses import dataclass
 from pathlib import Path
-import json
 
 from modules.shared.utils.linuxUtils import get_modbus_port
 
@@ -52,57 +51,38 @@ class ModbusClientConfig:
 SUDO_PASS = "plp"
 
 
-def load_modbus_config() -> dict:
+def load_modbus_config_from_repo():
     """
-    Load Modbus configuration from settings file.
+    Load Modbus configuration from repository.
 
     Returns:
-        dict: Modbus configuration
+        ModbusConfig: Configuration object
     """
     try:
         from core.application.ApplicationStorageResolver import get_app_settings_path
+        from core.database.settings.ModbusSettingsRepository import ModbusSettingsRepository
 
         config_path = Path(get_app_settings_path("glue_dispensing_application", "modbus_config"))
+        modbus_repo = ModbusSettingsRepository(file_path=str(config_path))
 
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                print(f"ModbusController: Loaded config from {config_path}: {config}")
-                return config
-        else:
-            print(f"ModbusController: Config file not found at {config_path}, using defaults")
-            return {
-                'port': 'COM5',
-                'baudrate': 115200,
-                'bytesize': 8,
-                'stopbits': 1,
-                'parity': 'N',
-                'timeout': 0.01,
-                'slave_address': 10,
-                'max_retries': 30
-            }
+        config = modbus_repo.load()
+        print(f"ModbusController: Loaded config from repository: {config.to_dict()}")
+        return config
+
     except Exception as e:
-        print(f"ModbusController: Error loading Modbus config: {e}, using defaults")
-        return {
-            'port': 'COM5',
-            'baudrate': 115200,
-            'bytesize': 8,
-            'stopbits': 1,
-            'parity': 'N',
-            'timeout': 0.01,
-            'slave_address': 10,
-            'max_retries': 30
-        }
+        print(f"ModbusController: Error loading config from repository: {e}, using defaults")
+        from core.model.settings.modbusConfig.modbusConfigModel import get_default_modbus_config
+        return get_default_modbus_config()
 
 
 def get_config_from_settings() -> ModbusClientConfig:
     """
-    Create ModbusClientConfig from settings file.
+    Create ModbusClientConfig from settings repository.
 
     Returns:
         ModbusClientConfig: Configuration object
     """
-    settings = load_modbus_config()
+    settings = load_modbus_config_from_repo()
 
     parity_map = {
         'N': ModbusParity.NONE,
@@ -110,7 +90,7 @@ def get_config_from_settings() -> ModbusClientConfig:
         'O': ModbusParity.ODD
     }
 
-    port = settings.get('port', 'COM5')
+    port = settings.port
     if port.startswith('COM'):
         try:
             port = get_modbus_port(sudo_password=SUDO_PASS)
@@ -118,15 +98,15 @@ def get_config_from_settings() -> ModbusClientConfig:
             print(f"Error getting Modbus port: {e}, using configured port: {port}")
 
     return ModbusClientConfig(
-        slave_id=settings.get('slave_address', 10),
+        slave_id=settings.slave_address,
         port=port,
-        baudrate=settings.get('baudrate', 115200),
-        byte_size=settings.get('bytesize', 8),
-        parity=parity_map.get(settings.get('parity', 'N'), ModbusParity.NONE),
-        stop_bits=settings.get('stopbits', 1),
-        timeout=settings.get('timeout', 0.01),
+        baudrate=settings.baudrate,
+        byte_size=settings.bytesize,
+        parity=parity_map.get(settings.parity, ModbusParity.NONE),
+        stop_bits=settings.stopbits,
+        timeout=settings.timeout,
         inter_byte_timeout=0.01,
-        max_retries=settings.get('max_retries', 30)
+        max_retries=settings.max_retries
     )
 
 
