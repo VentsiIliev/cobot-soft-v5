@@ -1,9 +1,9 @@
 from modules.modbusCommunication.ModbusClient import ModbusClient
-# from utils.linuxUtils import get_modbus_port
 import minimalmodbus
 from enum import Enum
 from dataclasses import dataclass
-from typing import ClassVar
+from pathlib import Path
+import json
 
 from modules.shared.utils.linuxUtils import get_modbus_port
 
@@ -44,24 +44,90 @@ class ModbusClientConfig:
     byte_size: int
     parity: ModbusParity
     stop_bits: int
-    timeout: float  # 20 ms timeout
-    inter_byte_timeout: float  # 10 ms delay
+    timeout: float
+    inter_byte_timeout: float
     max_retries: int
+
 
 SUDO_PASS = "plp"
 
-# Примерна конфигурация
-config: ModbusClientConfig = ModbusClientConfig(
-    slave_id=1,
-    port=get_modbus_port(sudo_password=SUDO_PASS),
-    baudrate=115200,
-    byte_size=8,
-    parity=ModbusParity.NONE,
-    stop_bits=1,
-    timeout=0.02,  # 20 ms timeout
-    inter_byte_timeout=0.01,  # 10 ms delay
-    max_retries=30
-)
+
+def load_modbus_config() -> dict:
+    """
+    Load Modbus configuration from settings file.
+
+    Returns:
+        dict: Modbus configuration
+    """
+    try:
+        from core.application.ApplicationStorageResolver import get_app_settings_path
+
+        config_path = Path(get_app_settings_path("glue_dispensing_application", "modbus_config"))
+
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                print(f"ModbusController: Loaded config from {config_path}: {config}")
+                return config
+        else:
+            print(f"ModbusController: Config file not found at {config_path}, using defaults")
+            return {
+                'port': 'COM5',
+                'baudrate': 115200,
+                'bytesize': 8,
+                'stopbits': 1,
+                'parity': 'N',
+                'timeout': 0.01,
+                'slave_address': 10,
+                'max_retries': 30
+            }
+    except Exception as e:
+        print(f"ModbusController: Error loading Modbus config: {e}, using defaults")
+        return {
+            'port': 'COM5',
+            'baudrate': 115200,
+            'bytesize': 8,
+            'stopbits': 1,
+            'parity': 'N',
+            'timeout': 0.01,
+            'slave_address': 10,
+            'max_retries': 30
+        }
+
+
+def get_config_from_settings() -> ModbusClientConfig:
+    """
+    Create ModbusClientConfig from settings file.
+
+    Returns:
+        ModbusClientConfig: Configuration object
+    """
+    settings = load_modbus_config()
+
+    parity_map = {
+        'N': ModbusParity.NONE,
+        'E': ModbusParity.EVEN,
+        'O': ModbusParity.ODD
+    }
+
+    port = settings.get('port', 'COM5')
+    if port.startswith('COM'):
+        try:
+            port = get_modbus_port(sudo_password=SUDO_PASS)
+        except Exception as e:
+            print(f"Error getting Modbus port: {e}, using configured port: {port}")
+
+    return ModbusClientConfig(
+        slave_id=settings.get('slave_address', 10),
+        port=port,
+        baudrate=settings.get('baudrate', 115200),
+        byte_size=settings.get('bytesize', 8),
+        parity=parity_map.get(settings.get('parity', 'N'), ModbusParity.NONE),
+        stop_bits=settings.get('stopbits', 1),
+        timeout=settings.get('timeout', 0.01),
+        inter_byte_timeout=0.01,
+        max_retries=settings.get('max_retries', 30)
+    )
 
 
 class ModbusController:
@@ -83,11 +149,15 @@ class ModbusController:
         Връща:
             ModbusClient: Конфигуриран клиент за комуникация.
         """
-        # port = get_modbus_port()
+        config = get_config_from_settings()
+
+        print(f"ModbusController: Creating client for slave {slaveId} with config: "
+              f"port={config.port}, baudrate={config.baudrate}, parity={config.parity}, "
+              f"timeout={config.timeout}, max_retries={config.max_retries}")
+
         port: str = config.port
         client: ModbusClient = ModbusClient(slave=slaveId, port=port, max_retries=config.max_retries)
 
-        # Конфигурация на клиента
         client.client.serial.baudrate = config.baudrate
         client.client.serial.bytesize = config.byte_size
         client.client.serial.parity = config.parity.value
@@ -96,6 +166,5 @@ class ModbusController:
         client.client.serial.inter_byte_timeout = config.inter_byte_timeout
         client.clear_buffers_before_each_transaction = True
         client.mode = minimalmodbus.MODE_RTU
-        # client.close_port_after_each_call = False  # коментирано в текущата версия
 
         return client
