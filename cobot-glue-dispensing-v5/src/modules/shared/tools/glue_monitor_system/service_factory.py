@@ -5,13 +5,13 @@ Provides dependency injection and centralized component creation.
 from pathlib import Path
 from typing import Optional
 
-from modules.shared.tools.glue_monitor_system.config import load_config
-from modules.shared.tools.glue_monitor_system.config_validator import GlueMonitorConfig
-from modules.shared.tools.glue_monitor_system.interfaces import (
+from modules.shared.tools.glue_monitor_system.config.config import load_config
+from modules.shared.tools.glue_monitor_system.config.config_validator import GlueMonitorConfig
+from modules.shared.tools.glue_monitor_system.interfaces.interfaces import (
     IWeightDataFetcher, IGlueCellsManager, IConfigurationManager, IDataPublisher
 )
 from modules.shared.tools.glue_monitor_system.weight_data_fetcher import WeightDataFetcher
-from modules.shared.tools.glue_monitor_system.cells_manager import CellsManager
+from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 from core.application.ApplicationStorageResolver import get_app_settings_path
 from modules.utils import PathResolver
 
@@ -80,48 +80,25 @@ class GlueMonitorServiceFactory:
         self._cells_manager: Optional[IGlueCellsManager] = None
     
     def create_configuration_manager(self) -> IConfigurationManager:
-        """Create configuration manager."""
+        """Create a configuration manager."""
         return self.config_manager
     
     def create_data_publisher(self) -> IDataPublisher:
-        """Create data publisher."""
+        """Create a data publisher."""
         return self.data_publisher
     
     def create_weight_data_fetcher(self) -> IWeightDataFetcher:
-        """Create weight data fetcher with dependency injection."""
+        """Create a weight data fetcher with dependency injection."""
         if self._data_fetcher is None:
             self._data_fetcher = WeightDataFetcher(self.config_manager, self.data_publisher)
         return self._data_fetcher
     
     def create_cells_manager(self) -> IGlueCellsManager:
-        """Create cells manager with dependency injection."""
+        """Create a cells manager with dependency injection."""
         if self._cells_manager is None:
-            config = self.config_manager.get_config()
-            
-            # Create cells from configuration
-            from modules.shared.tools.GlueCell import GlueCell, GlueMeter
-            cells = []
-            
-            for cell_cfg in config.cells:
-                # Override URL based on mode
-                if config.is_test_mode:
-                    url = f"{config.server.base_url}/weight{cell_cfg.id}"
-                else:
-                    url = cell_cfg.url
-                
-                glue_meter = GlueMeter(cell_cfg.id, url)
-                glue_cell = GlueCell(
-                    id=cell_cfg.id,
-                    glueType=cell_cfg.type,
-                    glueMeter=glue_meter,
-                    capacity=cell_cfg.capacity
-                )
-                cells.append(glue_cell)
-            
-            self._cells_manager = CellsManager(
-                cells, config, self.config_manager._config_path
-            )
-        
+            # Use the existing singleton instance
+            self._cells_manager = GlueCellsManagerSingleton.get_instance()
+
         return self._cells_manager
     
     def get_config(self) -> GlueMonitorConfig:
@@ -142,7 +119,7 @@ def get_service_factory() -> GlueMonitorServiceFactory:
 
 
 def create_weight_data_fetcher() -> IWeightDataFetcher:
-    """Create weight data fetcher using the factory."""
+    """Create a weight data fetcher using the factory."""
     return get_service_factory().create_weight_data_fetcher()
 
 
@@ -152,10 +129,10 @@ def create_cells_manager() -> IGlueCellsManager:
 
 
 def create_configuration_manager() -> IConfigurationManager:
-    """Create configuration manager using the factory."""
+    """Create a configuration manager using the factory."""
     return get_service_factory().create_configuration_manager()
 
 
 def create_data_publisher() -> IDataPublisher:
-    """Create data publisher using the factory."""
+    """Create a data publisher using the factory."""
     return get_service_factory().create_data_publisher()

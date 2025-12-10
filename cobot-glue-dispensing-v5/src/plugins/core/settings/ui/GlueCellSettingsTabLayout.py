@@ -9,13 +9,12 @@ from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QWidget, QApplication, QHBoxLa
 
 from communication_layer.api.v1.topics import GlueTopics
 from modules.shared.MessageBroker import MessageBroker
-from modules.shared.tools.glue_monitor_system.config import (
+from modules.shared.tools.glue_monitor_system.config.config import (
     UPDATE_SCALE_ENDPOINT, TARE_ENDPOINT, UPDATE_OFFSET_ENDPOINT
 )
 from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
-from modules.utils import PathResolver
 from core.application.ApplicationContext import get_core_settings_path
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.core.utils.localization import get_app_translator
@@ -402,33 +401,7 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.setColumnStretch(1, 1)
         return group
 
-    # def create_calibration_settings_group(self):
-    #     """Create calibration-related settings group"""
-    #     group = QGroupBox("Calibration Settings")
-    #     layout = QGridLayout(group)
-    #     layout.setSpacing(15)
-    #     layout.setContentsMargins(20, 25, 20, 20)
-    #
-    #     self.calibration_group = group
-    #
-    #     # Zero Offset
-    #     row = 0
-    #     label = QLabel("Zero Offset:")
-    #     label.setWordWrap(True)
-    #     layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-    #     self.zero_offset_input = self.create_double_spinbox(-1000.0, 1000.0, 0.0, " g")
-    #     layout.addWidget(self.zero_offset_input, row, 1)
-    #
-    #     # Scale Factor
-    #     row += 1
-    #     label = QLabel("Scale Factor:")
-    #     label.setWordWrap(True)
-    #     layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-    #     self.scale_factor_input = self.create_double_spinbox(0.001, 10.0, 1.0, " g/unit")
-    #     layout.addWidget(self.scale_factor_input, row, 1)
-    #
-    #     layout.setColumnStretch(1, 1)
-    #     return group
+
 
     def create_measurement_settings_group(self):
         """Create measurement-related settings group"""
@@ -556,37 +529,42 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.showToast(f"Switched to Cell {self.current_cell}")
 
     def on_mode_changed(self, state):
-        """Handle mode toggle change"""
+        """Handle mode toggle change using SettingsService via controller_service"""
         try:
-            # Read current config
-            with open(self.config_path, 'r') as f:
-                config_data = json.load(f)
+            # Determine new mode
+            new_mode = "test" if state else "production"
 
-            # Update mode based on toggle state
-            if state:  # Toggle is ON = Test mode
-                config_data["MODE"] = "test"
-                self.mode_label.setText("Test (Mock Server)")
-                self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #FF8C00; }")
-                print("[Mode] Switched to TEST mode - reloading configuration now...")
-            else:  # Toggle is OFF = Production mode
-                config_data["MODE"] = "production"
-                self.mode_label.setText("Production")
-                self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #2E8B57; }")
-                print("[Mode] Switched to PRODUCTION mode - reloading configuration now...")
+            # Get SettingsService from controller
+            controller = self.controller_service.get_controller()
+            settings_service = controller.controller_service.settings
 
-            # Save config
-            with open(self.config_path, 'w') as f:
-                json.dump(config_data, f, indent=2)
+            # Update via SettingsService
+            result = settings_service.update_glue_cells_config({"MODE": new_mode})
 
-            # Reload the data fetcher with a new configuration
-            if self.glue_data_fetcher:
-                self.glue_data_fetcher.reload_config()
-                self.showToast("Mode switched - Configuration reloaded successfully")
+            if result.success:
+                # Update UI labels
+                if state:  # Test mode
+                    self.mode_label.setText("Test (Mock Server)")
+                    self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #FF8C00; }")
+                    print("[Mode] Switched to TEST mode - reloading configuration now...")
+                else:  # Production mode
+                    self.mode_label.setText("Production")
+                    self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #2E8B57; }")
+                    print("[Mode] Switched to PRODUCTION mode - reloading configuration now...")
+
+                # Reload the data fetcher with new configuration
+                if self.glue_data_fetcher:
+                    self.glue_data_fetcher.reload_config()
+                    self.showToast("Mode switched - Configuration reloaded successfully")
+                else:
+                    self.showToast("Mode switched - Restart required for changes to take effect")
             else:
-                self.showToast("Mode switched - Restart required for changes to take effect")
+                raise Exception(result.message)
 
         except Exception as e:
             print(f"Error changing mode: {e}")
+            import traceback
+            traceback.print_exc()
             self.showToast(f"Error changing mode: {e}")
 
     def _load_settings_from_endpoints(self):
@@ -1237,80 +1215,79 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         print(f"[Config] Cell {self.current_cell} max threshold changed to: {value}")
 
     def _update_cell_config(self, key, value):
-        """Update a cell config value in memory and persist to file"""
+        """Update a cell config value using SettingsService"""
         try:
             # Update in-memory config
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Load full config from file
-            with open(self.config_path, 'r') as f:
-                config_data = json.load(f)
+            # Get SettingsService from controller
+            controller = self.controller_service.get_controller()
+            settings_service = controller.controller_service.settings
 
-            # Update the specific cell's config
-            for cell_config in config_data.get("CELL_CONFIG", []):
-                if cell_config["id"] == self.current_cell:
-                    cell_config[key] = value
-                    break
+            # Update via SettingsService
+            result = settings_service.update_glue_cell(
+                self.current_cell,
+                {key: value}
+            )
 
-            # Save back to file
-            with open(self.config_path, 'w') as f:
-                json.dump(config_data, f, indent=2)
+            if not result.success:
+                print(f"[Config] Error updating {key}: {result.message}")
 
         except Exception as e:
             print(f"[Config] Error updating {key}: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _update_cell_calibration(self, key, value):
-        """Update a cell calibration value in memory and persist to file"""
+        """Update a cell calibration value using SettingsService"""
         try:
             # Update in-memory config
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Load full config from file
-            with open(self.config_path, 'r') as f:
-                config_data = json.load(f)
+            # Get SettingsService from controller
+            controller = self.controller_service.get_controller()
+            settings_service = controller.controller_service.settings
 
-            # Update the specific cell's calibration config
-            for cell_config in config_data.get("CELL_CONFIG", []):
-                if cell_config["id"] == self.current_cell:
-                    if "calibration" not in cell_config:
-                        cell_config["calibration"] = {}
-                    cell_config["calibration"][key] = value
-                    break
+            # Update via SettingsService with nested calibration structure
+            result = settings_service.update_glue_cell(
+                self.current_cell,
+                {"calibration": {key: value}}
+            )
 
-            # Save back to file
-            with open(self.config_path, 'w') as f:
-                json.dump(config_data, f, indent=2)
+            if not result.success:
+                print(f"[Config] Error updating calibration {key}: {result.message}")
 
         except Exception as e:
             print(f"[Config] Error updating calibration {key}: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _update_cell_measurement(self, key, value):
-        """Update a cell measurement value in memory and persist to file"""
+        """Update a cell measurement value using SettingsService"""
         try:
             # Update in-memory config
             if self.current_cell in self.cell_configs:
                 self.cell_configs[self.current_cell][key] = value
 
-            # Load full config from file
-            with open(self.config_path, 'r') as f:
-                config_data = json.load(f)
+            # Get SettingsService from controller
+            controller = self.controller_service.get_controller()
+            settings_service = controller.controller_service.settings
 
-            # Update the specific cell's measurement config
-            for cell_config in config_data.get("CELL_CONFIG", []):
-                if cell_config["id"] == self.current_cell:
-                    if "measurement" not in cell_config:
-                        cell_config["measurement"] = {}
-                    cell_config["measurement"][key] = value
-                    break
+            # Update via SettingsService with nested measurement structure
+            result = settings_service.update_glue_cell(
+                self.current_cell,
+                {"measurement": {key: value}}
+            )
 
-            # Save back to file
-            with open(self.config_path, 'w') as f:
-                json.dump(config_data, f, indent=2)
+            if not result.success:
+                print(f"[Config] Error updating measurement {key}: {result.message}")
 
         except Exception as e:
             print(f"[Config] Error updating measurement {key}: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _on_weight1_updated(self, weight_value):
         """Handle weight update for Load Cell 1 via message broker"""

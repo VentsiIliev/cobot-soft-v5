@@ -184,7 +184,7 @@ class SettingsDispatch(IDispatcher):
         """
         try:
             from modules.shared.tools.glue_monitor_system.models.dto import GlueCellsResponseDTO, CellUpdateRequestDTO
-            from modules.shared.tools.glue_monitor_system.config import load_config
+            from modules.shared.tools.glue_monitor_system.config.config import load_config
             from modules.shared.tools.glue_monitor_system.service_factory import get_service_factory
             from pathlib import Path
             from core.application.ApplicationStorageResolver import get_app_settings_path

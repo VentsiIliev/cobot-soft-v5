@@ -1,7 +1,6 @@
-import json
 from pathlib import Path
 from modules.shared.tools.GlueCell import GlueCell, GlueMeter
-from modules.shared.tools.glue_monitor_system.config import log_if_enabled, load_config
+from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled, load_config
 from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 from modules.utils import PathResolver
 from modules.utils.custom_logging import LoggingLevel

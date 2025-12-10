@@ -8,11 +8,11 @@ import requests
 
 from communication_layer.api.v1.topics import GlueTopics
 from modules.shared.MessageBroker import MessageBroker
-from modules.shared.tools.glue_monitor_system.config import log_if_enabled, load_config
+from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled, load_config
 from modules.utils import PathResolver
 from modules.utils.custom_logging import LoggingLevel
 from core.application.ApplicationStorageResolver import get_app_settings_path
-from modules.shared.tools.glue_monitor_system import mock, config
+from modules.shared.tools.glue_monitor_system.testing import mock
 from modules.shared.tools.glue_monitor_system import error_handling
 
 def _get_glue_config_path():

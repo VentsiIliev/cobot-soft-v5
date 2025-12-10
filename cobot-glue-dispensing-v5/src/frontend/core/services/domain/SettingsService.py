@@ -340,6 +340,105 @@ class SettingsService:
             traceback.print_exc()
             return ServiceResult.error_result(error_msg)
     
+    def get_glue_cells_config(self) -> ServiceResult:
+        """
+        Get glue cells configuration.
+
+        Returns:
+            ServiceResult with glue cells config data or error
+        """
+        try:
+            print("[SettingsService] Fetching glue cells configuration...")
+
+            response_dict = self.controller.requestSender.send_request(glue_endpoints.GLUE_CELLS_CONFIG_GET)
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.success_result(
+                    "Glue cells configuration retrieved successfully",
+                    data=response.data
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to retrieve glue cells config: {response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to retrieve glue cells configuration: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
+    def update_glue_cells_config(self, config_data: dict) -> ServiceResult:
+        """
+        Update glue cells configuration (including MODE).
+
+        Args:
+            config_data: Dictionary with configuration updates (e.g., {"MODE": "test"})
+
+        Returns:
+            ServiceResult with success/failure status
+        """
+        try:
+            print(f"[SettingsService] Updating glue cells configuration: {config_data}")
+
+            response_dict = self.controller.requestSender.send_request(
+                glue_endpoints.GLUE_CELLS_CONFIG_SET,
+                data=config_data
+            )
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.success_result(
+                    "Glue cells configuration updated successfully",
+                    data=config_data
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to update glue cells config: {response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to update glue cells configuration: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
+    def update_glue_cell(self, cell_id: int, cell_data: dict) -> ServiceResult:
+        """
+        Update a specific glue cell configuration.
+
+        Args:
+            cell_id: The cell ID to update
+            cell_data: Dictionary with cell configuration updates
+
+        Returns:
+            ServiceResult with success/failure status
+        """
+        try:
+            print(f"[SettingsService] Updating cell {cell_id} configuration: {cell_data}")
+
+            request_data = {
+                "cell_id": cell_id,
+                **cell_data
+            }
+
+            response_dict = self.controller.requestSender.send_request(
+                glue_endpoints.GLUE_CELL_UPDATE,
+                data=request_data
+            )
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.success_result(
+                    f"Cell {cell_id} updated successfully",
+                    data={"cell_id": cell_id, **cell_data}
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to update cell {cell_id}: {response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to update cell {cell_id}: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
     def _validate_component_type(self, component_type: str) -> bool:
         """Validate that the component type is supported"""
         valid_types = [t.value for t in SettingComponentType]
