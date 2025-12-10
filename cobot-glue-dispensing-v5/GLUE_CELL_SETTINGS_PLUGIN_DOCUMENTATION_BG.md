@@ -1393,3 +1393,260 @@ Glue Cell Settings Plugin имплементира пълноценна сист
 **Версия:** 1.0  
 **Дата:** 10 Декември 2025  
 **Автор:** Cobot Glue Dispensing System Team
+---
+## 🔄 ВАЖНА АКТУАЛИЗАЦИЯ (Декември 2025)
+### Архитектурна Промяна: Премахнато Директното Писане в JSON
+**Преди (❌ ГРЕШНО):**
+```python
+# GlueCellSettingsTabLayout - СТАР КОД
+def on_mode_changed(self, state):
+    with open(self.config_path, 'w') as f:
+        json.dump(config_data, f, indent=2)  # ❌ Директно писане!
+```
+**Сега (✅ ПРАВИЛНО):**
+```python
+# GlueCellSettingsTabLayout - НОВ КОД
+def on_mode_changed(self, state):
+    controller = self.controller_service.get_controller()
+    settings_service = controller.controller_service.settings
+    new_mode = "test" if state else "production"
+    result = settings_service.update_glue_cells_config({"MODE": new_mode})
+    if result.success:
+        # UI актуализация
+    else:
+        # Грешка: result.message
+```
+---
+## Нова Архитектура с SettingsService
+### Поток на Данните (АКТУАЛИЗИРАН)
+```
+┌──────────────────────────────────────────────────────────────┐
+│                  UI Layer                                     │
+│  GlueCellSettingsTabLayout                                    │
+│   - on_mode_changed()                                         │
+│   - _update_cell_config()                                     │
+│   - _update_cell_calibration()                                │
+│   - _update_cell_measurement()                                │
+│                                                                │
+│  ✅ Използва: self.controller_service                         │
+│  ❌ НЕ използва: open(file, 'w'), json.dump()                │
+└──────────────────────────────────────────────────────────────┘
+                    ↓ (get_controller())
+┌──────────────────────────────────────────────────────────────┐
+│              Service Layer                                    │
+│  SettingsService (frontend/core/services/domain/)            │
+│   ┌────────────────────────────────────────────────────────┐ │
+│   │ Нови Методи:                                           │ │
+│   │                                                         │ │
+│   │ 1. get_glue_cells_config() → ServiceResult            │ │
+│   │    - Зарежда пълна конфигурация                       │ │
+│   │    - Endpoint: GLUE_CELLS_CONFIG_GET                  │ │
+│   │                                                         │ │
+│   │ 2. update_glue_cells_config(data) → ServiceResult     │ │
+│   │    - Актуализира глобални настройки (MODE)            │ │
+│   │    - Endpoint: GLUE_CELLS_CONFIG_SET                  │ │
+│   │    - Пример: {"MODE": "test"}                         │ │
+│   │                                                         │ │
+│   │ 3. update_glue_cell(cell_id, data) → ServiceResult    │ │
+│   │    - Актуализира конкретна клетка                     │ │
+│   │    - Endpoint: GLUE_CELL_UPDATE                       │ │
+│   │    - Примери:                                          │ │
+│   │      • {cell_id: 1, "capacity": 10000}                │ │
+│   │      • {cell_id: 2, "calibration": {...}}             │ │
+│   │      • {cell_id: 3, "measurement": {...}}             │ │
+│   └────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+                    ↓ (send_request)
+┌──────────────────────────────────────────────────────────────┐
+│           Communication Layer                                 │
+│  RequestSender → SettingsDispatcher                          │
+│   - handle_glue_cells_settings()                             │
+│   - Маршрутизира към съответния endpoint                     │
+└──────────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────────┐
+│                Repository Layer                               │
+│  Settings Repository                                          │
+│   - Чете/Пише glue_cell_config.json                         │
+│   - Валидация на данни                                        │
+│   - Persistence                                               │
+└──────────────────────────────────────────────────────────────┘
+```
+---
+## Актуализирани Методи в GlueCellSettingsTabLayout
+### 1. Mode Toggle (Test/Production)
+```python
+def on_mode_changed(self, state):
+    """Превключване на режим чрез SettingsService"""
+    try:
+        # Получаване на SettingsService
+        controller = self.controller_service.get_controller()
+        settings_service = controller.controller_service.settings
+        # Определяне на новия режим
+        new_mode = "test" if state else "production"
+        # Актуализация чрез SettingsService
+        result = settings_service.update_glue_cells_config({"MODE": new_mode})
+        if result.success:
+            # Актуализация на UI
+            if state:
+                self.mode_label.setText("Test (Mock Server)")
+                self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #FF8C00; }")
+            else:
+                self.mode_label.setText("Production")
+                self.mode_label.setStyleSheet("QLabel { font-weight: bold; color: #2E8B57; }")
+            # Презареждане на data fetcher
+            if self.glue_data_fetcher:
+                self.glue_data_fetcher.reload_config()
+                self.showToast("Режимът е променен успешно")
+        else:
+            raise Exception(result.message)
+    except Exception as e:
+        print(f"Грешка при промяна на режима: {e}")
+        self.showToast(f"Грешка: {e}")
+```
+### 2. Cell Property Update
+```python
+def _update_cell_config(self, key, value):
+    """Актуализация на cell property чрез SettingsService"""
+    try:
+        # Актуализация в паметта
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # Получаване на SettingsService
+        controller = self.controller_service.get_controller()
+        settings_service = controller.controller_service.settings
+        # Актуализация чрез SettingsService
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {key: value}
+        )
+        if not result.success:
+            print(f"[Config] Грешка при актуализация на {key}: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+### 3. Calibration Settings Update
+```python
+def _update_cell_calibration(self, key, value):
+    """Актуализация на калибрация чрез SettingsService"""
+    try:
+        # Актуализация в паметта
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # Получаване на SettingsService
+        controller = self.controller_service.get_controller()
+        settings_service = controller.controller_service.settings
+        # Актуализация с nested структура
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {"calibration": {key: value}}
+        )
+        if not result.success:
+            print(f"[Config] Грешка при калибрация {key}: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+### 4. Measurement Settings Update
+```python
+def _update_cell_measurement(self, key, value):
+    """Актуализация на measurement настройки чрез SettingsService"""
+    try:
+        # Актуализация в паметта
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # Получаване на SettingsService
+        controller = self.controller_service.get_controller()
+        settings_service = controller.controller_service.settings
+        # Актуализация с nested структура
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {"measurement": {key: value}}
+        )
+        if not result.success:
+            print(f"[Config] Грешка при измерване {key}: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+---
+## Endpoints (Актуализирани)
+### Glue Cells Configuration Endpoints
+| Endpoint | Метод | Данни | Описание |
+|----------|-------|-------|----------|
+| `GLUE_CELLS_CONFIG_GET` | GET | - | Зареждане на пълна конфигурация |
+| `GLUE_CELLS_CONFIG_SET` | POST | `{"MODE": "test"}` | Актуализация на глобални настройки |
+| `GLUE_CELL_UPDATE` | POST | `{"cell_id": 1, "capacity": 10000}` | Актуализация на конкретна клетка |
+| `GLUE_CELL_UPDATE` | POST | `{"cell_id": 1, "calibration": {...}}` | Nested калибрация |
+| `GLUE_CELL_UPDATE` | POST | `{"cell_id": 1, "measurement": {...}}` | Nested измервания |
+| `GLUE_CELL_CALIBRATE` | POST | `{"cell_id": 1, ...}` | Калибриране на датчик |
+| `GLUE_CELL_TARE` | POST | `{"cell_id": 1}` | Tare (нулиране) |
+| `GLUE_CELL_UPDATE_TYPE` | POST | `{"cell_id": 1, "type": "TypeA"}` | Промяна на glue type |
+---
+## Ползи от Новата Архитектура
+### 1. ✅ Архитектурна Консистентност
+- Следва същия pattern като Camera Settings, Robot Settings, Modbus Settings
+- Всички настройки минават през SettingsService
+- Няма директно манипулиране на файлове в UI кода
+### 2. ✅ Separation of Concerns
+- UI се грижи само за user interaction
+- Service layer обработва бизнес логиката
+- Repository layer управлява persistence
+### 3. ✅ Testability
+- Може да се mock-ва SettingsService за UI тестове
+- Service логиката може да се тества независимо
+- Няма file I/O в UI тестовете
+### 4. ✅ Error Handling
+- Централизирано обработване на грешки в service layer
+- ServiceResult дава консистентни съобщения за грешки
+- По-лесно добавяне на валидация
+### 5. ✅ Maintainability
+- Един източник на истина за settings операции
+- Промени в storage формата засягат само repository
+- Ясни отговорности
+---
+## Миграционни Забележки
+### Как да Добавим Нова Настройка
+1. **Добавяне на UI control** в GlueCellSettingsTabLayout
+2. **Използване на съществуващ метод:**
+   ```python
+   self._update_cell_config("new_property", value)
+   # ИЛИ за nested:
+   self._update_cell_calibration("new_cal_property", value)
+   self._update_cell_measurement("new_measurement", value)
+   ```
+3. **Не са нужни нови service методи** - съществуващите обработват всички случаи!
+### Pattern за Следване
+```python
+# ❌ НЕ ПРАВЕТЕ ТАКА
+with open(config_path, 'w') as f:
+    json.dump(data, f)
+# ✅ ПРАВЕТЕ ТАКА
+controller = self.controller_service.get_controller()
+settings_service = controller.controller_service.settings
+result = settings_service.update_glue_cell(cell_id, data)
+if result.success:
+    # Успех
+else:
+    # Обработка на грешка: result.message
+```
+---
+## Архитектурен Pattern
+### Сравнение: Стар vs Нов
+| Аспект | Стар Подход ❌ | Нов Подход ✅ |
+|--------|----------------|---------------|
+| **File Access** | Директно от UI | Само през Repository |
+| **Data Flow** | UI → JSON file | UI → Service → API → Repository → JSON |
+| **Error Handling** | В UI | В Service layer |
+| **Testing** | Трудно (file I/O) | Лесно (mock service) |
+| **Consistency** | Различен от други settings | Същият като всички settings |
+| **Maintainability** | Ниска | Висока |
+---
+## Заключение на Актуализацията
+✅ **Архитектурата е Фиксирана** - Няма повече директно писане в JSON  
+✅ **Консистентен Pattern** - Съответства на останалата част от приложението  
+✅ **Правилно Layering** - UI → Service → API → Repository  
+✅ **Чист Код** - SOLID принципи спазени  
+✅ **Maintainable** - Лесно за разширяване и тестване  
+Glue Cell Settings сега следва същата чиста архитектура като Camera Settings, Robot Settings и Modbus Settings! 🎉
+**Дата на актуализация:** 10 Декември 2025  
+**Статус:** ✅ Завършено  
+**Breaking Changes:** Няма (backward compatible)
