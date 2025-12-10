@@ -26,7 +26,8 @@ class GlueMeter(Sensor):
             Returns a string representation of the GlueMeter instance.
     """
 
-    def __init__(self,id, url, fetchTimeout=10, useLowPass=False, alpha=0.3):
+    def __init__(self, id, url, name, state, fetchTimeout=10, useLowPass=False, alpha=0.3):
+        super().__init__(name, state)
         self.id = id
         self.name = f"GlueMeter_{self.id}"
         self.state = "initializing"  # Use lowercase for consistency
@@ -43,7 +44,6 @@ class GlueMeter(Sensor):
         # Get state from fetcher's state manager
         from modules.shared.tools.glue_monitor_system.state_management import CellState
         self._get_state_from_manager()
-
 
     def setFetchTimeout(self, timeout):
         """
@@ -130,6 +130,5 @@ class GlueMeter(Sensor):
         self.fetchData()
 
     def reconnect(self):
-        # Not needed, as fetchData attempts fresh HTTP request each time
+        # Not needed, as fetchData attempts a fresh HTTP request each time
         pass
-

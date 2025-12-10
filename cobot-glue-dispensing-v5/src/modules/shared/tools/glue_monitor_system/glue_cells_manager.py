@@ -46,7 +46,13 @@ class GlueCellsManagerSingleton:
 
                 print(f"[GlueCellsManager] Cell {cell_cfg.id}: {url}")
 
-                glue_meter = GlueMeter(cell_cfg.id, url)
+                # Create GlueMeter with all required parameters
+                glue_meter = GlueMeter(
+                    id=cell_cfg.id,
+                    url=url,
+                    name=f"GlueMeter_{cell_cfg.id}",
+                    state="initializing"
+                )
 
                 # Get motor address from config (default to 0 if not present)
                 motor_address = getattr(cell_cfg, 'motor_address', 0)
