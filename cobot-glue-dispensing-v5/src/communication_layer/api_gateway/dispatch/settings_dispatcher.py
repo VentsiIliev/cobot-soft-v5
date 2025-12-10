@@ -78,7 +78,7 @@ class SettingsDispatch(IDispatcher):
             return self.handle_glue_cells_settings(parts, request, data)
         # Modbus settings
         elif request in [modbus_endpoints.MODBUS_CONFIG_GET, modbus_endpoints.MODBUS_CONFIG_UPDATE,
-                        modbus_endpoints.MODBUS_TEST_CONNECTION]:
+                        modbus_endpoints.MODBUS_TEST_CONNECTION, modbus_endpoints.MODBUS_GET_AVAILABLE_PORT]:
             return self.handle_modbus_settings(parts, request, data)
         elif request in [settings_endpoints.SETTINGS_GET]:
             return self.handle_general_settings(parts, request, data)
@@ -604,6 +604,37 @@ class SettingsDispatch(IDispatcher):
                     return Response(
                         Constants.RESPONSE_STATUS_ERROR,
                         message=f"Connection test failed: {str(e)}"
+                    ).to_dict()
+
+            elif request == modbus_endpoints.MODBUS_GET_AVAILABLE_PORT:
+                # Get available Modbus port
+                try:
+                    import platform
+                    from modules.shared.utils.linuxUtils import get_modbus_port
+
+                    SUDO_PASS = "plp"
+
+                    if platform.system() == "Windows":
+                        port = "COM5"
+                    else:
+                        port = get_modbus_port(sudo_password=SUDO_PASS)
+                        if not port or port.strip() == "":
+                            return Response(
+                                Constants.RESPONSE_STATUS_ERROR,
+                                message="No Modbus port detected. Please ensure the device is connected."
+                            ).to_dict()
+
+                    return Response(
+                        Constants.RESPONSE_STATUS_SUCCESS,
+                        data={"port": port},
+                        message=f"Detected Modbus port: {port}"
+                    ).to_dict()
+
+                except Exception as e:
+                    print(f"Error detecting Modbus port: {e}")
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message=f"Error detecting port: {str(e)}"
                     ).to_dict()
 
             else:
