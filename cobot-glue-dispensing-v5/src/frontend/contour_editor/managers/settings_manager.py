@@ -1,4 +1,5 @@
 from PyQt6.QtGui import QShortcut, QKeySequence
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from frontend.contour_editor import constants
@@ -10,7 +11,8 @@ from frontend.contour_editor.widgets.GlobalSettingsDialog import GlobalSettingsD
 class SettingsManager:
     def __init__(self, editor):
         self.editor = editor
-        
+        self.point_manager_widget = None  # Will be set later by parent
+
         # Load and apply initial settings
         self.load_initial_settings()
         
@@ -20,6 +22,10 @@ class SettingsManager:
         # Initialize cached constants
         self.setup_cached_constants()
     
+    def set_point_manager_widget(self, widget):
+        """Set the point manager widget reference (called by parent ContourEditor)"""
+        self.point_manager_widget = widget
+
     def load_initial_settings(self):
         """Load user settings from JSON and apply to constants"""
         settings = ConstantsManager.load_settings()
@@ -29,11 +35,15 @@ class SettingsManager:
         """Setup keyboard shortcuts for settings"""
         # Settings dialog shortcut (Ctrl+S)
         self.settings_shortcut = QShortcut(QKeySequence("Ctrl+S"), self.editor)
+        self.settings_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.settings_shortcut.activated.connect(self.open_settings_dialog)
+        self.settings_shortcut.setEnabled(True)
 
         # Global settings shortcut (Ctrl+G)
         self.global_settings_shortcut = QShortcut(QKeySequence("Ctrl+G"), self.editor)
+        self.global_settings_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.global_settings_shortcut.activated.connect(self.show_global_settings)
+        self.global_settings_shortcut.setEnabled(True)
 
     def setup_cached_constants(self):
         """Initialize cached constants from the constants module"""
@@ -83,20 +93,19 @@ class SettingsManager:
         self.editor.update()
     
     def show_global_settings(self):
-        """Show global settings dialog (Ctrl+G)"""
+        """Show the global settings dialog (Ctrl+G)"""
 
-        if hasattr(self.editor, 'point_manager_widget') and self.editor.point_manager_widget:
+        # Use the stored point_manager_widget reference
+        if self.point_manager_widget:
             screen = QApplication.primaryScreen()
-            screen_geometry = screen.geometry()  # QRect(x, y, width, height)
+            screen_geometry = screen.geometry()
             screen_width = screen_geometry.width()
             screen_height = screen_geometry.height()
-            dialog = GlobalSettingsDialog(self.editor.point_manager_widget, parent=self.editor)
+            dialog = GlobalSettingsDialog(self.point_manager_widget, parent=self.editor)
             dialog.setMinimumWidth(screen_width)
             dialog.setMinimumHeight(int(screen_height / 2))
             dialog.setMaximumHeight(int(screen_height / 2))
-            # Position at top-left of the screen (x=0, y=0)
-            # dialog.move(0, 0)
             dialog.adjustSize()
             dialog.show()
         else:
-            print("Point manager widget not found")
+            raise ValueError("[SettingsManager] point_manager_widget is not set - cannot open global settings dialog")

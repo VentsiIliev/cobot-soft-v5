@@ -73,6 +73,10 @@ class MainApplicationFrame(QFrame):
         self.pointManagerWidget.point_selected_signal.connect(lambda point_info:self.contourEditor.selection_manager.set_single_selection_from_dict(point_info))
         self.topbar.point_manager = self.pointManagerWidget
         self.contourEditor.point_manager_widget = self.pointManagerWidget
+
+        # Set point manager widget reference in the settings manager for Ctrl+G shortcut
+        self.contourEditor.settings_manager.set_point_manager_widget(self.pointManagerWidget)
+
         self.pointManagerWidget.setFixedWidth(400)
 
         # Wrap point manager in a sliding panel
