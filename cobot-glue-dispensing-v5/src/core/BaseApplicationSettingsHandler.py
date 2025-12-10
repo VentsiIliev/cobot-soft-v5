@@ -46,7 +46,7 @@ class BaseApplicationSettingsHandler(ApplicationSettingsHandler, ABC):
             app_name, settings_type, create_if_missing=True
         )
         
-        # Initialize settings object
+        # Initialize a settings object
         self._settings_object = None
         self._load_settings()
     
