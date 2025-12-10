@@ -1073,29 +1073,64 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                     )
                     # Revert to previous value
                     old_motor_addr = self.cell_configs[self.current_cell].get("motor_address", 0)
+                    self.motor_address_dropdown.blockSignals(True)
                     self.motor_address_dropdown.setCurrentText(str(old_motor_addr))
+                    self.motor_address_dropdown.blockSignals(False)
                     return
 
-        # Save if valid
-        self._update_cell_config("motor_address", new_motor_addr)
-
-        # Update the GlueCell object if available
-        if self.glue_cells_manager:
+        # Update via controller_service (proper architecture)
+        if self.controller_service:
             try:
-                cell = self.glue_cells_manager.getCellById(self.current_cell)
-                if cell:
-                    cell.setMotorAddress(new_motor_addr)
-                    print(f"[Config] Cell {self.current_cell} motor address updated in GlueCell object")
+                from communication_layer.api.v1.endpoints import glue_endpoints
+                from communication_layer.api.v1.Response import Response
+
+                # Send update request via controller
+                controller = self.controller_service.get_controller()
+                request_data = {
+                    'cell_id': self.current_cell,
+                    'field': 'motor_address',
+                    'value': new_motor_addr
+                }
+
+                response_dict = controller.requestSender.send_request(
+                    glue_endpoints.GLUE_CELL_UPDATE,
+                    data=request_data
+                )
+                response = Response.from_dict(response_dict)
+
+                if response.status == 'success':
+                    # Update in-memory config
+                    self.cell_configs[self.current_cell]['motor_address'] = new_motor_addr
+
+                    # Update the GlueCell object if available
+                    if self.glue_cells_manager:
+                        try:
+                            cell = self.glue_cells_manager.getCellById(self.current_cell)
+                            if cell:
+                                cell.setMotorAddress(new_motor_addr)
+                                print(f"[Config] Cell {self.current_cell} motor address updated in GlueCell object")
+                        except Exception as e:
+                            print(f"Error updating motor address in GlueCell: {e}")
+
+                    # Update cell dropdown label
+                    config = self.cell_configs[self.current_cell]
+                    cell_type_label = f"Cell {self.current_cell} ({config['type']}) - Motor {new_motor_addr}"
+                    self.cell_dropdown.setItemText(self.current_cell - 1, cell_type_label)
+
+                    print(f"[Config] Cell {self.current_cell} motor address changed to: {new_motor_addr}")
+                    self.showToast(f"✅ Motor address updated to {new_motor_addr}")
+                else:
+                    self.showToast(f"❌ Failed to update motor address: {response.message}")
+                    print(f"[Config] Motor address update failed: {response.message}")
+
             except Exception as e:
-                print(f"Error updating motor address in GlueCell: {e}")
-
-        # Update cell dropdown label
-        config = self.cell_configs[self.current_cell]
-        cell_type_label = f"Cell {self.current_cell} ({config['type']}) - Motor {new_motor_addr}"
-        self.cell_dropdown.setItemText(self.current_cell - 1, cell_type_label)
-
-        print(f"[Config] Cell {self.current_cell} motor address changed to: {new_motor_addr}")
-        self.showToast(f"✅ Motor address updated to {new_motor_addr}")
+                print(f"Error updating motor address via endpoint: {e}")
+                import traceback
+                traceback.print_exc()
+                self.showToast(f"❌ Error updating motor address")
+        else:
+            print("[Config] Error: controller_service not available")
+            self.showToast("❌ Cannot update motor address: controller not available")
 
     def _on_capacity_changed(self, value):
         """Handle capacity change"""

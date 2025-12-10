@@ -212,6 +212,71 @@ class SettingsDispatch(IDispatcher):
                         message=f"Error loading glue cells configuration: {e}"
                     ).to_dict()
             
+            elif request == glue_endpoints.GLUE_CELL_UPDATE:
+                # Handle generic cell field updates (motor_address, url, capacity, etc.)
+                if not data or 'cell_id' not in data or 'field' not in data or 'value' not in data:
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message="Missing required fields: cell_id, field, and value"
+                    ).to_dict()
+
+                try:
+                    from pathlib import Path
+                    import json
+
+                    cell_id = data['cell_id']
+                    field = data['field']
+                    value = data['value']
+
+                    # Load current config
+                    config_path = Path(get_app_settings_path("glue_dispensing_application", "glue_cell_config"))
+
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+
+                    # Find and update the cell
+                    cell_found = False
+                    for cell_config in config_data.get("cells", []):
+                        if cell_config["id"] == cell_id:
+                            cell_config[field] = value
+                            cell_found = True
+                            print(f"Updated cell {cell_id} {field} to {value}")
+                            break
+
+                    if not cell_found:
+                        return Response(
+                            Constants.RESPONSE_STATUS_ERROR,
+                            message=f"Cell {cell_id} not found"
+                        ).to_dict()
+
+                    # Save updated config
+                    with open(config_path, 'w') as f:
+                        json.dump(config_data, f, indent=2)
+
+                    # Reload config in GlueCellsManager if needed
+                    try:
+                        cells_manager = get_service_factory().create_cells_manager()
+                        if field == 'motor_address':
+                            cell = cells_manager.getCellById(cell_id)
+                            if cell:
+                                cell.setMotorAddress(value)
+                    except Exception as e:
+                        print(f"Warning: Could not update GlueCellsManager: {e}")
+
+                    return Response(
+                        Constants.RESPONSE_STATUS_SUCCESS,
+                        message=f"Cell {cell_id} {field} updated successfully"
+                    ).to_dict()
+
+                except Exception as e:
+                    print(f"Error updating cell field: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message=f"Error updating cell field: {e}"
+                    ).to_dict()
+
             elif request == glue_endpoints.GLUE_CELL_UPDATE_TYPE:
                 # Handle glue type updates
                 if not data or 'cell_id' not in data or 'type' not in data:
