@@ -53,6 +53,7 @@ class PluginType(Enum):
     
     # Application-specific plugins
     GLUE_CELL_SETTINGS = "Glue Cell Settings"  # Matches plugin.json name
+    MODBUS_SETTINGS = "Modbus Settings"  # Matches plugin.json name
     PAINT_SETTINGS = "paint_settings"
     
     # Add more plugins as needed

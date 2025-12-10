@@ -5,7 +5,7 @@ Handles all settings-related requests including robot, camera, and glue system c
 """
 from communication_layer.api.v1 import Constants
 from communication_layer.api.v1.Response import Response
-from communication_layer.api.v1.endpoints import glue_endpoints, settings_endpoints
+from communication_layer.api.v1.endpoints import glue_endpoints, settings_endpoints, modbus_endpoints
 from communication_layer.api_gateway.interfaces.dispatch import IDispatcher
 from applications.glue_dispensing_application.handlers.glue_types_handler import GlueTypesHandler
 from applications.glue_dispensing_application.handlers.cell_hardware_handler import CellHardwareHandler
@@ -76,6 +76,10 @@ class SettingsDispatch(IDispatcher):
                         glue_endpoints.GLUE_CELL_CALIBRATE, glue_endpoints.GLUE_CELL_TARE, 
                         glue_endpoints.GLUE_CELL_UPDATE_TYPE]:
             return self.handle_glue_cells_settings(parts, request, data)
+        # Modbus settings
+        elif request in [modbus_endpoints.MODBUS_CONFIG_GET, modbus_endpoints.MODBUS_CONFIG_UPDATE,
+                        modbus_endpoints.MODBUS_TEST_CONNECTION]:
+            return self.handle_modbus_settings(parts, request, data)
         elif request in [settings_endpoints.SETTINGS_GET]:
             return self.handle_general_settings(parts, request, data)
         elif request in [settings_endpoints.SETTINGS_UPDATE]:
@@ -452,3 +456,168 @@ class SettingsDispatch(IDispatcher):
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling cell hardware config: {e}"
             ).to_dict()
+
+    def handle_modbus_settings(self, parts, request, data=None):
+        """
+        Handle Modbus configuration requests.
+
+        Args:
+            parts (list): Parsed request parts
+            request (str): Full request string
+            data: Request data
+
+        Returns:
+            dict: Response with Modbus configuration or operation result
+        """
+        try:
+            from pathlib import Path
+            from core.application.ApplicationStorageResolver import get_app_settings_path
+            import json
+
+            print(f"handle_modbus_settings: Handling request: {request} with data: {data}")
+
+            # Get application-specific config path
+            config_path = Path(get_app_settings_path("glue_dispensing_application", "modbus_config"))
+
+            if request == modbus_endpoints.MODBUS_CONFIG_GET:
+                # Load and return Modbus configuration
+                try:
+                    if config_path.exists():
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                    else:
+                        # Create default config
+                        config = {
+                            'port': 'COM5',
+                            'baudrate': 115200,
+                            'bytesize': 8,
+                            'stopbits': 1,
+                            'parity': 'N',
+                            'timeout': 0.01,
+                            'slave_address': 10,
+                            'max_retries': 30
+                        }
+                        # Save default config
+                        config_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(config_path, 'w') as f:
+                            json.dump(config, f, indent=2)
+
+                    return Response(
+                        Constants.RESPONSE_STATUS_SUCCESS,
+                        data=config
+                    ).to_dict()
+
+                except Exception as e:
+                    print(f"Error loading Modbus config: {e}")
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message=f"Error loading Modbus configuration: {e}"
+                    ).to_dict()
+
+            elif request == modbus_endpoints.MODBUS_CONFIG_UPDATE:
+                # Update Modbus configuration field
+                if not data or 'field' not in data or 'value' not in data:
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message="Missing required fields: field and value"
+                    ).to_dict()
+
+                try:
+                    # Load current config
+                    if config_path.exists():
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                    else:
+                        config = {}
+
+                    # Update field
+                    field = data['field']
+                    value = data['value']
+                    config[field] = value
+
+                    # Save updated config
+                    config_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(config_path, 'w') as f:
+                        json.dump(config, f, indent=2)
+
+                    print(f"Updated Modbus config: {field} = {value}")
+
+                    return Response(
+                        Constants.RESPONSE_STATUS_SUCCESS,
+                        message=f"Modbus {field} updated successfully"
+                    ).to_dict()
+
+                except Exception as e:
+                    print(f"Error updating Modbus config: {e}")
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message=f"Error updating Modbus configuration: {e}"
+                    ).to_dict()
+
+            elif request == modbus_endpoints.MODBUS_TEST_CONNECTION:
+                # Test Modbus connection
+                try:
+                    # Load config
+                    if config_path.exists():
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                    else:
+                        return Response(
+                            Constants.RESPONSE_STATUS_ERROR,
+                            message="No Modbus configuration found"
+                        ).to_dict()
+
+                    # Try to create a test connection
+                    from modules.modbusCommunication.ModbusClient import ModbusClient
+                    import minimalmodbus
+
+                    parity_map = {
+                        'N': minimalmodbus.serial.PARITY_NONE,
+                        'E': minimalmodbus.serial.PARITY_EVEN,
+                        'O': minimalmodbus.serial.PARITY_ODD,
+                        'M': minimalmodbus.serial.PARITY_MARK,
+                        'S': minimalmodbus.serial.PARITY_SPACE
+                    }
+
+                    test_client = ModbusClient(
+                        slave=config.get('slave_address', 10),
+                        port=config.get('port', 'COM5'),
+                        baudrate=config.get('baudrate', 115200),
+                        bytesize=config.get('bytesize', 8),
+                        stopbits=config.get('stopbits', 1),
+                        timeout=config.get('timeout', 0.01),
+                        parity=parity_map.get(config.get('parity', 'N'), minimalmodbus.serial.PARITY_NONE),
+                        max_retries=config.get('max_retries', 30)
+                    )
+
+                    # Close the test connection
+                    if hasattr(test_client, 'client') and hasattr(test_client.client, 'serial'):
+                        test_client.client.serial.close()
+
+                    return Response(
+                        Constants.RESPONSE_STATUS_SUCCESS,
+                        message=f"Successfully connected to Modbus slave at {config.get('port')}"
+                    ).to_dict()
+
+                except Exception as e:
+                    print(f"Modbus connection test failed: {e}")
+                    return Response(
+                        Constants.RESPONSE_STATUS_ERROR,
+                        message=f"Connection test failed: {str(e)}"
+                    ).to_dict()
+
+            else:
+                return Response(
+                    Constants.RESPONSE_STATUS_ERROR,
+                    message=f"Unknown Modbus request: {request}"
+                ).to_dict()
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"SettingsHandler: Error handling Modbus settings: {e}")
+            return Response(
+                Constants.RESPONSE_STATUS_ERROR,
+                message=f"Error handling Modbus settings: {e}"
+            ).to_dict()
+

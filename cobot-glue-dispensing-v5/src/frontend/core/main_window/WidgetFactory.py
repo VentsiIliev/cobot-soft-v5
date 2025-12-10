@@ -7,6 +7,7 @@ from frontend.legacy_ui.app_widgets.CreateWorkpieceOptionsAppWidget import Creat
 from plugins.core.dashboard.ui.DashboardAppWidget import DashboardAppWidget
 from plugins.core.gallery.ui.GalleryAppWidget import GalleryAppWidget
 from plugins.core.glue_cell_settings_plugin.ui.GlueCellSettingsAppWidget import GlueCellSettingsAppWidget
+from plugins.core.modbus_settings_plugin.ui.ModbusSettingsAppWidget import ModbusSettingsAppWidget
 
 
 class WidgetType(Enum):
@@ -18,6 +19,7 @@ class WidgetType(Enum):
     CALIBRATION = "Calibration"  # Matches plugin.json
     CONTOUR_EDITOR = "ContourEditor"  # Matches plugin.json - FIXED!
     GLUE_CELL_SETTINGS = "Glue Cell Settings"  # Matches plugin.json - FIXED!
+    MODBUS_SETTINGS = "Modbus Settings"  # Matches plugin.json
 
     # Legacy/non-plugin widgets
     CREATE_WORKPIECE_OPTIONS = "create_workpiece_options"
@@ -48,6 +50,7 @@ class WidgetFactory:
             WidgetType.GALLERY: self.__create_gallery_widget,
             WidgetType.CALIBRATION: self.__create_calibration_widget,
             WidgetType.GLUE_CELL_SETTINGS: self.__create_glue_cell_settings_widget,
+            WidgetType.MODBUS_SETTINGS: self.__create_modbus_settings_widget,
             WidgetType.DXF_BROWSER: self.__create_dxf_browser_widget,
         }
 
@@ -112,6 +115,10 @@ class WidgetFactory:
     def __create_glue_cell_settings_widget(self, *args, **kwargs):
         print("Creating Glue Cell Settings Widget")
         return GlueCellSettingsAppWidget(parent = self.main_window,controller=None)
+
+    def __create_modbus_settings_widget(self, *args, **kwargs):
+        print("Creating Modbus Settings Widget")
+        return ModbusSettingsAppWidget(controller=self.controller, parent=self.main_window)
 
     def __create_dxf_browser_widget(self, *args, **kwargs):
         print("Creating DXF Browser Widget")
