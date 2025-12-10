@@ -23,9 +23,8 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     def _load_settings_from_endpoints(self):
         """Load Modbus settings via controller_service and endpoints"""
         if not self.controller_service:
-            print("Warning: controller_service not available, using defaults")
-            self._use_default_config()
-            return
+            raise ValueError("controller_service is not available")
+
         try:
             from communication_layer.api.v1.endpoints import modbus_endpoints
             from communication_layer.api.v1.Response import Response
@@ -38,24 +37,12 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 print(f"Successfully loaded Modbus config: {self.config}")
             else:
                 print(f"Failed to load Modbus config: {response.message}")
-                self._use_default_config()
+
         except Exception as e:
-            print(f"Error loading Modbus settings: {e}")
             import traceback
             traceback.print_exc()
-            self._use_default_config()
-    def _use_default_config(self):
-        """Use default configuration"""
-        self.config = {
-            'port': 'COM5',
-            'baudrate': 115200,
-            'bytesize': 8,
-            'stopbits': 1,
-            'parity': 'N',
-            'timeout': 0.01,
-            'slave_address': 10,
-            'max_retries': 30
-        }
+
+
     def create_main_content(self):
         """Create the main UI content"""
         # Create scroll area
