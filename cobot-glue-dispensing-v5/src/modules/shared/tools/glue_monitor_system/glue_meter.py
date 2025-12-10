@@ -29,7 +29,7 @@ class GlueMeter(Sensor):
     def __init__(self,id, url, fetchTimeout=10, useLowPass=False, alpha=0.3):
         self.id = id
         self.name = f"GlueMeter_{self.id}"
-        self.state = "Initializing"
+        self.state = "initializing"  # Use lowercase for consistency
         self.setFetchTimeout(fetchTimeout)
         self.setUrl(url)
         self.smoothedValue = None
@@ -39,6 +39,10 @@ class GlueMeter(Sensor):
         self.alpha = alpha  # Smoothing factor for low-pass filter
         self.lastValue = None  # Last smoothed value for low-pass
         self.fetcher = GlueDataFetcher()
+
+        # Get state from fetcher's state manager
+        from modules.shared.tools.glue_monitor_system.state_management import CellState
+        self._get_state_from_manager()
 
 
     def setFetchTimeout(self, timeout):
@@ -76,20 +80,30 @@ class GlueMeter(Sensor):
             if self.id == 3:
                 weight = self.fetcher.weight3
 
-            self.state = "READY"
+            # Update state from state manager
+            self._get_state_from_manager()
             self.lastValue = weight
-            return  weight
+            return weight
 
 
         except requests.exceptions.Timeout:
-            self.state = "DISCONNECTED"
+            self.state = "disconnected"
             log_if_enabled(LoggingLevel.WARNING, f"[{self.name}] Connection timeout")
             return None
 
         except requests.exceptions.RequestException as e:
-            self.state = "ERROR"
+            self.state = "error"
             log_if_enabled(LoggingLevel.ERROR, f"[{self.name}] Request error: {e}")
             return None
+
+    def _get_state_from_manager(self):
+        """Synchronize state from the centralized state manager"""
+        try:
+            cell_state = self.fetcher.state_manager.get_cell_state(self.id)
+            if cell_state:
+                self.state = str(cell_state)
+        except Exception as e:
+            log_if_enabled(LoggingLevel.WARNING, f"[{self.name}] Could not sync state: {e}")
 
     def __str__(self):
         """

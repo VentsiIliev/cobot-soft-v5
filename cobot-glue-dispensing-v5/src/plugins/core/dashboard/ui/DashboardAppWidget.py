@@ -28,8 +28,10 @@ class DashboardAppWidget(AppWidget):
             from plugins.core.dashboard.ui.DashboardWidget import DashboardWidget
 
             # Remove the placeholder content
-            self.content_widget = DashboardWidget(updateCameraFeedCallback=lambda: self.controller.handle(
-                camera_endpoints.UPDATE_CAMERA_FEED))
+            self.content_widget = DashboardWidget(
+                updateCameraFeedCallback=lambda: self.controller.handle(camera_endpoints.UPDATE_CAMERA_FEED),
+                controller_service=self.controller.controller_service if hasattr(self.controller, 'controller_service') else None
+            )
             self.content_widget.start_requested.connect(self.start_requested.emit)
             self.content_widget.pause_requested.connect(self.pause_requested.emit)
             self.content_widget.stop_requested.connect(self.stop_requested.emit)

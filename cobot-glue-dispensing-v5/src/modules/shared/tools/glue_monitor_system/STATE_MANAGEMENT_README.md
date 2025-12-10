@@ -543,3 +543,28 @@ Both widgets properly unsubscribe from state topics:
 broker.unsubscribe(f"glue/cell/{self.index}/state", self.update_state_indicator)
 ```
 This prevents memory leaks and callback errors after widget destruction.
+---
+## Known Issues and Solutions
+### Issue: State Indicators Show Gray on Load
+**Problem:** GlueMeterCard state indicators remain gray even though state management is working correctly.
+**Root Cause:** Timing issue - cards subscribe to state topics AFTER initial state transitions have already occurred.
+**Solution:** Added `fetch_initial_state()` method that queries the state_manager directly after subscription.
+```python
+def fetch_initial_state(self) -> None:
+    """Fetch the current state from GlueDataFetcher and update indicator"""
+    fetcher = GlueDataFetcher()
+    if hasattr(fetcher, 'state_manager'):
+        current_state = fetcher.state_manager.get_cell_state(self.index)
+        if current_state:
+            weight_kg = fetcher.state_monitor.cell_weights.get(self.index)
+            state_data = {
+                'cell_id': self.index,
+                'timestamp': datetime.datetime.now().isoformat(),
+                'current_state': str(current_state),
+                'reason': 'Initial state on subscription',
+                'weight': weight_kg
+            }
+            self.update_state_indicator(state_data)
+```
+**Result:** Indicators show correct colors immediately on load! ✅
+See `STATE_INDICATOR_TIMING_FIX.md` for full details.

@@ -1,6 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtWidgets import QFrame
+import datetime
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 
 from modules.shared.MessageBroker import MessageBroker
@@ -163,17 +164,67 @@ class GlueMeterCard(QFrame):
         broker.subscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
 
         # Subscribe to cell state from state management system
-        broker.subscribe(f"glue/cell/{self.index}/state", self.update_state_indicator)
+        state_topic = f"glue/cell/{self.index}/state"
+        print(f"[GlueMeterCard {self.index}] Subscribing to state topic: {state_topic}")
+        broker.subscribe(state_topic, self.update_state_indicator)
+        print(f"[GlueMeterCard {self.index}] Successfully subscribed to {state_topic}")
+
+        # Request current state from GlueDataFetcher
+        self.fetch_initial_state()
 
         # Load initial glue type
         self.load_current_glue_type()
 
+    def fetch_initial_state(self) -> None:
+        """Fetch the current state from GlueDataFetcher and update indicator"""
+        try:
+            from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
+
+            fetcher = GlueDataFetcher()
+
+            if hasattr(fetcher, 'state_manager'):
+                current_state = fetcher.state_manager.get_cell_state(self.index)
+
+                if current_state:
+                    # Get current weight
+                    weight_kg = None
+                    if hasattr(fetcher.state_monitor, 'cell_weights'):
+                        weight_kg = fetcher.state_monitor.cell_weights.get(self.index)
+
+                    # Build state data dict matching the format from state publisher
+                    state_data = {
+                        'cell_id': self.index,
+                        'timestamp': datetime.datetime.now().isoformat(),
+                        'previous_state': None,
+                        'current_state': str(current_state),
+                        'reason': 'Initial state on subscription',
+                        'weight': weight_kg,
+                        'details': {}
+                    }
+
+                    print(f"[GlueMeterCard {self.index}] Fetched initial state: {current_state}")
+                    # Update the indicator with current state
+                    self.update_state_indicator(state_data)
+                else:
+                    print(f"[GlueMeterCard {self.index}] No state available yet")
+            else:
+                print(f"[GlueMeterCard {self.index}] State manager not initialized yet")
+
+        except Exception as e:
+            print(f"[GlueMeterCard {self.index}] Error fetching initial state: {e}")
+            import traceback
+            traceback.print_exc()
+        self.load_current_glue_type()
+
     def update_state_indicator(self, state_data: dict):
         """Update the state indicator based on cell state"""
+        print(f"[GlueMeterCard {self.index}] update_state_indicator called with: {state_data}")
         try:
             current_state = state_data.get('current_state', 'unknown')
             reason = state_data.get('reason', '')
             weight = state_data.get('weight')
+
+            print(f"[GlueMeterCard {self.index}] State: {current_state}, Weight: {weight}, Reason: {reason}")
 
             # Define state colors and tooltips
             state_config = {
@@ -187,6 +238,8 @@ class GlueMeterCard(QFrame):
             }
 
             config = state_config.get(current_state, state_config['unknown'])
+
+            print(f"[GlueMeterCard {self.index}] Using color: {config['color']} for state: {current_state}")
 
             # Update indicator color
             self.state_indicator.setStyleSheet(f"""
@@ -209,8 +262,12 @@ class GlueMeterCard(QFrame):
 
             self.state_indicator.setToolTip(tooltip)
 
+            print(f"[GlueMeterCard {self.index}] State indicator updated successfully")
+
         except Exception as e:
-            print(f"Error updating state indicator for cell {self.index}: {e}")
+            print(f"[GlueMeterCard {self.index}] Error updating state indicator: {e}")
+            import traceback
+            traceback.print_exc()
 
     def update_glue_type_label(self, glue_type: str):
         """Update the glue type label when configuration changes"""

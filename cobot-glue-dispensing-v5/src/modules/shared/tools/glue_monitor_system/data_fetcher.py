@@ -94,6 +94,8 @@ class GlueDataFetcher:
         self.broker.publish(GlueTopics.GLUE_METER_2_VALUE, self.weight2)
         self.broker.publish(GlueTopics.GLUE_METER_3_VALUE, self.weight3)
 
+        # print(f"[GlueDataFetcher] Publishing weights: Cell1={self.weight1}g, Cell2={self.weight2}g, Cell3={self.weight3}g")
+
         # Update state monitoring with new weight values (convert g to kg)
         self.state_monitor.update_cell_weight(1, self.weight1 / 1000.0)
         self.state_monitor.update_cell_weight(2, self.weight2 / 1000.0)
