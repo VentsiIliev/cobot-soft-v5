@@ -1650,3 +1650,275 @@ Glue Cell Settings сега следва същата чиста архитек�
 **Дата на актуализация:** 10 Декември 2025  
 **Статус:** ✅ Завършено  
 **Breaking Changes:** Няма (backward compatible)
+---
+## 🔄 ДОПЪЛНИТЕЛНА АКТУАЛИЗАЦИЯ (Декември 2025) - Коректен Достъп до SettingsService
+### Проблем: Грешен Достъп до SettingsService
+**Грешка:**
+```
+AttributeError: 'UIController' object has no attribute 'services'
+```
+**Причина:**
+Кодът опитваше да достъпи SettingsService през UIController:
+```python
+# ❌ ГРЕШНО
+controller = self.controller_service.get_controller()  # Връща UIController
+settings_service = controller.services.settings  # UIController няма 'services'
+```
+### Решение: Директен Достъп
+`GlueCellSettingsTabLayout` получава `ControllerService`, който вече има директен достъп до всички services:
+```python
+# ✅ ПРАВИЛНО - Директен достъп
+settings_service = self.controller_service.settings
+```
+### Актуализирана Архитектура
+```
+GlueCellSettingsTabLayout
+  ↓ получава при инициализация
+controller_service (ControllerService)
+  ↓ има директни атрибути
+  .settings → SettingsService
+  .robot → RobotService
+  .camera → CameraService
+  .workpiece → WorkpieceService
+  .operations → OperationsService
+  .auth → AuthService
+```
+### Актуализирани Методи (Финална Версия)
+#### 1. on_mode_changed() - Превключване на режим
+```python
+def on_mode_changed(self, state):
+    """Превключване на режим чрез SettingsService"""
+    try:
+        new_mode = "test" if state else "production"
+        # ✅ Директен достъп до SettingsService
+        settings_service = self.controller_service.settings
+        result = settings_service.update_glue_cells_config({"MODE": new_mode})
+        if result.success:
+            # Актуализация на UI
+            if state:
+                self.mode_label.setText("Test (Mock Server)")
+            else:
+                self.mode_label.setText("Production")
+            if self.glue_data_fetcher:
+                self.glue_data_fetcher.reload_config()
+                self.showToast("Режимът е променен успешно")
+        else:
+            raise Exception(result.message)
+    except Exception as e:
+        print(f"Грешка при промяна на режима: {e}")
+        self.showToast(f"Грешка: {e}")
+```
+#### 2. _update_cell_config() - Актуализация на свойства
+```python
+def _update_cell_config(self, key, value):
+    """Актуализация на cell property чрез SettingsService"""
+    try:
+        # Актуализация в паметта
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # ✅ Директен достъп до SettingsService
+        settings_service = self.controller_service.settings
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {key: value}
+        )
+        if not result.success:
+            print(f"[Config] Грешка: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+#### 3. _update_cell_calibration() - Актуализация на калибрация
+```python
+def _update_cell_calibration(self, key, value):
+    """Актуализация на калибрация чрез SettingsService"""
+    try:
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # ✅ Директен достъп до SettingsService
+        settings_service = self.controller_service.settings
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {"calibration": {key: value}}
+        )
+        if not result.success:
+            print(f"[Config] Грешка при калибрация: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+#### 4. _update_cell_measurement() - Актуализация на измервания
+```python
+def _update_cell_measurement(self, key, value):
+    """Актуализация на measurement настройки чрез SettingsService"""
+    try:
+        if self.current_cell in self.cell_configs:
+            self.cell_configs[self.current_cell][key] = value
+        # ✅ Директен достъп до SettingsService
+        settings_service = self.controller_service.settings
+        result = settings_service.update_glue_cell(
+            self.current_cell,
+            {"measurement": {key: value}}
+        )
+        if not result.success:
+            print(f"[Config] Грешка при измерване: {result.message}")
+    except Exception as e:
+        print(f"[Config] Грешка: {e}")
+```
+---
+## API Формат: Коректна Структура на Данните
+### SettingsService.update_glue_cell()
+Методът преобразува данните в правилния API формат:
+**Вход (от UI):**
+```python
+# Простo поле
+settings_service.update_glue_cell(2, {"type": "TEST TYPE 2"})
+# Nested поле
+settings_service.update_glue_cell(1, {"calibration": {"zero_offset": 22.5}})
+```
+**Изход (към API):**
+```python
+# API очаква: {"cell_id": X, "field": "fieldname", "value": value}
+# За просто поле
+{
+    "cell_id": 2,
+    "field": "type",
+    "value": "TEST TYPE 2"
+}
+# За nested поле
+{
+    "cell_id": 1,
+    "field": "calibration",
+    "value": {"zero_offset": 22.5}
+}
+```
+### Имплементация в SettingsService
+```python
+def update_glue_cell(self, cell_id: int, cell_data: dict) -> ServiceResult:
+    """
+    Актуализация на конфигурация на glue cell.
+    Преобразува cell_data в API формат (field/value pairs).
+    """
+    try:
+        print(f"[SettingsService] Updating cell {cell_id}: {cell_data}")
+        # API очаква: {"cell_id": X, "field": "fieldname", "value": value}
+        # Преобразуваме всяко поле в отделна заявка
+        for field, value in cell_data.items():
+            request_data = {
+                "cell_id": cell_id,
+                "field": field,
+                "value": value
+            }
+            response_dict = self.controller.requestSender.send_request(
+                glue_endpoints.GLUE_CELL_UPDATE,
+                data=request_data
+            )
+            response = Response.from_dict(response_dict)
+            if response.status != Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.error_result(
+                    f"Failed to update cell {cell_id}: {response.message}"
+                )
+        return ServiceResult.success_result(
+            f"Cell {cell_id} updated successfully",
+            data={"cell_id": cell_id, **cell_data}
+        )
+    except Exception as e:
+        return ServiceResult.error_result(f"Failed to update: {str(e)}")
+```
+---
+## Пълен Поток на Данните (Финален)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  GlueCellSettingsTabLayout                                  │
+│  Потребителят променя "Glue Type" на Cell 2                │
+│  _update_cell_config("type", "TEST TYPE 2")                 │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  settings_service = self.controller_service.settings        │
+│  ✅ Директен достъп до SettingsService                      │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SettingsService.update_glue_cell(2, {"type": "TEST TYPE 2"})│
+│  Преобразува в API формат                                   │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  API Request: GLUE_CELL_UPDATE                              │
+│  Data: {                                                    │
+│    "cell_id": 2,                                            │
+│    "field": "type",                                         │
+│    "value": "TEST TYPE 2"                                   │
+│  }                                                          │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SettingsDispatcher                                         │
+│  handle_glue_cells_settings()                               │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SettingsController                                         │
+│  Валидира: cell_id, field, value                           │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SettingsRepository                                         │
+│  Зарежда glue_cell_config.json                             │
+│  Намира cell с id=2                                         │
+│  Актуализира: cell["type"] = "TEST TYPE 2"                 │
+│  Записва обратно в JSON файл                                │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Response: {"status": "success"}                            │
+│  ServiceResult: result.success = True                       │
+└─────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  UI актуализира in-memory config                           │
+│  Toast notification: "Cell 2 glue type changed"            │
+└─────────────────────────────────────────────────────────────┘
+```
+---
+## Ключови Точки
+### 1. ✅ Директен Достъп до Services
+```python
+# ControllerService има директни атрибути
+self.controller_service.settings  # SettingsService
+self.controller_service.robot     # RobotService
+self.controller_service.camera    # CameraService
+```
+### 2. ✅ Коректен API Формат
+```python
+# API винаги очаква:
+{
+    "cell_id": int,
+    "field": str,
+    "value": any
+}
+```
+### 3. ✅ SettingsService Преобразува Данните
+```python
+# UI изпраща просто:
+{"type": "TEST TYPE 2"}
+# SettingsService преобразува в:
+{"cell_id": 2, "field": "type", "value": "TEST TYPE 2"}
+```
+### 4. ✅ Поддръжка на Nested Структури
+```python
+# UI изпраща:
+{"calibration": {"zero_offset": 22.5}}
+# SettingsService изпраща като:
+{"cell_id": 1, "field": "calibration", "value": {"zero_offset": 22.5}}
+```
+---
+## Заключение на Финалната Версия
+✅ **Коректен Достъп** - Директно през `self.controller_service.settings`  
+✅ **Правилен API Формат** - `field/value` структура  
+✅ **Автоматично Преобразуване** - SettingsService управлява форматирането  
+✅ **Поддръжка на Nested** - Калибрация и измервания работят коректно  
+✅ **Опростена Архитектура** - Без излишни междинни слоеве  
+Glue Cell Settings сега използва правилната архитектура с директен достъп до SettingsService и коректен API формат! 🎉
+**Дата на финалната актуализация:** 10 Декември 2025  
+**Статус:** ✅ Напълно Фиксирано  
+**Breaking Changes:** Няма
