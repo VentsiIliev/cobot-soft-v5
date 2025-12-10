@@ -151,11 +151,36 @@ class SelectGlueTypeStep(WizardStep):
         self.radio_buttons = []
 
         # Load glue types dynamically from API
+        glue_type_names = []
         try:
             glue_type_names = get_all_glue_type_names()
         except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+            print(f"Failed to load glue types from API: {e}, trying glue cell configuration")
+            # Fallback: Load from glue cell configuration
+            try:
+                from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+                cells_manager = GlueCellsManagerSingleton.get_instance()
+                glue_type_names = [cell.glueType for cell in cells_manager.cells]
+                print(f"Loaded {len(glue_type_names)} glue types from cell configuration")
+            except Exception as config_error:
+                print(f"Failed to load glue types from configuration: {config_error}")
+
+        # ✅ NO HARDCODED FALLBACKS - Show error if no types available
+        if not glue_type_names:
+            error_label = QLabel("⚠️ No glue types configured!")
+            error_label.setStyleSheet("color: red; font-weight: bold; font-size: 14px; padding: 10px;")
+            self.content_layout.addWidget(error_label)
+
+            instruction_label = QLabel(
+                "Please configure glue types in:\n"
+                "1. Glue Cell Settings (assign types to cells)\n"
+                "2. Or register custom glue types\n\n"
+                "Wizard cannot continue without glue type configuration."
+            )
+            instruction_label.setStyleSheet("font-size: 12px; padding: 10px; background-color: #fff3cd; border-radius: 5px;")
+            instruction_label.setWordWrap(True)
+            self.content_layout.addWidget(instruction_label)
+            return
 
         # Create radio button for each glue type
         for idx, glue_type_name in enumerate(glue_type_names):
@@ -175,7 +200,8 @@ class SelectGlueTypeStep(WizardStep):
         for radio in self.radio_buttons:
             if radio.isChecked():
                 return radio.text()
-        return self.radio_buttons[0].text() if self.radio_buttons else "Type A"
+        # Return None if no types are available (configuration error)
+        return self.radio_buttons[0].text() if self.radio_buttons else None
 
 
 class SummaryStep(WizardStep):

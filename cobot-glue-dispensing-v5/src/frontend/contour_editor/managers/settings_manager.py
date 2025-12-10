@@ -30,7 +30,11 @@ class SettingsManager:
         # Settings dialog shortcut (Ctrl+S)
         self.settings_shortcut = QShortcut(QKeySequence("Ctrl+S"), self.editor)
         self.settings_shortcut.activated.connect(self.open_settings_dialog)
-    
+
+        # Global settings shortcut (Ctrl+G)
+        self.global_settings_shortcut = QShortcut(QKeySequence("Ctrl+G"), self.editor)
+        self.global_settings_shortcut.activated.connect(self.show_global_settings)
+
     def setup_cached_constants(self):
         """Initialize cached constants from the constants module"""
         self.handle_radius = constants.POINT_HANDLE_RADIUS
@@ -79,7 +83,7 @@ class SettingsManager:
         self.editor.update()
     
     def show_global_settings(self):
-        """Show global settings dialog"""
+        """Show global settings dialog (Ctrl+G)"""
 
         if hasattr(self.editor, 'point_manager_widget') and self.editor.point_manager_widget:
             screen = QApplication.primaryScreen()
