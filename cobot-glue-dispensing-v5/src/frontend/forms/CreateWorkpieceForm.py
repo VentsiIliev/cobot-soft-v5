@@ -43,7 +43,7 @@ DEFAULT_FIELD_CONFIG = {
     GlueWorkpieceField.SPRAY_WIDTH.value: {"visible": True, "mandatory": False},
     GlueWorkpieceField.TOOL_ID.value: {"visible": True, "mandatory": False},
     GlueWorkpieceField.GRIPPER_ID.value: {"visible": True, "mandatory": False},
-    GlueWorkpieceField.GLUE_TYPE.value: {"visible": True, "mandatory": False},
+    GlueWorkpieceField.GLUE_TYPE.value: {"visible": True, "mandatory": True},
     GlueWorkpieceField.PROGRAM.value: {"visible": True, "mandatory": False},
     GlueWorkpieceField.MATERIAL.value: {"visible": True, "mandatory": False}
 }
@@ -420,11 +420,36 @@ class CreateWorkpieceForm(Drawer, QFrame):
         # Dropdown fields
         # Load glue types dynamically from API
         from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
+        glue_types_list = []
+
         try:
             glue_types_list = get_all_glue_type_names()
         except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            glue_types_list = ["Type A", "Type B", "Type C", "Type D"]
+            print(f"Failed to load glue types from API: {e}, trying configuration")
+            # Fallback: Load from glue cell configuration
+            try:
+                from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+                cells_manager = GlueCellsManagerSingleton.get_instance()
+                glue_types_list = [cell.glueType for cell in cells_manager.cells]
+                print(f"Loaded {len(glue_types_list)} glue types from cell configuration")
+            except Exception as config_error:
+                print(f"Failed to load glue types from configuration: {config_error}")
+
+        # ✅ NO HARDCODED FALLBACKS - Prompt user to configure glue types
+        if not glue_types_list:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.critical(
+                self,
+                "No Glue Types Configured",
+                "No glue types are available!\n\n"
+                "Please configure glue types in:\n"
+                "1. Glue Cell Settings (assign types to cells)\n"
+                "2. Or register custom glue types\n\n"
+                "Cannot create workpiece without glue type configuration.",
+                QMessageBox.Ok
+            )
+            # Return empty list - form will be unusable until types are configured
+            glue_types_list = []
 
         dropdown_fields = [
             # (WorkpieceField.TOOL_ID, ToolID, TOOL_ID_ICON_PATH),
