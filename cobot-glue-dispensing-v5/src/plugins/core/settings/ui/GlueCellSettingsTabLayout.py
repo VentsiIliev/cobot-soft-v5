@@ -86,8 +86,11 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         # Connect value change signals to auto-save
         self._connect_auto_save_signals()
 
-    def __del__(self):
-        """Cleanup when the widget is destroyed"""
+    def cleanup(self):
+        """
+        Explicit cleanup method to be called before widget destruction.
+        Do NOT use __del__ as it can cause double-free issues with Qt objects.
+        """
         self._cleanup_message_broker()
 
     def _cleanup_message_broker(self):
