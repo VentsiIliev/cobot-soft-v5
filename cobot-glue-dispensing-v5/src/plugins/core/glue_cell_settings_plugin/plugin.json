@@ -1,15 +1,15 @@
 {
-    "name": "Glue Weight Cell Settings",
+    "name": "Glue Cell Settings",
     "version": "1.0.0",
     "author": "PL Team",
-    "description": "Configure settings for glue weight cells used in various analyses",
+    "description": "Configure settings for glue cells (weight sensors, motors, pumps) used in the application",
     "category": "core",
-    "entry_point": "plugin.GlueWeightCellsSettingsPlugin",
+    "entry_point": "plugin.GlueCellSettingsPlugin",
     "auto_load": true,
     "permissions": ["file.system"],
     "dependencies": [],
     "min_app_version": "1.0.0",
     "icon": "icons/weight_cell.png",
     "folder_id": 2,
-    "icon_name": "GLUE_WEIGHT_CELL_ICON"
+    "icon_name": "GLUE_CELL_SETTINGS_ICON"
 }

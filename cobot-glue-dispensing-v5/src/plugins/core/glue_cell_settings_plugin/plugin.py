@@ -9,10 +9,10 @@ from plugins.base.plugin_interface import IPlugin, PluginMetadata, PluginCategor
 
 # Import the widget
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../src'))
-from plugins.core.weight_cells_settings_plugin.ui.GlueWeightCellSettingsAppWidget import GlueWeightCellSettingsAppWidget
+from plugins.core.glue_cell_settings_plugin.ui.GlueCellSettingsAppWidget import GlueCellSettingsAppWidget
 
 
-class GlueWeightCellsSettingsPlugin(IPlugin):
+class GlueCellSettingsPlugin(IPlugin):
     def __init__(self):
         super().__init__()
         self._widget_instance = None
@@ -22,10 +22,10 @@ class GlueWeightCellsSettingsPlugin(IPlugin):
     def metadata(self) -> PluginMetadata:
         """Plugin metadata and information"""
         return PluginMetadata(
-            name="Glue Weight Cell Settings",
+            name="Glue Cell Settings",
             version="1.0.0",
             author="PL Team",
-            description="Manage settings for glue weight cells cells within the application",
+            description="Manage settings for glue cells (weight sensors, motors, pumps) within the application",
             category=PluginCategory.CORE,
             dependencies=[],
             permissions=[
@@ -75,7 +75,7 @@ class GlueWeightCellsSettingsPlugin(IPlugin):
 
         # Create widget instance if it doesn't exist
         if not self._widget_instance:
-            self._widget_instance = GlueWeightCellSettingsAppWidget(
+            self._widget_instance = GlueCellSettingsAppWidget(
                 parent=parent,
                 controller=self.controller_service.controller if hasattr(self, 'controller_service') else None,
                 controller_service=self.controller_service if hasattr(self, 'controller_service') else None

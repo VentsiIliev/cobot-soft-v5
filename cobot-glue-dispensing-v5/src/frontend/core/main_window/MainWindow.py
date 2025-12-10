@@ -23,7 +23,7 @@ from frontend.legacy_ui.controller.CreateWorkpieceManager import CreateWorkpiece
 from frontend.core.utils.DxfThumbnailLoader import DXFThumbnailLoader
 from frontend.core.utils.IconLoader import (DASHBOARD_ICON, CREATE_WORKPIECE_ICON, GALLERY_ICON,
                                                  SETTINGS_ICON, CALIBRATION_ICON, USER_MANAGEMENT_ICON,
-                                                 GLUE_WEIGHT_CELL_ICON)
+                                                 GLUE_CELL_SETTINGS_ICON)
 from frontend.core.services.authorizationService import AuthorizationService , Permission
 from frontend.core.utils.FilePaths import DXF_DIRECTORY
 
@@ -343,7 +343,7 @@ class MainWindow(TranslatableWidget):
             'GALLERY_ICON': GALLERY_ICON,
             'SETTINGS_ICON': SETTINGS_ICON,
             'CALIBRATION_ICON': CALIBRATION_ICON,
-            'GLUE_WEIGHT_CELL_ICON': GLUE_WEIGHT_CELL_ICON,
+            'GLUE_CELL_SETTINGS_ICON': GLUE_CELL_SETTINGS_ICON,
             'USER_MANAGEMENT_ICON': USER_MANAGEMENT_ICON,
         }
 

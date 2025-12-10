@@ -10,6 +10,11 @@
       "id": "ff699e24-d0b1-4155-8922-aeaebe5d849d",
       "name": "TEST TYPE 2",
       "description": "TEST DESC 2"
+    },
+    {
+      "id": "1aae8866-7e93-43a7-aa36-94210a1e3246",
+      "name": "TEST TYPE 3",
+      "description": "TEST DESC 3"
     }
   ]
 }

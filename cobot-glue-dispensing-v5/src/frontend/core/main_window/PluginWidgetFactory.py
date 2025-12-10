@@ -158,7 +158,7 @@ class PluginWidgetFactory:
                 'User Management': 'User Management',
                 'ContourEditor': 'ContourEditor',
                 'create_workpiece_options': 'CreateWorkpiece',
-                'Glue Weight Cell Settings': 'Glue Weight Cell Settings',
+                'Glue Cell Settings': 'Glue Cell Settings',
                 'dxf_browser': 'DxfBrowser'
             }
             

@@ -6,7 +6,7 @@ from plugins.core.contour_editor.ui import ContourEditorAppWidget
 from frontend.legacy_ui.app_widgets.CreateWorkpieceOptionsAppWidget import CreateWorkpieceOptionsAppWidget
 from plugins.core.dashboard.ui.DashboardAppWidget import DashboardAppWidget
 from plugins.core.gallery.ui.GalleryAppWidget import GalleryAppWidget
-from plugins.core.weight_cells_settings_plugin.ui.GlueWeightCellSettingsAppWidget import GlueWeightCellSettingsAppWidget
+from plugins.core.glue_cell_settings_plugin.ui.GlueCellSettingsAppWidget import GlueCellSettingsAppWidget
 
 
 class WidgetType(Enum):
@@ -17,7 +17,7 @@ class WidgetType(Enum):
     GALLERY = "Gallery"  # Matches plugin.json
     CALIBRATION = "Calibration"  # Matches plugin.json
     CONTOUR_EDITOR = "ContourEditor"  # Matches plugin.json - FIXED!
-    GLUE_WEIGHT_CELL = "Glue Weight Cell Settings"  # Matches plugin.json - FIXED!
+    GLUE_CELL_SETTINGS = "Glue Cell Settings"  # Matches plugin.json - FIXED!
 
     # Legacy/non-plugin widgets
     CREATE_WORKPIECE_OPTIONS = "create_workpiece_options"
@@ -47,7 +47,7 @@ class WidgetFactory:
             WidgetType.DASHBOARD: self.__create_dashboard_widget,
             WidgetType.GALLERY: self.__create_gallery_widget,
             WidgetType.CALIBRATION: self.__create_calibration_widget,
-            WidgetType.GLUE_WEIGHT_CELL: self.__create_glue_weight_cell_settings_widget,
+            WidgetType.GLUE_CELL_SETTINGS: self.__create_glue_cell_settings_widget,
             WidgetType.DXF_BROWSER: self.__create_dxf_browser_widget,
         }
 
@@ -109,9 +109,9 @@ class WidgetFactory:
         print("Creating Calibration Widget")
         return CalibrationAppWidget(controller_service=self.controller)
 
-    def __create_glue_weight_cell_settings_widget(self, *args, **kwargs):
-        print("Creating Glue Weight Cell Settings Widget")
-        return GlueWeightCellSettingsAppWidget(parent = self.main_window,controller=None)
+    def __create_glue_cell_settings_widget(self, *args, **kwargs):
+        print("Creating Glue Cell Settings Widget")
+        return GlueCellSettingsAppWidget(parent = self.main_window,controller=None)
 
     def __create_dxf_browser_widget(self, *args, **kwargs):
         print("Creating DXF Browser Widget")

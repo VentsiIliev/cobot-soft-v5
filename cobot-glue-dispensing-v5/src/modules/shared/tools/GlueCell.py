@@ -11,16 +11,19 @@ class GlueCell:
         glueType (str): The type of glue used in the cell (e.g., "Type A", "Custom Glue X").
         glueMeter (GlueMeter): The glue meter associated with the cell for measuring glue weight.
         capacity (int): The maximum capacity of the glue cell.
+        motor_address (int): The Modbus address of the motor that drives this cell's pump.
 
     Methods:
         setId(id): Sets the unique identifier for the glue cell.
         setGlueType(glueType): Sets the type of glue used in the cell.
         setGlueMeter(glueMeter): Sets the glue meter for the cell.
         setCapacity(capacity): Sets the maximum capacity of the glue cell.
+        setMotorAddress(motor_address): Sets the motor address for the cell.
+        getMotorAddress(): Gets the motor address of the cell.
         getGlueInfo(): Retrieves the current glue weight and percentage of capacity used.
     """
 
-    def __init__(self, id, glueType: str, glueMeter, capacity):
+    def __init__(self, id, glueType: str, glueMeter, capacity, motor_address: int = 0):
         """
         Initializes a GlueCell instance.
 
@@ -29,6 +32,7 @@ class GlueCell:
             glueType (str): The type of glue (e.g., "Type A", "Custom Glue X").
             glueMeter (GlueMeter): The glue meter associated with the cell.
             capacity (int): The maximum capacity of the glue cell.
+            motor_address (int): The Modbus address of the motor that drives this cell's pump.
 
         Raises:
             TypeError: If glueMeter is not an instance of GlueMeter.
@@ -39,6 +43,7 @@ class GlueCell:
         self.setGlueType(glueType)
         self.setGlueMeter(glueMeter)
         self.setCapacity(capacity)
+        self.setMotorAddress(motor_address)
 
     def setId(self, id):
         """
@@ -88,6 +93,24 @@ class GlueCell:
             raise ValueError(f"DEbug] [{self.logTag}] capacity must be greater than 0, got {capacity}")
         self.capacity = capacity
 
+    def setMotorAddress(self, motor_address: int):
+        """
+        Sets the motor address for the cell.
+
+        Args:
+            motor_address (int): The Modbus address of the motor that drives this cell's pump.
+        """
+        self.motor_address = motor_address
+
+    def getMotorAddress(self) -> int:
+        """
+        Gets the motor address of the cell.
+
+        Returns:
+            int: The Modbus address of the motor that drives this cell's pump.
+        """
+        return self.motor_address
+
     def getGlueInfo(self):
         """
         Retrieves the current glue weight and percentage of capacity used.
@@ -108,7 +131,7 @@ class GlueCell:
         Returns:
             str: A string representation of the GlueCell instance.
         """
-        return f"GlueCell(id={self.id}, glueType={self.glueType}, glueMeter={self.glueMeter}, capacity={self.capacity})"
+        return f"GlueCell(id={self.id}, glueType={self.glueType}, glueMeter={self.glueMeter}, capacity={self.capacity}, motor_address={self.motor_address})"
 
 
 """     EXAMPLE USAGE   """

@@ -48,11 +48,16 @@ class GlueCellsManagerSingleton:
                 print(f"[GlueCellsManager] Cell {cell_cfg.id}: {url}")
 
                 glue_meter = GlueMeter(cell_cfg.id, url)
+
+                # Get motor address from config (default to 0 if not present)
+                motor_address = getattr(cell_cfg, 'motor_address', 0)
+
                 glue_cell = GlueCell(
                     id=cell_cfg.id,
                     glueType=glue_type,
                     glueMeter=glue_meter,
-                    capacity=cell_cfg.capacity
+                    capacity=cell_cfg.capacity,
+                    motor_address=motor_address
                 )
                 cells.append(glue_cell)
 

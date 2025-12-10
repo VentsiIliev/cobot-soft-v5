@@ -27,6 +27,7 @@ SERVICE_ICON = os.path.join(RESOURCE_DIR, "SETTINGS_BUTTON.png")
 SETTINGS_ICON = os.path.join(RESOURCE_DIR, "SETTINGS_BUTTON.png")
 CALIBRATION_ICON = os.path.join(RESOURCE_DIR, "CALIBRATION_BUTTON_SQUARE.png")
 GLUE_WEIGHT_CELL_ICON = os.path.join(RESOURCE_DIR, "glueWeightCellButton.png")
+GLUE_CELL_SETTINGS_ICON = GLUE_WEIGHT_CELL_ICON  # Alias for new name
 
 # administration icons
 USER_MANAGEMENT_ICON = os.path.join(RESOURCE_DIR, "user_management.png")

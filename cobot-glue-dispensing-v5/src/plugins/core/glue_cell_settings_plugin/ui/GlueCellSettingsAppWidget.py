@@ -1,18 +1,18 @@
 from frontend.core.shared.base_widgets.AppWidget import AppWidget
-from plugins.core.settings.ui.LoadCellsSettingsTabLayout import LoadCellsSettingsTabLayout
+from plugins.core.settings.ui.GlueCellSettingsTabLayout import GlueCellSettingsTabLayout
 
 
-# Use the LoadCellsSettingsTabLayout for glue weight cell settings
+# Use the GlueCellSettingsTabLayout for glue cell settings
 
-class GlueWeightCellSettingsAppWidget(AppWidget):
+class GlueCellSettingsAppWidget(AppWidget):
     """Specialized widget for User Management application"""
 
     def __init__(self, parent=None, controller=None, controller_service=None):
         self.controller = controller
         self.controller_service = controller_service
         self.parent = parent
-        super().__init__("Glue Weight Cell Settings", parent)
-        print("GlueWeightCellSettingsAppWidget initialized with parent:", self.parent)
+        super().__init__("Glue Cell Settings", parent)
+        print("GlueCellSettingsAppWidget initialized with parent:", self.parent)
 
     def setup_ui(self):
         """Setup the user management specific UI"""
@@ -43,12 +43,12 @@ class GlueWeightCellSettingsAppWidget(AppWidget):
                     self.controller.updateSettings(key, value, className)
 
             try:
-                # LoadCellsSettingsTabLayout is now a QVBoxLayout, so wrap it in a QWidget
+                # GlueCellSettingsTabLayout is now a QVBoxLayout, so wrap it in a QWidget
                 # like the calibration app does
                 self.content_widget = QWidget(self.parent)
                 
-                # Initialize the layout for load cells settings with controller_service
-                self.content_layout = LoadCellsSettingsTabLayout(
+                # Initialize the layout for glue cells settings with controller_service
+                self.content_layout = GlueCellSettingsTabLayout(
                     parent_widget=self.content_widget,
                     controller_service=self.controller_service
                 )
@@ -63,7 +63,7 @@ class GlueWeightCellSettingsAppWidget(AppWidget):
 
 
             # content_widget.show()
-            print("LoadCellsSettingsTabLayout loaded successfully")
+            print("GlueCellSettingsTabLayout loaded successfully")
             # Replace the last widget in the layout (the placeholder) with the real widget
             layout = self.layout()
             old_content = layout.itemAt(layout.count() - 1).widget()
@@ -73,16 +73,16 @@ class GlueWeightCellSettingsAppWidget(AppWidget):
             layout.addWidget(self.content_widget)
         except ImportError:
             # Keep the placeholder if the UserManagementWidget is not available
-            print("LoadCellsSettingsTabLayout not available, using placeholder")
+            print("GlueCellSettingsTabLayout not available, using placeholder")
 
     def clean_up(self):
         """Clean up resources when the widget is closed"""
-        print("Cleaning up GlueWeightCellSettingsAppWidget")
+        print("Cleaning up GlueCellSettingsAppWidget")
         try:
             if hasattr(self, 'content_layout') and self.content_layout:
-                # Call the cleanup method on the LoadCellsSettingsTabLayout
+                # Call the cleanup method on the GlueCellSettingsTabLayout
                 if hasattr(self.content_layout, '_cleanup_message_broker'):
                     self.content_layout._cleanup_message_broker()
         except Exception as e:
-            print(f"Error during GlueWeightCellSettingsAppWidget cleanup: {e}")
+            print(f"Error during GlueCellSettingsAppWidget cleanup: {e}")
         super().clean_up() if hasattr(super(), 'clean_up') else None

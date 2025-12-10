@@ -52,7 +52,7 @@ class PluginType(Enum):
     DXF_BROWSER = "dxf_browser"
     
     # Application-specific plugins
-    GLUE_WEIGHT_CELL_SETTINGS = "Glue Weight Cell Settings"  # Matches plugin.json name
+    GLUE_CELL_SETTINGS = "Glue Cell Settings"  # Matches plugin.json name
     PAINT_SETTINGS = "paint_settings"
     
     # Add more plugins as needed

@@ -9,7 +9,6 @@ This service provides the missing link between:
 """
 from typing import Optional
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-from applications.glue_dispensing_application.config.cell_hardware_config import CellHardwareConfig
 from applications.glue_dispensing_application.services.glueSprayService.GlueSprayService import GlueSprayService
 class GlueDispatchService:
     """
@@ -86,11 +85,16 @@ class GlueDispatchService:
         cell_id = self.find_cell_by_glue_type(glue_type)
         if cell_id is None:
             return False, f"No cell found containing glue type: '{glue_type}'"
-        # Step 2: Get motor address for this cell
+
+        # Step 2: Get motor address directly from GlueCell object
         try:
-            motor_address = CellHardwareConfig.get_motor_address(cell_id)
-        except ValueError as e:
-            return False, str(e)
+            cell = self.cells_manager.getCellById(cell_id)
+            if cell is None:
+                return False, f"Cell {cell_id} not found in manager"
+            motor_address = cell.getMotorAddress()
+        except Exception as e:
+            return False, f"Error getting motor address for cell {cell_id}: {str(e)}"
+
         # Step 3: Start dispensing
         try:
             result = self.spray_service.startGlueDispensing(
@@ -135,10 +139,15 @@ class GlueDispatchService:
         cell_id = self.find_cell_by_glue_type(glue_type)
         if cell_id is None:
             return False, f"No cell found containing glue type: '{glue_type}'"
+
         try:
-            motor_address = CellHardwareConfig.get_motor_address(cell_id)
-        except ValueError as e:
-            return False, str(e)
+            cell = self.cells_manager.getCellById(cell_id)
+            if cell is None:
+                return False, f"Cell {cell_id} not found in manager"
+            motor_address = cell.getMotorAddress()
+        except Exception as e:
+            return False, f"Error getting motor address for cell {cell_id}: {str(e)}"
+
         # Stop dispensing
         try:
             result = self.spray_service.stopGlueDispensing(
@@ -181,10 +190,12 @@ class GlueDispatchService:
         cell = self.cells_manager.getCellById(cell_id)
         if cell is None:
             return None
+
         try:
-            motor_address = CellHardwareConfig.get_motor_address(cell_id)
-        except ValueError:
+            motor_address = cell.getMotorAddress()
+        except Exception:
             motor_address = -1
+
         weight, percent = cell.getGlueInfo()
         return {
             'glue_type': glue_type,
