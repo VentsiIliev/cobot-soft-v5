@@ -32,9 +32,20 @@
 └─────────────────────────────────────────────────────────────┘
                             ↓↑ (controller_service)
 ┌─────────────────────────────────────────────────────────────┐
+│                   Service Layer (SettingsService)            │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ ControllerService.settings (SettingsService)          │  │
+│  │  ├─ get_modbus_settings()                             │  │
+│  │  ├─ update_modbus_setting(field, value)               │  │
+│  │  ├─ test_modbus_connection()                          │  │
+│  │  └─ detect_modbus_port()                              │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            ↓↑ (via RequestSender)
+┌─────────────────────────────────────────────────────────────┐
 │              Communication Layer (API Gateway)               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ ControllerService → RequestSender                     │  │
+│  │ Controller → RequestSender                            │  │
 │  │  └─ MainRouter (dispatch requests)                    │  │
 │  │      └─ SettingsDispatcher                            │  │
 │  │          └─ handle_modbus_settings()                  │  │
@@ -84,29 +95,32 @@
       ↓
 [3] _load_settings_from_endpoints()
       ↓
-[4] controller_service.send_request(MODBUS_CONFIG_GET)
+[4] controller_service.settings.get_modbus_settings()
       ↓
-[5] SettingsDispatcher.handle_modbus_settings()
+[5] SettingsService.get_modbus_settings()
       ↓
-[6] ModbusSettingsRepository.load()
+[6] controller.requestSender.send_request(MODBUS_CONFIG_GET)
       ↓
-[7] Чете modbus_config.json от диска
+[7] SettingsDispatcher.handle_modbus_settings()
       ↓
-[8] ModbusConfig.from_dict(json_data)
+[8] ModbusSettingsRepository.load()
       ↓
-[9] Връща Response със success и config data
+[9] Чете modbus_config.json от диска
       ↓
-[10] UI попълва полетата с получените данни
+[10] ModbusConfig.from_dict(json_data)
+      ↓
+[11] Връща Response със success и config data
+      ↓
+[12] ServiceResult обгръща response-а
+      ↓
+[13] UI попълва полетата с получените данни
 ```
 **Пример код:**
 ```python
 # В ModbusConnectionTab.py
-response_dict = controller.requestSender.send_request(
-    modbus_endpoints.MODBUS_CONFIG_GET
-)
-response = Response.from_dict(response_dict)
-if response.status == 'success':
-    self.config = response.data  # {'port': 'COM5', 'baudrate': 115200, ...}
+result = self.controller_service.settings.get_modbus_settings()
+if result.success:
+    self.config = result.data  # {'port': 'COM5', 'baudrate': 115200, ...}
 ```
 ### 2. Актуализация на Конфигурация (UI → Storage)
 ```
@@ -116,32 +130,37 @@ if response.status == 'success':
       ↓
 [3] _on_field_changed('baudrate', 115200)
       ↓
-[4] controller_service.send_request(MODBUS_CONFIG_UPDATE, 
-                                     data={'field': 'baudrate', 'value': 115200})
+[4] controller_service.settings.update_modbus_setting('baudrate', 115200)
       ↓
-[5] SettingsDispatcher.handle_modbus_settings()
+[5] SettingsService.update_modbus_setting()
       ↓
-[6] ModbusSettingsRepository.update_field('baudrate', 115200)
+[6] controller.requestSender.send_request(MODBUS_CONFIG_UPDATE,
+                                          data={'field': 'baudrate', 'value': 115200})
       ↓
-[7] Зарежда текущия config от файла
+[7] SettingsDispatcher.handle_modbus_settings()
       ↓
-[8] config.update_field('baudrate', 115200)
+[8] ModbusSettingsRepository.update_field('baudrate', 115200)
       ↓
-[9] Запазва актуализирания config обратно в JSON файла
+[9] Зарежда текущия config от файла
       ↓
-[10] Връща Response със success message
+[10] config.update_field('baudrate', 115200)
       ↓
-[11] UI показва toast нотификация "✅ Baudrate updated"
+[11] Запазва актуализирания config обратно в JSON файла
+      ↓
+[12] Връща Response със success message
+      ↓
+[13] ServiceResult обгръща response-а
+      ↓
+[14] UI показва toast нотификация "✅ Baudrate updated"
 ```
 **Пример код:**
 ```python
 # В ModbusConnectionTab.py
 def _on_field_changed(self, field, value):
-    request_data = {'field': field, 'value': value}
-    response_dict = controller.requestSender.send_request(
-        modbus_endpoints.MODBUS_CONFIG_UPDATE,
-        data=request_data
-    )
+    result = self.controller_service.settings.update_modbus_setting(field, value)
+    if result.success:
+        self.config[field] = value
+        self.showToast(f"✅ {field} updated")
     # Автоматично запазване при всяка промяна
 ```
 ### 3. Откриване на Порт (UI → System → UI)
@@ -152,29 +171,35 @@ def _on_field_changed(self, field, value):
       ↓
 [3] Бутонът се деактивира, текстът става "Detecting..."
       ↓
-[4] controller_service.send_request(MODBUS_GET_AVAILABLE_PORT)
+[4] controller_service.settings.detect_modbus_port()
       ↓
-[5] SettingsDispatcher.handle_modbus_settings()
+[5] SettingsService.detect_modbus_port()
       ↓
-[6] platform.system() проверка
+[6] controller.requestSender.send_request(MODBUS_GET_AVAILABLE_PORT)
+      ↓
+[7] SettingsDispatcher.handle_modbus_settings()
+      ↓
+[8] platform.system() проверка
       ├─ Windows: връща "COM5"
       └─ Linux: извиква get_modbus_port(sudo_password)
       ↓
-[7] get_modbus_port() извиква системна команда
+[9] get_modbus_port() извиква системна команда
       - Търси /dev/ttyUSB* устройства
       - Връща открития порт или празен string
       ↓
-[8] Връща Response с port data: {"port": "/dev/ttyUSB0"}
+[10] Връща Response с port data: {"port": "/dev/ttyUSB0"}
       ↓
-[9] UI попълва port_input полето
+[11] ServiceResult обгръща response-а
       ↓
-[10] Автоматично се задейства _on_field_changed('port', '/dev/ttyUSB0')
+[12] UI попълва port_input полето
       ↓
-[11] Новият порт се запазва в конфигурацията
+[13] Автоматично се задейства _on_field_changed('port', '/dev/ttyUSB0')
       ↓
-[12] Toast нотификация: "✅ Port detected: /dev/ttyUSB0"
+[14] Новият порт се запазва в конфигурацията
       ↓
-[13] Бутонът се активира отново
+[15] Toast нотификация: "✅ Port detected: /dev/ttyUSB0"
+      ↓
+[16] Бутонът се активира отново
 ```
 ### 4. Тестване на Връзка (UI → ModbusClient → UI)
 ```
@@ -184,27 +209,33 @@ def _on_field_changed(self, field, value):
       ↓
 [3] Status label: "Testing connection..."
       ↓
-[4] controller_service.send_request(MODBUS_TEST_CONNECTION)
+[4] controller_service.settings.test_modbus_connection()
       ↓
-[5] SettingsDispatcher.handle_modbus_settings()
+[5] SettingsService.test_modbus_connection()
       ↓
-[6] ModbusSettingsRepository.load() - зарежда конфигурацията
+[6] controller.requestSender.send_request(MODBUS_TEST_CONNECTION)
       ↓
-[7] Създава тестов ModbusClient с параметрите от config
+[7] SettingsDispatcher.handle_modbus_settings()
       ↓
-[8] ModbusClient инициализира serial connection
+[8] ModbusSettingsRepository.load() - зарежда конфигурацията
+      ↓
+[9] Създава тестов ModbusClient с параметрите от config
+      ↓
+[10] ModbusClient инициализира serial connection
       ├─ Success: връзката е успешна
       └─ Error: хвърля изключение (timeout, connection refused, etc.)
       ↓
-[9] Затваря тестовата връзка
+[11] Затваря тестовата връзка
       ↓
-[10] Връща Response със success/error
+[12] Връща Response със success/error
       ↓
-[11] UI актуализира status label
+[13] ServiceResult обгръща response-а
+      ↓
+[14] UI актуализира status label
       ├─ Success: "✅ Connection successful!"
       └─ Error: "❌ Connection failed: [error message]"
       ↓
-[12] Toast нотификация с резултата
+[15] Toast нотификация с резултата
 ```
 ### 5. Използване от ModbusController (Runtime)
 ```

@@ -210,6 +210,135 @@ class SettingsService:
             import traceback
             traceback.print_exc()
             return ServiceResult.error_result(error_msg)
+
+    def get_modbus_settings(self) -> ServiceResult:
+        """Get Modbus configuration settings"""
+        try:
+            print("[SettingsService] Fetching modbus settings...")
+
+            from communication_layer.api.v1.endpoints import modbus_endpoints
+
+            modbus_request = modbus_endpoints.MODBUS_CONFIG_GET
+            modbus_response_dict = self.controller.requestSender.send_request(modbus_request)
+            modbus_response = Response.from_dict(modbus_response_dict)
+
+            if modbus_response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                modbus_config = modbus_response.data
+                return ServiceResult.success_result(
+                    "Modbus settings retrieved successfully",
+                    data=modbus_config
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to retrieve modbus settings: {modbus_response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to retrieve modbus settings: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
+    def update_modbus_setting(self, field: str, value: Any) -> ServiceResult:
+        """
+        Update a single Modbus configuration field.
+
+        Args:
+            field: The field name to update (e.g., 'port', 'baudrate', 'slave_address')
+            value: The new value for the field
+
+        Returns:
+            ServiceResult with success/failure status and message
+        """
+        try:
+            print(f"[SettingsService] Updating modbus setting: {field} = {value}")
+
+            from communication_layer.api.v1.endpoints import modbus_endpoints
+
+            request_data = {
+                'field': field,
+                'value': value
+            }
+
+            response_dict = self.controller.requestSender.send_request(
+                modbus_endpoints.MODBUS_CONFIG_UPDATE,
+                data=request_data
+            )
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.success_result(
+                    f"Modbus setting '{field}' updated successfully",
+                    data={"field": field, "value": value}
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to update modbus setting '{field}': {response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to update modbus setting '{field}': {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
+    def test_modbus_connection(self) -> ServiceResult:
+        """
+        Test the Modbus connection with current configuration.
+
+        Returns:
+            ServiceResult with success/failure status and connection test result
+        """
+        try:
+            print("[SettingsService] Testing modbus connection...")
+
+            from communication_layer.api.v1.endpoints import modbus_endpoints
+
+            response_dict = self.controller.requestSender.send_request(modbus_endpoints.MODBUS_TEST_CONNECTION)
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                return ServiceResult.success_result(
+                    f"Connection successful: {response.message}",
+                    data={"connected": True}
+                )
+            else:
+                return ServiceResult.error_result(f"Connection failed: {response.message}")
+
+        except Exception as e:
+            error_msg = f"Error testing modbus connection: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
+    def detect_modbus_port(self) -> ServiceResult:
+        """
+        Detect available Modbus serial port.
+
+        Returns:
+            ServiceResult with detected port information or error
+        """
+        try:
+            print("[SettingsService] Detecting modbus port...")
+
+            from communication_layer.api.v1.endpoints import modbus_endpoints
+
+            response_dict = self.controller.requestSender.send_request(modbus_endpoints.MODBUS_GET_AVAILABLE_PORT)
+            response = Response.from_dict(response_dict)
+
+            if response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                detected_port = response.data.get('port', '')
+                if detected_port and detected_port.strip():
+                    return ServiceResult.success_result(
+                        f"Port detected: {detected_port}",
+                        data={"port": detected_port}
+                    )
+                else:
+                    return ServiceResult.error_result("No Modbus port detected")
+            else:
+                return ServiceResult.error_result(f"Failed to detect port: {response.message}")
+
+        except Exception as e:
+            error_msg = f"Error detecting modbus port: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
     
     def _validate_component_type(self, component_type: str) -> bool:
         """Validate that the component type is supported"""

@@ -25,23 +25,19 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self._connect_auto_save_signals()
 
     def _load_settings_from_endpoints(self):
-        """Load Modbus settings via controller_service and endpoints"""
+        """Load Modbus settings via SettingsService"""
         if not self.controller_service:
             print("Warning: controller_service not available, using defaults")
             self._use_default_config()
             return
         try:
-            from communication_layer.api.v1.endpoints import modbus_endpoints
-            from communication_layer.api.v1.Response import Response
-            print("Loading Modbus settings via controller_service...")
-            controller = self.controller_service.get_controller()
-            response_dict = controller.requestSender.send_request(modbus_endpoints.MODBUS_CONFIG_GET)
-            response = Response.from_dict(response_dict)
-            if response.status == 'success':
-                self.config = response.data
+            print("Loading Modbus settings via SettingsService...")
+            result = self.controller_service.settings.get_modbus_settings()
+            if result.success:
+                self.config = result.data
                 print(f"Successfully loaded Modbus config: {self.config}")
             else:
-                print(f"Failed to load Modbus config: {response.message}")
+                print(f"Failed to load Modbus config: {result.message}")
                 self._use_default_config()
         except Exception as e:
             print(f"Error loading Modbus settings: {e}")
@@ -265,29 +261,18 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self._on_field_changed('parity', parity)
 
     def _on_field_changed(self, field, value):
-        """Handle field change and save via endpoint"""
+        """Handle field change and save via SettingsService"""
         if not self.controller_service:
             print(f"Cannot save {field}: controller_service not available")
             return
         try:
-            from communication_layer.api.v1.endpoints import modbus_endpoints
-            from communication_layer.api.v1.Response import Response
-            controller = self.controller_service.get_controller()
-            request_data = {
-                'field': field,
-                'value': value
-            }
-            response_dict = controller.requestSender.send_request(
-                modbus_endpoints.MODBUS_CONFIG_UPDATE,
-                data=request_data
-            )
-            response = Response.from_dict(response_dict)
-            if response.status == 'success':
+            result = self.controller_service.settings.update_modbus_setting(field, value)
+            if result.success:
                 self.config[field] = value
                 print(f"[Modbus Config] {field} updated to: {value}")
                 self.showToast(f"✅ {field.replace('_', ' ').title()} updated")
             else:
-                print(f"Failed to update {field}: {response.message}")
+                print(f"Failed to update {field}: {result.message}")
                 self.showToast(f"❌ Failed to update {field}")
         except Exception as e:
             print(f"Error updating {field}: {e}")
@@ -296,23 +281,19 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             self.showToast(f"❌ Error updating {field}")
 
     def _on_test_connection(self):
-        """Test Modbus connection"""
+        """Test Modbus connection via SettingsService"""
         self.status_label.setText("Testing connection...")
         self.status_label.setStyleSheet("padding: 15px; background: #fff3cd; border-radius: 5px; color: #856404;")
         self.test_button.setEnabled(False)
         try:
-            from communication_layer.api.v1.endpoints import modbus_endpoints
-            from communication_layer.api.v1.Response import Response
-            controller = self.controller_service.get_controller()
-            response_dict = controller.requestSender.send_request(modbus_endpoints.MODBUS_TEST_CONNECTION)
-            response = Response.from_dict(response_dict)
-            if response.status == 'success':
-                self.status_label.setText(f"✅ Connection successful!\n{response.message}")
+            result = self.controller_service.settings.test_modbus_connection()
+            if result.success:
+                self.status_label.setText(f"✅ Connection successful!\n{result.message}")
                 self.status_label.setStyleSheet(
                     "padding: 15px; background: #d4edda; border-radius: 5px; color: #155724;")
                 self.showToast("✅ Modbus connection successful")
             else:
-                self.status_label.setText(f"❌ Connection failed:\n{response.message}")
+                self.status_label.setText(f"❌ Connection failed:\n{result.message}")
                 self.status_label.setStyleSheet(
                     "padding: 15px; background: #f8d7da; border-radius: 5px; color: #721c24;")
                 self.showToast("❌ Connection test failed")
@@ -327,7 +308,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             self.test_button.setEnabled(True)
 
     def _on_detect_port(self):
-        """Detect available Modbus port"""
+        """Detect available Modbus port via SettingsService"""
         if not self.controller_service:
             print("Cannot detect port: controller_service not available")
             self.showToast("❌ Service unavailable")
@@ -337,15 +318,10 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.detect_port_button.setText("Detecting...")
 
         try:
-            from communication_layer.api.v1.endpoints import modbus_endpoints
-            from communication_layer.api.v1.Response import Response
+            result = self.controller_service.settings.detect_modbus_port()
 
-            controller = self.controller_service.get_controller()
-            response_dict = controller.requestSender.send_request(modbus_endpoints.MODBUS_GET_AVAILABLE_PORT)
-            response = Response.from_dict(response_dict)
-
-            if response.status == 'success':
-                detected_port = response.data.get('port', '')
+            if result.success:
+                detected_port = result.data.get('port', '')
                 if detected_port and detected_port.strip():
                     self.port_input.setText(detected_port)
                     self.showToast(f"✅ Port detected: {detected_port}")
@@ -354,8 +330,8 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
                     self.showToast("❌ No port detected")
                     print("No Modbus port detected")
             else:
-                self.showToast(f"❌ {response.message}")
-                print(f"Failed to detect port: {response.message}")
+                self.showToast(f"❌ {result.message}")
+                print(f"Failed to detect port: {result.message}")
         except Exception as e:
             self.showToast("❌ Error detecting port")
             print(f"Error detecting port: {e}")
