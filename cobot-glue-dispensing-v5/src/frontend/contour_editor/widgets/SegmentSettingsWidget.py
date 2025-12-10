@@ -19,6 +19,32 @@ import os
 
 # NOTE: GlueType enum no longer used - glue types loaded dynamically from API
 
+def get_default_glue_type() -> str:
+    """
+    Get the first available glue type from glue cell configuration.
+    Falls back to empty string if configuration is not available.
+
+    Returns:
+        First glue type from configuration, or empty string
+    """
+    try:
+        from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+
+        cells_manager = GlueCellsManagerSingleton.get_instance()
+
+        # Get the first cell's glue type as default
+        if cells_manager.cells and len(cells_manager.cells) > 0:
+            first_cell = cells_manager.cells[0]
+            default_type = first_cell.glueType
+            print(f"[SegmentSettings] Using default glue type from configuration: '{default_type}'")
+            return default_type
+        else:
+            print("[SegmentSettings] WARNING: No cells found in configuration")
+            return ""
+    except Exception as e:
+        print(f"[SegmentSettings] WARNING: Could not get default glue type from configuration: {e}")
+        return ""
+
 default_settings = {
     GlueSettingKey.SPRAY_WIDTH.value: "10",
     GlueSettingKey.SPRAYING_HEIGHT.value: "0",
@@ -28,7 +54,7 @@ default_settings = {
     GlueSettingKey.REVERSE_DURATION.value: "0.5",
     GlueSettingKey.SPEED_REVERSE.value: "3000",
     GlueSettingKey.RZ_ANGLE.value: "0",
-    GlueSettingKey.GLUE_TYPE.value: "Type a",
+    GlueSettingKey.GLUE_TYPE.value: get_default_glue_type(),  # ✅ Dynamic default from configuration
     GlueSettingKey.GENERATOR_TIMEOUT.value: "5",
     GlueSettingKey.TIME_BEFORE_MOTION.value: "0.1",
     GlueSettingKey.TIME_BEFORE_STOP.value: "1.0",
@@ -345,6 +371,14 @@ def initialize_default_settings():
                 default_settings[key] = str(value)
         print("Default settings initialized with saved values")
 
+    # ✅ Always refresh glue type from current configuration if not explicitly saved
+    # This ensures we use an actual available glue type
+    if GlueSettingKey.GLUE_TYPE.value not in file_settings or not file_settings.get(GlueSettingKey.GLUE_TYPE.value):
+        dynamic_glue_type = get_default_glue_type()
+        if dynamic_glue_type:
+            default_settings[GlueSettingKey.GLUE_TYPE.value] = dynamic_glue_type
+            print(f"[SegmentSettings] Refreshed default glue type: '{dynamic_glue_type}'")
+
 def update_default_settings(new_settings: dict):
     """Update the global default settings dictionary and save to file"""
     global default_settings
@@ -362,23 +396,3 @@ def get_default_settings() -> dict:
 # Initialize default settings on module import
 initialize_default_settings()
 
-if __name__ == "__main__":
-    from applications.glue_dispensing_application.settings.GlueSettings import GlueSettingKey
-    from core.model.settings.enums import RobotSettingKey
-
-
-    from PyQt6.QtWidgets import QApplication
-    import sys
-
-    inputKeys = [key.value for key in GlueSettingKey]
-    inputKeys.remove(GlueSettingKey.GLUE_TYPE.value)
-
-    inputKeys.append(RobotSettingKey.VELOCITY.value)
-    inputKeys.append(RobotSettingKey.ACCELERATION.value)
-
-    comboEnums = [[GlueSettingKey.GLUE_TYPE.value, GlueType]]
-
-    app = QApplication(sys.argv)
-    widget = SegmentSettingsWidget(inputKeys + [GlueSettingKey.GLUE_TYPE.value], comboEnums)
-    widget.show()
-    sys.exit(app.exec())
