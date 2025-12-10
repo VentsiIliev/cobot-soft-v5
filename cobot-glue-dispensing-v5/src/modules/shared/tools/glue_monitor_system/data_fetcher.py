@@ -47,6 +47,26 @@ class GlueDataFetcher:
         self.weight2 = 0
         self.weight3 = 0
 
+        # Initialize MessageBroker first
+        self.broker = MessageBroker()
+
+        # Initialize state management
+        from modules.shared.tools.glue_monitor_system.state_management import (
+            StateManager, MessageBrokerStatePublisher, StateMonitor, CellState
+        )
+
+        publisher = MessageBrokerStatePublisher(self.broker)
+        self.state_manager = StateManager(publisher)
+        self.state_monitor = StateMonitor(self.state_manager)
+
+        # Initialize cells to INITIALIZING state (valid transition from UNKNOWN)
+        for cell_id in [1, 2, 3]:
+            self.state_manager.transition_cell_to(
+                cell_id=cell_id,
+                new_state=CellState.INITIALIZING,
+                reason="Cell initialization started"
+            )
+
         # Load config to determine mode and URL
         try:
             self.config = load_config(config_path)
@@ -57,13 +77,13 @@ class GlueDataFetcher:
         except Exception as e:
             import traceback
             traceback.print_exc()
+            self.state_monitor.mark_initialization_failed(str(e))
             raise RuntimeError(f"[GlueDataFetcher] Failed to load configuration: {e}") from e
 
         self.fetchTimeout = self.config.global_settings.fetch_timeout_seconds
         self._stop_thread = threading.Event()
         self.thread = None
         self._initialized = True
-        self.broker = MessageBroker()
 
     def setup_production_mode(self):
         self.url = f"{self.config.server.base_url}{self.config.endpoints.weights}"
@@ -73,6 +93,14 @@ class GlueDataFetcher:
         self.broker.publish(GlueTopics.GLUE_METER_1_VALUE, self.weight1)
         self.broker.publish(GlueTopics.GLUE_METER_2_VALUE, self.weight2)
         self.broker.publish(GlueTopics.GLUE_METER_3_VALUE, self.weight3)
+
+        # Update state monitoring with new weight values (convert g to kg)
+        self.state_monitor.update_cell_weight(1, self.weight1 / 1000.0)
+        self.state_monitor.update_cell_weight(2, self.weight2 / 1000.0)
+        self.state_monitor.update_cell_weight(3, self.weight3 / 1000.0)
+
+        # Update overall service state based on cell states
+        self.state_monitor.update_overall_service_state()
 
     def unpack_weights(self, weights):
         try:
@@ -155,6 +183,10 @@ class GlueDataFetcher:
             self._stop_thread.clear()
             self.thread = threading.Thread(target=self._fetch_loop, daemon=True)
             self.thread.start()
+
+            # Mark initialization as complete
+            self.state_monitor.mark_initialization_complete()
+            print("[GlueDataFetcher] Started successfully, service is READY")
 
     def stop(self):
         self._stop_thread.set()

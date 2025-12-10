@@ -55,16 +55,17 @@ class DashboardWidget(TranslatableWidget):
     glue_type_changed_signal = pyqtSignal(int, str)
 
 
-    def __init__(self, updateCameraFeedCallback, config=None, parent=None):
+    def __init__(self, updateCameraFeedCallback, config=None, parent=None, controller_service=None):
         super().__init__(parent, auto_retranslate=False)
 
         # Configuration
         self.config = config or DashboardConfig()
         self.updateCameraFeedCallback = updateCameraFeedCallback
+        self.controller_service = controller_service
 
         # Managers - composition over inheritance
         self.message_manager = DashboardMessageManager()
-        self.card_factory = GlueCardFactory(self.config, self.message_manager)
+        self.card_factory = GlueCardFactory(self.config, self.message_manager, controller_service)
 
         # Shared components
         self.shared_card_container = CardContainer(columns=1, rows=3)

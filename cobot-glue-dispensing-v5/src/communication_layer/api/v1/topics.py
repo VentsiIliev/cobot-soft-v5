@@ -96,6 +96,15 @@ class GlueTopics(TopicCategory):
     GLUE_METER_1_VALUE = "GlueMeter_1/VALUE"
     GLUE_METER_2_VALUE = "GlueMeter_2/VALUE"
     GLUE_METER_3_VALUE = "GlueMeter_3/VALUE"
+
+    # Glue monitor service state
+    GLUE_MONITOR_SERVICE_STATE = "glue/monitor/service/state"
+
+    # Glue cell states (per cell)
+    GLUE_CELL_1_STATE = "glue/cell/1/state"
+    GLUE_CELL_2_STATE = "glue/cell/2/state"
+    GLUE_CELL_3_STATE = "glue/cell/3/state"
+
     PROCESS_STATE = "glue-process/state"
     GLUE_DISPENSING_LOG = "glue-dispensing/log"
 

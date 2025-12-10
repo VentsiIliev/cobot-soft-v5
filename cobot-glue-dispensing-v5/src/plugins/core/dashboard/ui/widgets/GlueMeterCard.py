@@ -1,6 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtWidgets import QFrame
+from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
 
 from modules.shared.MessageBroker import MessageBroker
 from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
@@ -9,11 +10,12 @@ from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
 class GlueMeterCard(QFrame):
     change_glue_requested = pyqtSignal(int)  # Emits cell index when change glue button is clicked
 
-    def __init__(self, label_text: str, index: int):
+    def __init__(self, label_text: str, index: int, controller_service=None):
         super().__init__()
         self.label_text = label_text
         self.index = index
         self.card_index = index  # Add for compatibility with DashboardWidget
+        self.controller_service = controller_service
         self.build_ui()
         self.subscribe()
 
@@ -23,6 +25,10 @@ class GlueMeterCard(QFrame):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(8)
+
+        # Create header layout with title and state indicator
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
 
         # Create title label with icon-like styling
         self.title_label = QLabel(self.label_text)
@@ -38,7 +44,26 @@ class GlueMeterCard(QFrame):
                 border-radius: 5px;
             }
         """)
-        main_layout.addWidget(self.title_label)
+        header_layout.addWidget(self.title_label, 1)
+
+        # Create state indicator
+        self.state_indicator = QLabel("●")
+        self.state_indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.state_indicator.setFixedSize(40, 40)
+        self.state_indicator.setToolTip("Initializing...")
+        self.state_indicator.setStyleSheet("""
+            QLabel {
+                font-size: 24px;
+                color: #808080;
+                background-color: white;
+                border: 2px solid #dee2e6;
+                border-radius: 20px;
+                padding: 5px;
+            }
+        """)
+        header_layout.addWidget(self.state_indicator, 0)
+
+        main_layout.addLayout(header_layout)
 
         # Create info section with glue type and button
         info_widget = QFrame()
@@ -68,7 +93,7 @@ class GlueMeterCard(QFrame):
         main_layout.addWidget(info_widget)
 
         # Add a meter widget - let it use its natural fixed height (80px)
-        self.meter_widget = GlueMeterWidget(self.index)
+        self.meter_widget = GlueMeterWidget(self.index, controller_service=self.controller_service)
         main_layout.addWidget(self.meter_widget)
 
         # Add stretch after meter to push content to top
@@ -137,8 +162,55 @@ class GlueMeterCard(QFrame):
         broker.subscribe(f"GlueMeter_{self.index}/STATE", self.meter_widget.updateState)
         broker.subscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
 
+        # Subscribe to cell state from state management system
+        broker.subscribe(f"glue/cell/{self.index}/state", self.update_state_indicator)
+
         # Load initial glue type
         self.load_current_glue_type()
+
+    def update_state_indicator(self, state_data: dict):
+        """Update the state indicator based on cell state"""
+        try:
+            current_state = state_data.get('current_state', 'unknown')
+            reason = state_data.get('reason', '')
+            weight = state_data.get('weight')
+
+            # Define state colors and tooltips
+            state_config = {
+                'unknown': {'color': '#808080', 'text': 'Unknown'},
+                'initializing': {'color': '#FFA500', 'text': 'Initializing...'},
+                'ready': {'color': '#28a745', 'text': 'Ready'},
+                'low_weight': {'color': '#ffc107', 'text': 'Low Weight'},
+                'empty': {'color': '#dc3545', 'text': 'Empty'},
+                'error': {'color': '#d9534f', 'text': 'Error'},
+                'disconnected': {'color': '#6c757d', 'text': 'Disconnected'}
+            }
+
+            config = state_config.get(current_state, state_config['unknown'])
+
+            # Update indicator color
+            self.state_indicator.setStyleSheet(f"""
+                QLabel {{
+                    font-size: 24px;
+                    color: {config['color']};
+                    background-color: white;
+                    border: 2px solid {config['color']};
+                    border-radius: 20px;
+                    padding: 5px;
+                }}
+            """)
+
+            # Build tooltip
+            tooltip = f"{config['text']}"
+            if weight is not None:
+                tooltip += f"\nWeight: {weight:.3f} kg"
+            if reason:
+                tooltip += f"\n{reason}"
+
+            self.state_indicator.setToolTip(tooltip)
+
+        except Exception as e:
+            print(f"Error updating state indicator for cell {self.index}: {e}")
 
     def update_glue_type_label(self, glue_type: str):
         """Update the glue type label when configuration changes"""
@@ -147,7 +219,6 @@ class GlueMeterCard(QFrame):
     def load_current_glue_type(self):
         """Load and display current glue type for this cell"""
         try:
-            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
             manager = GlueCellsManagerSingleton.get_instance()
             cell = manager.getCellById(self.index)
             if cell:
@@ -164,6 +235,7 @@ class GlueMeterCard(QFrame):
         broker.unsubscribe(f"GlueMeter_{self.index}/VALUE", self.meter_widget.updateWidgets)
         broker.unsubscribe(f"GlueMeter_{self.index}/STATE", self.meter_widget.updateState)
         broker.unsubscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
+        broker.unsubscribe(f"glue/cell/{self.index}/state", self.update_state_indicator)
 
     def __del__(self):
         """Cleanup when the widget is destroyed"""

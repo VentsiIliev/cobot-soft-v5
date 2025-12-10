@@ -8,13 +8,17 @@ from modules.shared.MessageBroker import MessageBroker  # Ensure this is your re
 
 
 class GlueMeterWidget(QWidget):
-    def __init__(self, id: int, parent: QWidget = None):
+    def __init__(self, id: int, parent: QWidget = None, controller_service=None):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.id = id
+        self.controller_service = controller_service
         self.glue_percent = 0
         self.glue_grams = 0
-        self.max_volume_grams = 5000
+
+        # Fetch configuration from controller_service
+        self.max_volume_grams = self._fetch_cell_capacity()
+
         self.setMinimumWidth(250)
         self.setFixedHeight(80)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
@@ -51,19 +55,66 @@ class GlueMeterWidget(QWidget):
         state_layout.setContentsMargins(0, 0, 0, 0)
         state_layout.setSpacing(0)
 
-        # State indicator circle
+
         self.state_indicator = QLabel()
         self.state_indicator.setFixedSize(16, 16)
         self.state_indicator.setStyleSheet("background-color: gray; border-radius: 8px;")
 
         # Center the state indicator within its container
-        state_layout.addWidget(self.state_indicator, alignment=Qt.AlignmentFlag.AlignCenter)
+        # state_layout.addWidget(self.state_indicator, alignment=Qt.AlignmentFlag.AlignCenter)
         self.main_layout.addWidget(self.state_container)
 
         self.canvas = QWidget()
         self.canvas.setMinimumHeight(50)
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.main_layout.addWidget(self.canvas)
+
+    def _fetch_cell_capacity(self) -> float:
+        """
+        Fetch cell capacity from configuration via controller_service.
+        Falls back to default value if configuration is not available.
+
+        Returns:
+            Cell capacity in grams
+        """
+        try:
+            if self.controller_service:
+                from communication_layer.api.v1.endpoints import glue_endpoints
+
+                # Fetch glue cell configuration
+                response = self.controller_service.send_request(
+                    glue_endpoints.GLUE_CELLS_CONFIG_GET
+                )
+
+                if response and response.get('status') == 'success':
+                    cells_data = response.get('data', {})
+
+                    # Check if cells is a list or dict
+                    if isinstance(cells_data, dict) and 'cells' in cells_data:
+                        cells = cells_data['cells']
+                    elif isinstance(cells_data, list):
+                        cells = cells_data
+                    else:
+                        cells = []
+
+                    # Find the cell configuration for this ID
+                    for cell in cells:
+                        if isinstance(cell, dict) and cell.get('id') == self.id:
+                            capacity = cell.get('capacity', 5000.0)
+                            self.logger.info(f"Loaded capacity for cell {self.id}: {capacity}g")
+                            return float(capacity)
+
+                    self.logger.warning(f"Cell {self.id} not found in config, using default capacity")
+                else:
+                    self.logger.warning(f"Failed to fetch config: {response}")
+            else:
+                self.logger.warning("No controller_service provided, using default capacity")
+
+        except Exception as e:
+            self.logger.error(f"Error fetching cell capacity for cell {self.id}: {e}")
+
+        # Fallback to default
+        return 5000.0
 
     def updateState(self, message) -> None:
         """
