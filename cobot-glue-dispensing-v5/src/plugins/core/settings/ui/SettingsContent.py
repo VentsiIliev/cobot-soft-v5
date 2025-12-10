@@ -161,8 +161,26 @@ class SettingsContent(BackgroundWidget):
         self.glueSettingsTab = BackgroundTabPage()
         self.addTab(self.glueSettingsTab, "")
 
-        # Create glue settings with default settings (will be loaded lazily when tab is selected)
-        self.glueSettingsTabLayout = GlueSettingsTabLayout(self.glueSettingsTab, GlueSettings())
+        # Load glue types via controller_service (same pattern as loading settings)
+        glue_type_names = []
+        try:
+            result = self.controller_service.settings.get_glue_types()
+            if result.success and result.data:
+                glue_type_names = [gt.get("name") for gt in result.data if gt.get("name")]
+                print(f"[SettingsContent] Loaded {len(glue_type_names)} glue types")
+            else:
+                print(f"[SettingsContent] Error loading glue types: {result.message}")
+        except Exception as e:
+            print(f"[SettingsContent] Error loading glue types: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # Create glue settings with default settings and glue types
+        self.glueSettingsTabLayout = GlueSettingsTabLayout(
+            self.glueSettingsTab,
+            GlueSettings(),
+            glue_type_names  # Pass loaded glue types
+        )
 
         # Set the layout to the tab
         self.glueSettingsTab.setLayout(self.glueSettingsTabLayout)

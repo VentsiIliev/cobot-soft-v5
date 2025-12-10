@@ -1,6 +1,6 @@
 from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
 from modules.shared.tools.glue_monitor_system.glue_meter import GlueMeter
-from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
+
 
 class GlueCell:
     """
@@ -62,7 +62,7 @@ class GlueCell:
             glueType (str): The type of glue (e.g., "Type A", "Custom Glue X").
         """
         # Still use migration function for backward compatibility (handles enum if passed)
-        self.glueType = migrate_glue_type_to_string(glueType)
+        self.glueType =glueType
 
     def setGlueMeter(self, glueMeter):
         """

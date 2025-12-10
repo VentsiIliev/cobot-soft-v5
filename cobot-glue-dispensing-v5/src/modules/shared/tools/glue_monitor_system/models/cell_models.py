@@ -6,7 +6,6 @@ All models are immutable (frozen=True) to prevent accidental mutations.
 """
 from dataclasses import dataclass
 from typing import List, Optional
-from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 
 
 @dataclass(frozen=True)
@@ -39,11 +38,6 @@ class CellConfig:
     measurement: MeasurementConfig
     motor_address: int = 0  # Motor address for this cell's pump
 
-    def __post_init__(self):
-        """Ensure type is always a string"""
-        object.__setattr__(self, 'type', migrate_glue_type_to_string(self.type))
-
-
 @dataclass(frozen=True)
 class GlueCellsConfig:
     """Collection of glue cell configurations."""
@@ -59,8 +53,7 @@ class GlueCellsConfig:
     
     def get_cells_by_type(self, glue_type: str) -> List[CellConfig]:
         """Get all cells of a specific glue type."""
-        glue_type_str = migrate_glue_type_to_string(glue_type)
-        return [cell for cell in self.cells if cell.type == glue_type_str]
+        return [cell for cell in self.cells if cell.type == glue_type]
 
     @property
     def cell_count(self) -> int:

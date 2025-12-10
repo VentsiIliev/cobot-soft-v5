@@ -7,7 +7,7 @@
   "Pump Reverse Time": "0.5",
   "Pump Speed Reverse": "3000.0",
   "RZ Angle": "0.0",
-  "Glue Type": "Type A",
+  "Glue Type": "TEST TYPE",
   "Generator Timeout": "5.0",
   "Time Before Motion": "0.1",
   "Time Before Stop": "1.0",
@@ -20,6 +20,5 @@
   "Reverse Ramp Steps": "1.0",
   "Forward Ramp Steps": "3.0",
   "Velocity": "60.0",
-  "Acceleration": "30.0",
-  "Spray On": "0.0"
+  "Acceleration": "30.0"
 }

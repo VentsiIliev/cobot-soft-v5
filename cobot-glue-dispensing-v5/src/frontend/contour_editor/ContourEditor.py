@@ -23,7 +23,8 @@ from .widgets.SlidingPanel import SlidingPanel
 from .utils.utils import shrink_contour_points, generate_spray_pattern
 from frontend.forms.CreateWorkpieceForm import CreateWorkpieceForm
 from frontend.dialogs.CustomFeedbackDialog import CustomFeedbackDialog, DialogType
-
+from communication_layer.api.v1.endpoints import glue_endpoints
+from communication_layer.api.v1.Response import Response
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 class MainApplicationFrame(QFrame):
@@ -433,8 +434,7 @@ class MainApplicationFrame(QFrame):
                 self.createWorkpieceForm.data_submitted.connect(lambda data: self.save_workpiece_requested.emit(data))
 
             if self.contourEditor.workpiece is not None:
-                # prefill form with existing workpiece data
-
+                # prefill a form with existing workpiece data
 
                 self.createWorkpieceForm.clear_form()
                 self.createWorkpieceForm.prefill_form(self.contourEditor.workpiece)
@@ -460,8 +460,81 @@ class MainApplicationFrame(QFrame):
         Quick start function for testing - creates mock workpiece and executes.
 
         Uses SaveWorkpieceHandler to extract contour data consistently.
+        Validates glue types before proceeding.
         """
 
+        # ✅ Step 1: Fetch all registered glue types via API endpoint
+        registered_glue_types = []
+        try:
+
+
+            # Get glue types through proper architecture
+            controller = self.parent.controller
+            response_dict = controller.requestSender.send_request(glue_endpoints.GLUE_TYPES_GET)
+            response = Response.from_dict(response_dict)
+
+            if response.status == "success" and response.data:
+                glue_types_data = response.data.get("glue_types", [])
+                # Extract just the names
+                registered_glue_types = [gt.get("name") for gt in glue_types_data if gt.get("name")]
+                print(f"[onStart] Registered glue types: {registered_glue_types}")
+            else:
+                print(f"[onStart] Error loading glue types: {response.message}")
+        except Exception as e:
+            print(f"[onStart] Error loading glue types from API: {e}")
+            import traceback
+            traceback.print_exc()
+
+        # ✅ Step 2: Check if any glue types are registered
+        if not registered_glue_types:
+            QMessageBox.critical(
+                self,
+                "No Glue Types Configured",
+                "No glue types are registered in the system!\n\n"
+                "Please configure glue types in:\n"
+                "1. Glue Cell Settings (Settings → Glue Cells)\n"
+                "2. Assign types to cells with motor addresses\n\n"
+                "Cannot start execution without glue type configuration.",
+                QMessageBox.StandardButton.Ok
+            )
+            print("[onStart] Execution aborted: No glue types registered")
+            return
+
+        # ✅ Step 3: Validate each segment's glue type settings
+        segments = self.contourEditor.manager.get_segments()
+        invalid_segments = []
+
+        for idx, segment in enumerate(segments):
+            segment_settings = segment.settings if hasattr(segment, 'settings') and segment.settings else {}
+            segment_glue_type = segment_settings.get('Glue Type', None)
+
+            # Check if segment has a glue type set
+            if not segment_glue_type:
+                invalid_segments.append(f"Segment {idx}: No glue type set")
+            # Check if the glue type is registered
+            elif segment_glue_type not in registered_glue_types:
+                invalid_segments.append(f"Segment {idx}: Invalid glue type '{segment_glue_type}'")
+
+        # ✅ Step 4: Show error if any invalid segments found
+        if invalid_segments:
+            error_message = "Invalid glue type configuration found:\n\n"
+            error_message += "\n".join(invalid_segments)
+            error_message += f"\n\nRegistered glue types: {', '.join(registered_glue_types)}"
+            error_message += "\n\nPlease fix segment settings before starting execution."
+
+            QMessageBox.critical(
+                self,
+                "Invalid Segment Configuration",
+                error_message,
+                QMessageBox.StandardButton.Ok
+            )
+            print(f"[onStart] Execution aborted: {len(invalid_segments)} invalid segment(s)")
+            return
+
+        print(f"[onStart] ✅ All {len(segments)} segments have valid glue types")
+
+        # ✅ Step 5: Use the first registered glue type as default for mock data
+        default_glue_type = registered_glue_types[0]
 
         # Mock form data
         mock_data = {
@@ -474,7 +547,7 @@ class MainApplicationFrame(QFrame):
             GlueWorkpieceField.SPRAY_WIDTH.value: "5",
             GlueWorkpieceField.TOOL_ID.value: "0",
             GlueWorkpieceField.GRIPPER_ID.value: "0",
-            GlueWorkpieceField.GLUE_TYPE.value: "Type A",
+            GlueWorkpieceField.GLUE_TYPE.value: default_glue_type,  # ✅ Use a validated glue type
             GlueWorkpieceField.PROGRAM.value: "Trace",
             GlueWorkpieceField.MATERIAL.value: "Material1",
             GlueWorkpieceField.CONTOUR_AREA.value: "1000",
@@ -490,10 +563,12 @@ class MainApplicationFrame(QFrame):
 
         # Use SaveWorkpieceHandler to extract and merge contour data
         try:
+
             complete_data = SaveWorkpieceHandler.prepare_workpiece_data(
                 workpiece_manager=self.contourEditor.workpiece_manager,
                 form_data=mock_data
             )
+
         except Exception as e:
             print(f"❌ Error preparing workpiece data: {e}")
             QMessageBox.warning(self, "Error", f"Failed to prepare workpiece data: {e}")

@@ -21,19 +21,18 @@ from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 from PyQt6.QtCore import pyqtSignal
 from applications.glue_dispensing_application.config.cell_hardware_config import CellHardwareConfig
 
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from applications.glue_dispensing_application.services.glueSprayService.GlueDispatchService import GlueDispatchService
 
 
 class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     value_changed_signal = pyqtSignal(str, object, str)  # key, value, className
-    def __init__(self, parent_widget,glueSettings):
+    def __init__(self, parent_widget,glueSettings,glue_types):
         BaseSettingsTabLayout.__init__(self, parent_widget)
         QVBoxLayout.__init__(self)
 
         self.dropdown = None
         self.parent_widget = parent_widget
-
+        self.glue_types_name = glue_types
         self.glueSprayService = GlueSprayService(glueSettings)
         self.glueDispatchService = GlueDispatchService(self.glueSprayService)
         self.translator = get_app_translator()
@@ -393,14 +392,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.dropdown.setMinimumHeight(40)
         self.dropdown.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        # Populate with glue types from API (supports custom types)
-        try:
-            glue_type_names = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
-
-        self.dropdown.addItems(glue_type_names)
+        self.dropdown.addItems(self.glue_type_names)
 
         self.dropdown.setCurrentIndex(0)
         layout.addWidget(self.dropdown, row, 1)
@@ -1222,13 +1214,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         # Clear and repopulate
         self.dropdown.clear()
 
-        try:
-            glue_type_names = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to refresh glue types: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
-
-        self.dropdown.addItems(glue_type_names)
+        self.dropdown.addItems(self.glue_type_names)
 
         # Restore selection if still exists
         index = self.dropdown.findText(current_text)

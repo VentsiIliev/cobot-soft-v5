@@ -4,7 +4,6 @@ from applications.glue_dispensing_application.settings.enums import GlueSettingK
 from core.model.settings.RobotConfigKey import RobotSettingKey
 
 from frontend.contour_editor.widgets.SegmentSettingsWidget import SegmentSettingsWidget, update_default_settings
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 
 class GlobalSettingsDialog(QDialog):

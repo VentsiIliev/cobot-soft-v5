@@ -17,7 +17,7 @@ class SettingsDispatch(IDispatcher):
     
     This handler manages configuration for robot, camera, glue system, and general settings.
     """
-    
+
     def __init__(self, settingsController):
         """
         Initialize the SettingsHandler.
@@ -42,7 +42,7 @@ class SettingsDispatch(IDispatcher):
             dict: Response dictionary with operation result
         """
         print(f"SettingsDispatch: Handling request: {request} with parts: {parts} and data: {data}")
-        
+
         # Handle both new RESTful endpoints and legacy endpoints
         # Glue types endpoints (NEW)
         if request in [glue_endpoints.GLUE_TYPES_GET,
@@ -50,7 +50,6 @@ class SettingsDispatch(IDispatcher):
                        glue_endpoints.GLUE_TYPES_SET,
                        glue_endpoints.GLUE_TYPE_REMOVE_CUSTOM]:
             return self.handle_glue_types(parts, request, data)
-        # Cell hardware config endpoints (NEW)
         elif request in [glue_endpoints.CELL_HARDWARE_CONFIG_GET,
                          glue_endpoints.CELL_HARDWARE_CONFIG_SET,
                          glue_endpoints.CELL_HARDWARE_MOTOR_ADDRESS_GET]:
@@ -72,13 +71,13 @@ class SettingsDispatch(IDispatcher):
         # Glue cells settings
         elif request in [glue_endpoints.GLUE_CELLS_CONFIG_GET]:
             return self.handle_glue_cells_settings(parts, request, data)
-        elif request in [glue_endpoints.GLUE_CELLS_CONFIG_SET, glue_endpoints.GLUE_CELL_UPDATE, 
-                        glue_endpoints.GLUE_CELL_CALIBRATE, glue_endpoints.GLUE_CELL_TARE, 
-                        glue_endpoints.GLUE_CELL_UPDATE_TYPE]:
+        elif request in [glue_endpoints.GLUE_CELLS_CONFIG_SET, glue_endpoints.GLUE_CELL_UPDATE,
+                         glue_endpoints.GLUE_CELL_CALIBRATE, glue_endpoints.GLUE_CELL_TARE,
+                         glue_endpoints.GLUE_CELL_UPDATE_TYPE]:
             return self.handle_glue_cells_settings(parts, request, data)
         # Modbus settings
         elif request in [modbus_endpoints.MODBUS_CONFIG_GET, modbus_endpoints.MODBUS_CONFIG_UPDATE,
-                        modbus_endpoints.MODBUS_TEST_CONNECTION, modbus_endpoints.MODBUS_GET_AVAILABLE_PORT]:
+                         modbus_endpoints.MODBUS_TEST_CONNECTION, modbus_endpoints.MODBUS_GET_AVAILABLE_PORT]:
             return self.handle_modbus_settings(parts, request, data)
         elif request in [settings_endpoints.SETTINGS_GET]:
             return self.handle_general_settings(parts, request, data)
@@ -106,9 +105,10 @@ class SettingsDispatch(IDispatcher):
         """
         print(f"SettingsHandler: Handling robot calibration settings: {request} with data: {data}")
 
-        result =  self.settingsController.handle(request, parts, data)
+        result = self.settingsController.handle(request, parts, data)
         print(f"[SettingsHandler]: Robot calibration settings response: {result}")
         return result
+
     def handle_robot_settings(self, parts, request, data=None):
         """
         Handle robot-specific settings operations.
@@ -122,9 +122,9 @@ class SettingsDispatch(IDispatcher):
             dict: Response with robot settings data or operation result
         """
         print(f"SettingsHandler: Handling robot settings: {request} with data: {data}")
-        
+
         return self.settingsController.handle(request, parts, data)
-    
+
     def handle_camera_settings(self, parts, request, data=None):
         """
         Handle camera-specific settings operations.
@@ -140,9 +140,9 @@ class SettingsDispatch(IDispatcher):
         print(f"SettingsHandler: Handling camera settings: {request}")
         print(f"SettingsHandler: Data received: {data}")
         print(f"SettingsHandler: Data type: {type(data)}")
-        
+
         return self.settingsController.handle(request, parts, data)
-    
+
     def handle_glue_settings(self, parts, request, data=None):
         """
         Handle glue system settings operations.
@@ -169,7 +169,7 @@ class SettingsDispatch(IDispatcher):
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling glue settings: {e}"
             ).to_dict()
-    
+
     def handle_glue_cells_settings(self, parts, request, data=None):
         """
         Handle glue cells configuration operations using shared models and DTOs.
@@ -188,34 +188,34 @@ class SettingsDispatch(IDispatcher):
             from modules.shared.tools.glue_monitor_system.service_factory import get_service_factory
             from pathlib import Path
             from core.application.ApplicationStorageResolver import get_app_settings_path
-            
+
             print(f"handle_glue_cells_settings: Handling request: {request} with data: {data}")
-            
+
             if request == glue_endpoints.GLUE_CELLS_CONFIG_GET:
                 # Load configuration and convert to DTO
                 try:
                     config_path = Path(get_app_settings_path("glue_dispensing_application", "glue_cell_config"))
                     config = load_config(config_path)
-                    
+
                     # Convert to response DTO
                     response_dto = GlueCellsResponseDTO.from_cell_configs(
                         environment=config.environment,
                         server_url=config.server.base_url,
                         cell_configs=config.cells
                     )
-                    
+
                     return Response(
                         Constants.RESPONSE_STATUS_SUCCESS,
                         data=response_dto.to_dict()
                     ).to_dict()
-                    
+
                 except Exception as e:
                     print(f"Error loading glue cells config: {e}")
                     return Response(
                         Constants.RESPONSE_STATUS_ERROR,
                         message=f"Error loading glue cells configuration: {e}"
                     ).to_dict()
-            
+
             elif request == glue_endpoints.GLUE_CELL_UPDATE:
                 # Handle generic cell field updates (motor_address, url, capacity, etc.)
                 if not data or 'cell_id' not in data or 'field' not in data or 'value' not in data:
@@ -288,30 +288,30 @@ class SettingsDispatch(IDispatcher):
                         Constants.RESPONSE_STATUS_ERROR,
                         message="Missing required fields: cell_id and type"
                     ).to_dict()
-                
+
                 try:
                     cells_manager = get_service_factory().create_cells_manager()
                     result = cells_manager.update_glue_type_by_id(
                         cell_id=data['cell_id'],
                         glue_type=data['type']
                     )
-                    
+
                     return Response(
                         Constants.RESPONSE_STATUS_SUCCESS if result else Constants.RESPONSE_STATUS_ERROR,
                         message="Glue type updated successfully" if result else "Failed to update glue type"
                     ).to_dict()
-                    
+
                 except Exception as e:
                     print(f"Error updating glue type: {e}")
                     return Response(
                         Constants.RESPONSE_STATUS_ERROR,
                         message=f"Error updating glue type: {e}"
                     ).to_dict()
-            
+
             else:
                 # For other operations, delegate to settings controller for now
                 return self.settingsController.handle(request, parts, data)
-                
+
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -320,7 +320,7 @@ class SettingsDispatch(IDispatcher):
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling glue cells settings: {e}"
             ).to_dict()
-    
+
     def handle_general_settings(self, parts, request, data=None):
         """
         Handle general system settings operations.
@@ -334,9 +334,9 @@ class SettingsDispatch(IDispatcher):
             dict: Response with general settings data or operation result
         """
         print(f"SettingsHandler: Handling general settings: {request}")
-        
+
         return self.settingsController.handle(request, parts, data)
-    
+
     def handle_glue_types(self, parts, request, data=None):
         """
         Handle glue types management operations.
@@ -613,6 +613,3 @@ class SettingsDispatch(IDispatcher):
                 Constants.RESPONSE_STATUS_ERROR,
                 message=f"Error handling Modbus settings: {e}"
             ).to_dict()
-
-
-

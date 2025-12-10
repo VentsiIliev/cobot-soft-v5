@@ -1,7 +1,6 @@
 from pathlib import Path
 from modules.shared.tools.GlueCell import GlueCell, GlueMeter
 from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled, load_config
-from applications.glue_dispensing_application.services.glue.glue_type_migration import migrate_glue_type_to_string
 from modules.utils import PathResolver
 from modules.utils.custom_logging import LoggingLevel
 
@@ -113,7 +112,7 @@ class GlueCellsManager:
             id: Cell ID
             glueType: New glue type (e.g., "Type A", "Custom Glue X")
         """
-        glueType_str = migrate_glue_type_to_string(glueType)
+        glueType_str = glueType
 
         log_if_enabled(LoggingLevel.INFO, f"🔄 UPDATING GLUE TYPE: Cell {id} → {glueType_str}")
 
