@@ -235,6 +235,13 @@ class ConfigValidator:
         # Validate measurement
         measurement = cls._validate_measurement(cell_data["measurement"], cell_id)
         
+        # Get motor_address from config (optional field, defaults to 0)
+        motor_address = cell_data.get("motor_address", 0)
+        if not isinstance(motor_address, int) or motor_address < 0:
+            raise ConfigurationError(
+                f"Cell {cell_id} motor_address '{motor_address}' must be non-negative integer"
+            )
+
         return CellConfig(
             id=cell_id,
             type=glue_type,
@@ -242,7 +249,8 @@ class ConfigValidator:
             capacity=float(capacity),
             fetch_timeout=fetch_timeout,
             calibration=calibration,
-            measurement=measurement
+            measurement=measurement,
+            motor_address=motor_address
         )
     
     @classmethod

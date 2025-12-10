@@ -1,5 +1,5 @@
 """
-Shared cell configuration models for glue monitor system.
+Shared cell configuration models for a glue monitor system.
 
 These models can be safely imported by both backend and UI layers.
 All models are immutable (frozen=True) to prevent accidental mutations.
@@ -27,7 +27,7 @@ class MeasurementConfig:
     max_weight_threshold: float
 
 
-@dataclass
+@dataclass(frozen=True)
 class CellConfig:
     """Individual cell configuration - all fields required."""
     id: int
@@ -37,6 +37,7 @@ class CellConfig:
     fetch_timeout: int
     calibration: CalibrationConfig
     measurement: MeasurementConfig
+    motor_address: int = 0  # Motor address for this cell's pump
 
     def __post_init__(self):
         """Ensure type is always a string"""

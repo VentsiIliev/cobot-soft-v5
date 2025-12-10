@@ -83,7 +83,8 @@ class CellConfigDTO:
     fetch_timeout: int
     calibration: CalibrationConfigDTO
     measurement: MeasurementConfigDTO
-    
+    motor_address: int = 0  # Motor address for this cell's pump
+
     @classmethod
     def from_cell_config(cls, cell_config: CellConfig) -> 'CellConfigDTO':
         """Convert CellConfig to DTO."""
@@ -94,7 +95,8 @@ class CellConfigDTO:
             capacity=cell_config.capacity,
             fetch_timeout=cell_config.fetch_timeout,
             calibration=CalibrationConfigDTO.from_calibration_config(cell_config.calibration),
-            measurement=MeasurementConfigDTO.from_measurement_config(cell_config.measurement)
+            measurement=MeasurementConfigDTO.from_measurement_config(cell_config.measurement),
+            motor_address=getattr(cell_config, 'motor_address', 0)  # Get motor address from config
         )
     
     def to_cell_config(self) -> CellConfig:
@@ -106,7 +108,8 @@ class CellConfigDTO:
             capacity=self.capacity,
             fetch_timeout=self.fetch_timeout,
             calibration=self.calibration.to_calibration_config(),
-            measurement=self.measurement.to_measurement_config()
+            measurement=self.measurement.to_measurement_config(),
+            motor_address=self.motor_address  # Include motor address when creating CellConfig
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -118,7 +121,8 @@ class CellConfigDTO:
             "capacity": self.capacity,
             "fetch_timeout": self.fetch_timeout,
             "calibration": self.calibration.to_dict(),
-            "measurement": self.measurement.to_dict()
+            "measurement": self.measurement.to_dict(),
+            "motor_address": self.motor_address  # Include motor address in serialization
         }
 
 
