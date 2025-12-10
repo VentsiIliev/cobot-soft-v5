@@ -23,7 +23,7 @@ from frontend.legacy_ui.controller.CreateWorkpieceManager import CreateWorkpiece
 from frontend.core.utils.DxfThumbnailLoader import DXFThumbnailLoader
 from frontend.core.utils.IconLoader import (DASHBOARD_ICON, CREATE_WORKPIECE_ICON, GALLERY_ICON,
                                                  SETTINGS_ICON, CALIBRATION_ICON, USER_MANAGEMENT_ICON,
-                                                 GLUE_CELL_SETTINGS_ICON)
+                                                 GLUE_CELL_SETTINGS_ICON, MODBUS_SETTINGS_ICON)
 from frontend.core.services.authorizationService import AuthorizationService , Permission
 from frontend.core.utils.FilePaths import DXF_DIRECTORY
 
@@ -344,6 +344,7 @@ class MainWindow(TranslatableWidget):
             'SETTINGS_ICON': SETTINGS_ICON,
             'CALIBRATION_ICON': CALIBRATION_ICON,
             'GLUE_CELL_SETTINGS_ICON': GLUE_CELL_SETTINGS_ICON,
+            'MODBUS_SETTINGS_ICON': MODBUS_SETTINGS_ICON,
             'USER_MANAGEMENT_ICON': USER_MANAGEMENT_ICON,
         }
 
@@ -357,7 +358,7 @@ class MainWindow(TranslatableWidget):
                 # Get folder_id and icon_name from the raw JSON metadata (from plugin.json)
                 json_metadata = getattr(plugin, '_json_metadata', {})
                 folder_id = json_metadata.get('folder_id', 1)  # Default to folder 1
-                icon_name = json_metadata.get('icon_name', 'CREATE_WORKPIECE_ICON')  # Default icon
+                icon_name = json_metadata.get('icon_name' )  # Default icon
 
                 # Get the actual icon from the map
                 icon = icon_map.get(icon_name, CREATE_WORKPIECE_ICON)

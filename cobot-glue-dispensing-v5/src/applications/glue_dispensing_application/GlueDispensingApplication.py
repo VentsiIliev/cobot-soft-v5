@@ -129,6 +129,7 @@ class GlueSprayingApplication(BaseRobotApplication, RobotApplicationInterface):
                 PluginType.CONTOUR_EDITOR,
                 PluginType.CALIBRATION,
                 PluginType.GLUE_CELL_SETTINGS,
+                PluginType.MODBUS_SETTINGS,
                 PluginType.USER_MANAGEMENT
             ],
             settings_tabs=["camera", "robot", "glue"]
