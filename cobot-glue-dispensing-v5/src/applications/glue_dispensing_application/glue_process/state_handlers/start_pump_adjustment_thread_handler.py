@@ -22,7 +22,7 @@ def handle_start_pump_adjustment_thread(context,logger_context,should_adjust_pum
         log_debug_message(logger_context, message="Starting pump adjustment thread (spray_on=True, adjustment enabled).")
 
         try:
-            # Get motor address for current path
+            # Get a motor address for the current path
             motor_address = context.get_motor_address_for_current_path()
 
             pump_thread = start_dynamic_pump_speed_adjustment_thread(

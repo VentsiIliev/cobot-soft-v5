@@ -18,6 +18,7 @@ WINDOW_NAME = "Laser Height Measurement - Live View"
 
 if __name__ == "__main__":
 
+
     vs = init_vision_service()
     rs = init_robot_service()
     rs.move_to_calibration_position()
@@ -309,122 +310,120 @@ if __name__ == "__main__":
     # Measure height at each transformed point with live visualization
     measurements = []
     height_map = {}  # Dictionary to store (x, y) -> height mapping
+    num_iterations = 3  # Number of times to repeat the full sequence
+    all_iterations = []  # List to store each full iteration results
+    height_map_mean = {}  # Dictionary for average height per point
 
-    for idx, p in enumerate(transformed):
-        # Extract x, y coordinates as scalars
-        print(f"Point {p}")
-        x = float(p[0][0])
-        y = float(p[0][1])
+    print(f"\nStarting height measurement for {len(transformed)} points per iteration...")
+    print(f"Press ESC to exit at any time\n")
 
-        print(f"[{idx + 1}/{len(transformed)}] Moving to position ({x:.2f}, {y:.2f})...")
+    for iteration in range(num_iterations):
+        print(f"\n=== Iteration {iteration + 1}/{num_iterations} ===")
+        iteration_measurements = []  # store measurements for this iteration
 
-        # Show moving status
-        frame = vs.latest_frame
-        if frame is not None:
-            display = draw_status_overlay(
-                frame,
-                f"Moving to point {idx + 1}/{len(transformed)}...",
-                (255, 165, 0)
-            )
-            cv2.imshow(WINDOW_NAME, display)
-            cv2.waitKey(1)
+        for idx, p in enumerate(transformed):
+            x = float(p[0][0])
+            y = float(p[0][1])
 
-        # Measure height
-        height,pixel_data = hms.measure_at(x=x, y=y)
-        robot_pos = rs.get_current_position()
+            print(f"\n[{idx + 1}/{len(transformed)}] Moving to position ({x:.2f}, {y:.2f})")
 
-        print(f"  Robot Position: X={robot_pos[0]:.2f}, Y={robot_pos[1]:.2f}, Z={robot_pos[2]:.2f}")
-        print(f"  Measured Height: {height:.2f} mm" if height is not None else "  Failed to measure height")
+            # Show moving status
+            frame = vs.latest_frame
+            if frame is not None:
+                display = draw_status_overlay(frame, f"Iter {iteration + 1} - Point {idx + 1}/{len(transformed)}",
+                                              (255, 165, 0))
+                cv2.imshow(WINDOW_NAME, display)
+                cv2.waitKey(1)
 
-        # Store measurement
-        measurements.append({
-            'index': idx + 1,
-            'target_xy': (x, y),
-            'robot_pos': robot_pos,
-            'height_mm': height
-        })
+            # Measure height
+            height, _ = hms.measure_at(x=x, y=y)
+            robot_pos = rs.get_current_position()
 
-        # Store in height map dictionary (x, y) -> height
-        if height is not None:
-            height_map[(robot_pos[0], robot_pos[1])] = height
+            print(f"  Robot: X={robot_pos[0]:.2f}, Y={robot_pos[1]:.2f}, Z={robot_pos[2]:.2f}")
+            print(f"  Measured Height: {height:.2f} mm" if height is not None else "  Measurement FAILED")
 
-        # Update visualization with measurement result
-        frame = vs.latest_frame
-        if frame is not None:
-            display = frame.copy()
+            # Store measurement for this iteration
+            iteration_measurements.append({
+                'index': idx + 1,
+                'target_xy': (x, y),
+                'robot_pos': robot_pos,
+                'height_mm': height
+            })
 
-            # Create info panel
-            info_y = 70
-            line_height = 30
+            # Update live visualization
+            frame = vs.latest_frame
+            if frame is not None:
+                display = frame.copy()
+                info_y = 70
+                line_height = 30
+                overlay = display.copy()
+                cv2.rectangle(overlay, (0, 60), (500, 60 + line_height * 5), (0, 0, 0), -1)
+                cv2.addWeighted(overlay, 0.7, display, 0.3, 0, display)
 
-            # Background for info panel
-            overlay = display.copy()
-            cv2.rectangle(overlay, (0, 60), (500, 60 + line_height * 4), (0, 0, 0), -1)
-            cv2.addWeighted(overlay, 0.7, display, 0.3, 0, display)
+                cv2.putText(display, f"Iter {iteration + 1}/{num_iterations} - Point {idx + 1}/{len(transformed)}",
+                            (10, info_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                info_y += line_height
 
-            # Info text
-            cv2.putText(display, f"Point: {idx + 1}/{len(transformed)}", (10, info_y),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            info_y += line_height
+                if height is not None:
+                    cv2.putText(display, f"Height: {height:.2f} mm", (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                                (0, 255, 0), 2)
+                else:
+                    cv2.putText(display, "Height: FAILED", (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                info_y += line_height
 
-            if height is not None:
-                cv2.putText(display, f"Height: {height:.2f} mm", (10, info_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            else:
-                cv2.putText(display, "Height: FAILED", (10, info_y),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            info_y += line_height
+                cv2.putText(display, f"Robot: ({robot_pos[0]:.1f}, {robot_pos[1]:.1f}, {robot_pos[2]:.1f})",
+                            (10, info_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                info_y += line_height
 
-            cv2.putText(display, f"Robot: ({robot_pos[0]:.1f}, {robot_pos[1]:.1f}, {robot_pos[2]:.1f})",
-                       (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-            info_y += line_height
+                cv2.putText(display, "Press ESC to exit", (10, info_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128),
+                            1)
 
-            cv2.putText(display, "Press ESC to exit", (10, info_y),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128), 1)
+                # Draw center crosshair
+                h, w = display.shape[:2]
+                cv2.line(display, (w // 2 - 10, h // 2), (w // 2 + 10, h // 2), (255, 0, 0), 2)
+                cv2.line(display, (w // 2, h // 2 - 10), (w // 2, h // 2 + 10), (255, 0, 0), 2)
 
-            # draw image center crosshair
-            h, w = display.shape[:2]
-            cv2.line(display, (w // 2 - 10, h // 2), (w // 2 + 10, h // 2), (255, 0, 0), 2)
-            cv2.line(display, (w // 2, h // 2 - 10), (w // 2, h // 2 + 10), (255, 0, 0), 2)
+                cv2.imshow(WINDOW_NAME, display)
+                key = cv2.waitKey(500) & 0xFF
+                if key == 27:
+                    print("\nMeasurement interrupted by user.")
+                    break
 
+        all_iterations.append(iteration_measurements)
 
-            cv2.imshow(WINDOW_NAME, display)
-            key = cv2.waitKey(1000) & 0xFF  # Wait 1 second between measurements
-            if key == 27:  # ESC key to exit
-                print("\nMeasurement interrupted by user.")
-                break
+    # After all iterations: analyze consistency
+    print("\n" + "=" * 60)
+    print("MEASUREMENT CONSISTENCY REPORT")
+    print("=" * 60)
 
-    # Show summary
-    print("\n" + "="*60)
-    print("MEASUREMENT SUMMARY")
-    print("="*60)
-    successful_measurements = [m for m in measurements if m['height_mm'] is not None]
-    print(f"Total points: {len(measurements)}")
-    print(f"Successful: {len(successful_measurements)}")
-    print(f"Failed: {len(measurements) - len(successful_measurements)}")
+    for idx in range(len(transformed)):
+        heights_per_point = []
+        for iteration_measurements in all_iterations:
+            h = iteration_measurements[idx]['height_mm']
+            if h is not None:
+                heights_per_point.append(h)
 
-    if successful_measurements:
-        heights = [m['height_mm'] for m in successful_measurements]
-        print(f"\nHeight Statistics:")
-        print(f"  Min: {min(heights):.2f} mm")
-        print(f"  Max: {max(heights):.2f} mm")
-        print(f"  Average: {np.mean(heights):.2f} mm")
-        print(f"  Std Dev: {np.std(heights):.2f} mm")
+        if heights_per_point:
+            mean_h = np.mean(heights_per_point)
+            std_h = np.std(heights_per_point)
+            min_h = np.min(heights_per_point)
+            max_h = np.max(heights_per_point)
+            print(f"Point {idx + 1}: Mean={mean_h:.2f}, Std={std_h:.2f}, Min={min_h:.2f}, Max={max_h:.2f} mm")
+            height_map_mean[tuple(transformed[idx][0])] = mean_h
+        else:
+            print(f"Point {idx + 1}: No successful measurements")
 
-    print("\nDetailed Results:")
-    for m in measurements:
-        status = f"{m['height_mm']:.2f} mm" if m['height_mm'] is not None else "FAILED"
-        print(f"  Point {m['index']}: {status}")
-
-    # Create 3D visualization if we have height data
-    if height_map:
-        print("\nGenerating 3D visualization...")
-        visualize_height_map_3d(height_map, measurements)
+    # 3D visualization using mean heights
+    if height_map_mean:
+        print("\nGenerating 3D visualization of mean heights...")
+        visualize_height_map_3d(height_map_mean, all_iterations)
     else:
         print("\nNo successful measurements to visualize.")
-        print("\nPress any key to exit...")
         cv2.waitKey(0)
 
     cv2.destroyAllWindows()
+
 
 
