@@ -68,7 +68,7 @@ class ModbusSettingsContent(CustomTabWidget):
         self.create_connection_tab()
 
         # Create Devices tab
-        self.create_devices_tab()
+        # self.create_devices_tab()
 
         print(f"Modbus Settings tabs created successfully - Total tabs: {self.count()}")
         for i in range(self.count()):
