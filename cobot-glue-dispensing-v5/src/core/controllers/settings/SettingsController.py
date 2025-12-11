@@ -159,10 +159,10 @@ class SettingsController(BaseController):
                 "robot": Constants.REQUEST_RESOURCE_ROBOT,
                 "camera": Constants.REQUEST_RESOURCE_CAMERA
             }
-            
+
             # Use mapped resource if available, otherwise use as-is (for application settings)
             actual_resource = resource_map.get(resource, resource)
-            
+
             data = self.settingsService.get_settings_by_resource(actual_resource)
             if data is not None:
                 return Response(Constants.RESPONSE_STATUS_SUCCESS, message="Success", data=data).to_dict()
@@ -184,7 +184,7 @@ class SettingsController(BaseController):
 
         try:
             print(f"SettingsController._handleSet: resource={resource}, data={data}")
-            
+
             # Handle robot calibration settings and camera settings using the new method
             if resource == "robot_calibration_settings":
                 self.settingsService.update_settings("robot_calibration_settings", data)

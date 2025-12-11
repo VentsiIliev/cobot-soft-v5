@@ -15,6 +15,11 @@
       "id": "1aae8866-7e93-43a7-aa36-94210a1e3246",
       "name": "TEST TYPE 3",
       "description": "TEST DESC 3"
+    },
+    {
+      "id": "63d3a970-1f93-4e0d-8396-e33740a53f84",
+      "name": "NewType",
+      "description": ""
     }
   ]
 }

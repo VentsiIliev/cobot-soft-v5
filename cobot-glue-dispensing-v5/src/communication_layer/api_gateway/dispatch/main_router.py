@@ -8,7 +8,6 @@ from communication_layer.api_gateway.interfaces.request_handler_interface import
 from core.application.interfaces.robot_application_interface import RobotApplicationInterface
 from communication_layer.api.v1 import Constants
 
-
 # Import endpoint modules
 from communication_layer.api.v1.endpoints import camera_endpoints, operations_endpoints, auth_endpoints
 from core.controllers.vision.camera_system_controller import CameraSystemController
@@ -27,7 +26,10 @@ class RequestHandler(IRequestHandler):
           workpieceController: Controller for managing workpieces.
           robotController: Controller for managing robot operations.
       """
-    def __init__(self, application: RobotApplicationInterface, settingsController, cameraSystemController:CameraSystemController, workpieceController:BaseWorkpieceController, robotController, application_factory=None):
+
+    def __init__(self, application: RobotApplicationInterface, settingsController,
+                 cameraSystemController: CameraSystemController, workpieceController: BaseWorkpieceController,
+                 robotController, application_factory=None):
         """
               Initializes the RequestHandler with the necessary controllers.
 
@@ -74,8 +76,10 @@ class RequestHandler(IRequestHandler):
 
         # Main operations requests
         operations_requests = [
-            operations_endpoints.START, operations_endpoints.STOP, operations_endpoints.PAUSE, operations_endpoints.TEST_RUN,
-            operations_endpoints.RUN_DEMO, operations_endpoints.STOP_DEMO, operations_endpoints.CALIBRATE, operations_endpoints.HELP,
+            operations_endpoints.START, operations_endpoints.STOP, operations_endpoints.PAUSE,
+            operations_endpoints.TEST_RUN,
+            operations_endpoints.RUN_DEMO, operations_endpoints.STOP_DEMO, operations_endpoints.CALIBRATE,
+            operations_endpoints.HELP,
             operations_endpoints.CREATE_WORKPIECE, "handleSetPreselectedWorkpiece", "handleExecuteFromGallery"
         ]
 
@@ -84,7 +88,7 @@ class RequestHandler(IRequestHandler):
 
         # Camera work area points
         if (request in [camera_endpoints.CAMERA_ACTION_SAVE_WORK_AREA_POINTS] or
-            (len(self._parseRequest(request)) >= 2 and self._parseRequest(request)[1] == "saveWorkAreaPoints")):
+                (len(self._parseRequest(request)) >= 2 and self._parseRequest(request)[1] == "saveWorkAreaPoints")):
             return self.camera_dispatcher.handle_save_work_area_points(data)
 
         # Parse request for resource-based routing
@@ -93,13 +97,12 @@ class RequestHandler(IRequestHandler):
         # Try to detect which resource (robot, camera, settings, workpieces) is present in the path
         resource = next((p.lower() for p in parts if p.lower() in self.resource_dispatch), None)
         if resource:
-            return self.resource_dispatch[resource](parts=[],request=request, data=data)
+            return self.resource_dispatch[resource](parts=[], request=request, data=data)
 
         print(f"RequestHandler: No handler found for request: {request}")
         print(f"Resource parsed: {resource}")
         print(f"Available resources: {list(self.resource_dispatch.keys())}")
         raise ValueError(f"Unknown request: {request}")
-
 
     def _parseRequest(self, request: str):
         """
