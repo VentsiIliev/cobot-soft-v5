@@ -56,6 +56,7 @@ class DashboardAppWidget(AppWidget):
     def on_clean(self):
         print("Clean requested from DashboardAppWidget")
         self.clean_requested.emit()
+
     def onLogOut(self):
         print("Logout requested from Dashboard")
 
@@ -64,7 +65,7 @@ class DashboardAppWidget(AppWidget):
         self._cleanup_dashboard()
 
     def _cleanup_dashboard(self):
-        """Cleanup dashboard widgets and their MessageBroker subscriptions"""
+        """Clean up dashboard widgets and their MessageBroker subscriptions"""
         try:
             if hasattr(self, 'content_widget') and self.content_widget:
                 dashboard_widget = self.content_widget

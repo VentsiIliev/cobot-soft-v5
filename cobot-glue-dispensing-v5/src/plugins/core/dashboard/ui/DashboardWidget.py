@@ -151,10 +151,8 @@ class DashboardWidget(TranslatableWidget):
     def create_glue_card(self, index: int, label_text: str):
         """Create glue card using factory"""
         card = self.card_factory.create_glue_card(index, label_text, self.shared_card_container)
-
         # Connect the change glue button signal to open the wizard
         card.change_glue_requested.connect(self.on_change_glue_requested)
-
         return card
 
     """GLUE DISPENSING APPLICATION SPECIFIC"""

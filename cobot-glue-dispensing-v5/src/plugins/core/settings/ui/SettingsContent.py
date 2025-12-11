@@ -3,14 +3,14 @@ import os
 from PyQt6 import QtCore
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
-from PyQt6.QtWidgets import QVBoxLayout, QSizePolicy, QPushButton, QLabel
-
+from PyQt6.QtWidgets import QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QSizePolicy
 
 from frontend.widgets.CustomWidgets import CustomTabWidget, BackgroundTabPage
 from frontend.widgets.Drawer import Drawer
 from frontend.widgets.robotManualControl.RobotJogWidget import RobotJogWidget
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
-from .CameraSettingsTabLayout import CameraSettingsTabLayout
+from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
 from communication_layer.api.v1.endpoints import glue_endpoints
 from applications.glue_dispensing_application.settings.GlueSettings import GlueSettings

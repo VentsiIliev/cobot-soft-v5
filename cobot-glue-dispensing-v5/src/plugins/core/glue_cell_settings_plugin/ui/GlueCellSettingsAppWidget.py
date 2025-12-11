@@ -1,6 +1,6 @@
 from frontend.core.shared.base_widgets.AppWidget import AppWidget
 from plugins.core.settings.ui.GlueCellSettingsTabLayout import GlueCellSettingsTabLayout
-
+from PyQt6.QtWidgets import QWidget
 
 # Use the GlueCellSettingsTabLayout for glue cell settings
 
@@ -27,7 +27,6 @@ class GlueCellSettingsAppWidget(AppWidget):
                """)
         # Replace the content with actual SettingsContent if available
         try:
-            from PyQt6.QtWidgets import QWidget
 
             def settingsChangeCallback(key, value, className):
                 print(f"Settings changed in {className}: {key} = {value}")

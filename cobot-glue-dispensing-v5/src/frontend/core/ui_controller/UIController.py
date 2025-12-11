@@ -1,4 +1,3 @@
-import json
 from PyQt6.QtCore import QThread
 from applications.glue_dispensing_application.model.workpiece.GlueWorkpiece import GlueWorkpiece
 from core.model.settings.CameraSettings import CameraSettings
@@ -13,7 +12,7 @@ from frontend.feedback.FeedbackProvider import FeedbackProvider
 import logging
 import json
 
-from plugins.core.settings.ui.CameraSettingsTabLayout import CameraSettingsTabLayout
+from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
 

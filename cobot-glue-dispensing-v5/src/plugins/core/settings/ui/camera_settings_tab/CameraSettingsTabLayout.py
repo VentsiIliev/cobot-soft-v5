@@ -1,114 +1,33 @@
 from PyQt6 import QtCore
-from PyQt6.QtCore import QTimer, pyqtSignal, QThread
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QPixmap, QPen, QFont, QBrush
 from PyQt6.QtWidgets import QScroller, QWidget
-from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QHBoxLayout, QSizePolicy, QComboBox, QScrollArea, QGroupBox,
-                             QGridLayout)
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea)
 
 from communication_layer.api.v1.topics import VisionTopics
-from frontend.widgets.ClickableLabel import ClickableLabel
-from frontend.widgets.MaterialButton import MaterialButton
 from core.model.settings.CameraSettings import CameraSettings
 from core.model.settings.enums.CameraSettingKey import CameraSettingKey
-from frontend.widgets.SwitchButton import QToggle
 from frontend.widgets.ToastWidget import ToastWidget
 from modules.shared.MessageBroker import MessageBroker
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 import cv2
-import numpy as np
 from frontend.core.utils.localization import TranslationKeys, get_app_translator
-
-
-class CameraFrameProcessor(QThread):
-    """
-    Worker thread for processing camera frames.
-    Offloads expensive image operations from main GUI thread.
-    """
-    # Signal emits the processed QPixmap ready for display
-    frame_processed = pyqtSignal(QPixmap)
-
-    def __init__(self):
-        super().__init__()
-        self.frame_queue = []
-        self.is_running = True
-        self.mutex = QtCore.QMutex()
-        self.wait_condition = QtCore.QWaitCondition()
-        self.target_size = None  # Will be set from main thread
-
-    def set_target_size(self, width, height):
-        """Set the target size for scaled output"""
-        with QtCore.QMutexLocker(self.mutex):
-            self.target_size = (width, height)
-
-    def add_frame(self, cv2_image):
-        """Add a frame to the processing queue (called from main thread)"""
-        with QtCore.QMutexLocker(self.mutex):
-            # Keep only the latest frame to avoid queue buildup
-            self.frame_queue = [cv2_image]
-            self.wait_condition.wakeOne()
-
-    def run(self):
-        """Main worker thread loop - processes frames in background"""
-        while self.is_running:
-            # Wait for a frame to be available
-            self.mutex.lock()
-            if not self.frame_queue:
-                self.wait_condition.wait(self.mutex)
-
-            if not self.frame_queue or not self.is_running:
-                self.mutex.unlock()
-                continue
-
-            # Get the frame
-            cv2_image = self.frame_queue.pop(0)
-            target_size = self.target_size
-            self.mutex.unlock()
-
-            try:
-                # EXPENSIVE OPERATIONS - now running in background thread!
-                # 1. BGR to RGB conversion
-                if len(cv2_image.shape) == 3:
-                    rgb_image = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB)
-                else:
-                    rgb_image = cv2_image
-
-                height, width = rgb_image.shape[:2]
-                bytes_per_line = 3 * width if len(rgb_image.shape) == 3 else width
-
-                # 2. Create QImage
-                if len(rgb_image.shape) == 3:
-                    q_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-                else:
-                    q_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
-
-                # 3. Create QPixmap
-                pixmap = QPixmap.fromImage(q_image.copy())  # Copy to detach from numpy array
-
-                # 4. Scale to target size (most expensive operation!)
-                if target_size:
-                    from PyQt6.QtCore import QSize
-                    scaled_pixmap = pixmap.scaled(
-                        QSize(target_size[0], target_size[1]),
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation
-                    )
-                else:
-                    scaled_pixmap = pixmap
-
-                # Emit the processed pixmap to main thread
-                self.frame_processed.emit(scaled_pixmap)
-
-            except Exception as e:
-                print(f"[CameraFrameProcessor] Error processing frame: {e}")
-                import traceback
-                traceback.print_exc()
-
-    def stop(self):
-        """Stop the worker thread gracefully"""
-        with QtCore.QMutexLocker(self.mutex):
-            self.is_running = False
-            self.wait_condition.wakeOne()
+from plugins.core.settings.ui.camera_settings_tab.camera_frame_processor import CameraFrameProcessor
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_aruco_settings_group import \
+    create_aruco_settings_group
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_brightness_settings_group import \
+    create_brightness_settings_group
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_calibration_settings_group import \
+    create_calibration_settings_group
+from plugins.core.settings.ui.camera_settings_tab.create_camera_preview_section import create_camera_preview_section
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_contour_settings_group import \
+    create_contour_settings_group
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_core_settings_group import \
+    create_core_settings_group
+from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_preprocessing_settings_group import \
+    create_preprocessing_settings_group
+from plugins.core.settings.ui.camera_settings_tab.translate import translate
 
 
 class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
@@ -139,7 +58,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.parent_widget = parent_widget
         self.camera_settings = camera_settings or CameraSettings()
         self.translator = get_app_translator()
-        self.translator.language_changed.connect(self.translate)
+        self.translator.language_changed.connect(lambda :translate(self))
         self.update_camera_feed_callback = update_camera_feed_callback
 
         # Brightness area selection state
@@ -355,130 +274,6 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             import traceback
             traceback.print_exc()
 
-    def create_camera_preview_section(self):
-        """Create the camera preview section with preview and controls"""
-        preview_widget = QWidget()
-        preview_widget.setFixedWidth(500)
-        preview_widget.setStyleSheet("""
-            QWidget {
-                background-color: #f0f0f0;
-                border: 2px solid #ccc;
-                border-radius: 8px;
-            }
-        """)
-
-        preview_layout = QVBoxLayout(preview_widget)
-        preview_layout.setContentsMargins(20, 20, 20, 20)
-        preview_layout.setSpacing(15)
-
-        # Status label
-        self.camera_status_label = QLabel("Camera Status: Disconnected")
-        self.camera_status_label.setStyleSheet("font-weight: bold; color: #d32f2f;")
-        preview_layout.addWidget(self.camera_status_label)
-
-        # Camera preview area
-        self.camera_preview_label = ClickableLabel("Calibration Preview")
-        self.camera_preview_label.clicked.connect(self.on_preview_clicked)
-        self.camera_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.camera_preview_label.setStyleSheet("""
-            QLabel {
-                background-color: #333;
-                color: white;
-                font-size: 16px;
-                border: 1px solid #666;
-                border-radius: 4px;
-            }
-        """)
-        self.camera_preview_label.setFixedSize(460, 259)
-        self.camera_preview_label.setScaledContents(False)
-        preview_layout.addWidget(self.camera_preview_label)
-
-        # Set target size for worker thread
-        if hasattr(self, 'frame_processor'):
-            self.frame_processor.set_target_size(460, 259)
-
-        # Threshold preview area
-        self.threshold_preview_label = ClickableLabel("Threshold Preview")
-        self.threshold_preview_label.clicked.connect(self.on_threshold_preview_clicked)
-        self.threshold_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.threshold_preview_label.setStyleSheet("""
-            QLabel {
-                background-color: #222;
-                color: white;
-                font-size: 16px;
-                border: 1px solid #666;
-                border-radius: 4px;
-            }
-        """)
-        self.threshold_preview_label.setFixedSize(460, 259)
-        self.threshold_preview_label.setScaledContents(False)
-        preview_layout.addWidget(self.threshold_preview_label)
-
-        # set
-
-        # Control buttons grid
-        button_grid = QGridLayout()
-        button_grid.setSpacing(10)
-
-        # Row 0: Camera buttons
-        self.capture_image_button = MaterialButton("Capture Image")
-        self.show_raw_button = MaterialButton("Raw Mode")
-        self.show_raw_button.setCheckable(True)
-        self.show_raw_button.setChecked(self.raw_mode_active)
-
-        cam_buttons = [self.capture_image_button, self.show_raw_button]
-        for i, btn in enumerate(cam_buttons):
-            btn.setMinimumHeight(40)
-            button_grid.addWidget(btn, 0, i)
-
-        # Row 1: Calibration buttons
-        self.start_calibration_button = MaterialButton("Start Calibration")
-        self.save_calibration_button = MaterialButton("Save Calibration")
-
-        calib_buttons = [self.start_calibration_button, self.save_calibration_button]
-        for i, btn in enumerate(calib_buttons):
-            btn.setMinimumHeight(40)
-            button_grid.addWidget(btn, 1, i)
-
-        # Row 2: More buttons
-        self.load_calibration_button = MaterialButton("Load Calibration")
-        self.test_contour_button = MaterialButton("Test Contour")
-
-        more_buttons = [self.load_calibration_button, self.test_contour_button]
-        for i, btn in enumerate(more_buttons):
-            btn.setMinimumHeight(40)
-            button_grid.addWidget(btn, 2, i)
-
-        # Row 3: Detection and ArUco
-        self.test_aruco_button = MaterialButton("Test ArUco")
-        spacer_btn = QWidget()
-
-        detect_buttons = [self.test_aruco_button, spacer_btn]
-        for i, widget in enumerate(detect_buttons):
-            if isinstance(widget, MaterialButton):
-                widget.setMinimumHeight(40)
-            button_grid.addWidget(widget, 3, i)
-
-        # Row 4: Settings buttons
-        self.save_settings_button = MaterialButton("Save Settings")
-        self.load_settings_button = MaterialButton("Load Settings")
-
-        settings_buttons = [self.save_settings_button, self.load_settings_button]
-        for i, btn in enumerate(settings_buttons):
-            btn.setMinimumHeight(40)
-            button_grid.addWidget(btn, 4, i)
-
-        # Row 5: Reset button
-        self.reset_settings_button = MaterialButton("Reset Defaults")
-        self.reset_settings_button.setMinimumHeight(40)
-        button_grid.addWidget(self.reset_settings_button, 5, 0, 1, 2)
-
-        # preview_layout.addLayout(button_grid)
-        preview_layout.addStretch()
-
-        self.connect_default_callbacks()
-        return preview_widget
-
     def update_camera_preview(self, pixmap):
         """Update the camera preview with a new frame, maintaining 16:9 aspect ratio"""
         if hasattr(self, 'camera_preview_label'):
@@ -638,7 +433,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         settings_scroll_area.setWidget(settings_content_widget)
 
         # Create camera preview section (right side)
-        preview_widget = self.create_camera_preview_section()
+        preview_widget = create_camera_preview_section(self)
 
         # Add both sections to main horizontal layout
         main_horizontal_layout.addWidget(preview_widget, 2)
@@ -654,8 +449,8 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         first_row = QHBoxLayout()
         first_row.setSpacing(15)
 
-        self.core_group = self.create_core_settings_group()
-        self.contour_group = self.create_contour_settings_group()
+        self.core_group = create_core_settings_group(self)
+        self.contour_group = create_contour_settings_group(self)
 
         first_row.addWidget(self.core_group)
         first_row.addWidget(self.contour_group)
@@ -666,8 +461,8 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         second_row = QHBoxLayout()
         second_row.setSpacing(15)
 
-        self.preprocessing_group = self.create_preprocessing_settings_group()
-        self.calibration_group = self.create_calibration_settings_group()
+        self.preprocessing_group = create_preprocessing_settings_group(self)
+        self.calibration_group = create_calibration_settings_group(self)
 
         second_row.addWidget(self.preprocessing_group)
         second_row.addWidget(self.calibration_group)
@@ -678,14 +473,14 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         third_row = QHBoxLayout()
         third_row.setSpacing(15)
 
-        self.brightness_group = self.create_brightness_settings_group()
-        self.aruco_group = self.create_aruco_settings_group()
+        self.brightness_group = create_brightness_settings_group(self)
+        self.aruco_group = create_aruco_settings_group(self)
 
         third_row.addWidget(self.brightness_group)
         third_row.addWidget(self.aruco_group)
 
         parent_layout.addLayout(third_row)
-        self.translate()
+        translate(self)
 
     def on_preview_clicked(self, x, y):
         try:
@@ -1117,413 +912,6 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             toast = ToastWidget(self.parent_widget, message, 5)
             toast.show()
 
-    def create_core_settings_group(self):
-        """Create core camera settings group"""
-        group = QGroupBox("Camera Settings")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # Camera Index
-        label = QLabel("Camera Index:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.camera_index_input = self.create_spinbox(0, 10, self.camera_settings.get_camera_index())
-        layout.addWidget(self.camera_index_input, row, 1)
-
-        # Width
-        row += 1
-        label = QLabel("Width:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.width_input = self.create_spinbox(320, 4096, self.camera_settings.get_camera_width(), " px")
-        layout.addWidget(self.width_input, row, 1)
-
-        # Height
-        row += 1
-        label = QLabel("Height:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.height_input = self.create_spinbox(240, 2160, self.camera_settings.get_camera_height(), " px")
-        layout.addWidget(self.height_input, row, 1)
-
-        # Skip Frames
-        row += 1
-        label = QLabel("Skip Frames:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.skip_frames_input = self.create_spinbox(0, 100, self.camera_settings.get_skip_frames())
-        layout.addWidget(self.skip_frames_input, row, 1)
-
-        row += 1
-        label = QLabel("Capture Pos Offset:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.capture_pos_offset_input = self.create_spinbox(-100, 100, self.camera_settings.get_capture_pos_offset(),
-                                                            " mm")
-        layout.addWidget(self.capture_pos_offset_input, row, 1)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
-    def create_contour_settings_group(self):
-        """Create contour detection settings group"""
-        group = QGroupBox("Contour Detection")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # Contour Detection Toggle
-        label = QLabel("Enable Detection:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.contour_detection_toggle = QToggle()
-        self.contour_detection_toggle.setCheckable(True)
-        self.contour_detection_toggle.setMinimumHeight(35)
-        self.contour_detection_toggle.setChecked(self.camera_settings.get_contour_detection())
-        layout.addWidget(self.contour_detection_toggle, row, 1)
-
-        # Draw Contours Toggle
-        row += 1
-        label = QLabel("Draw Contours:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.draw_contours_toggle = QToggle()
-        self.draw_contours_toggle.setCheckable(True)
-        self.draw_contours_toggle.setMinimumHeight(35)
-        self.draw_contours_toggle.setChecked(self.camera_settings.get_draw_contours())
-        layout.addWidget(self.draw_contours_toggle, row, 1)
-
-        # Threshold
-        row += 1
-        label = QLabel("Threshold:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.threshold_input = self.create_spinbox(0, 255, self.camera_settings.get_threshold())
-        layout.addWidget(self.threshold_input, row, 1)
-
-        row += 1
-        label = QLabel("Threshold 2:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.threshold_pickup_area_input = self.create_spinbox(0, 255, self.camera_settings.get_threshold_pickup_area())
-        layout.addWidget(self.threshold_pickup_area_input, row, 1)
-
-        # Epsilon
-        row += 1
-        label = QLabel("Epsilon:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.epsilon_input = self.create_double_spinbox(0.0, 1.0, self.camera_settings.get_epsilon())
-        layout.addWidget(self.epsilon_input, row, 1)
-
-        row += 1
-        label = QLabel("Min Contour Area:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.min_contour_area_input = self.create_spinbox(0, 100000, self.camera_settings.get_min_contour_area())
-        layout.addWidget(self.min_contour_area_input)
-
-        row += 1
-        label = QLabel("Max Contour Area:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.max_contour_area_input = self.create_spinbox(0, 10000000, self.camera_settings.get_max_contour_area())
-        layout.addWidget(self.max_contour_area_input)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
-    def create_preprocessing_settings_group(self):
-        """Create preprocessing settings group"""
-        group = QGroupBox("Preprocessing")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # Gaussian Blur
-        label = QLabel("Gaussian Blur:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.gaussian_blur_toggle = QToggle()
-        self.gaussian_blur_toggle.setCheckable(True)
-        self.gaussian_blur_toggle.setMinimumHeight(35)
-        self.gaussian_blur_toggle.setChecked(self.camera_settings.get_gaussian_blur())
-        layout.addWidget(self.gaussian_blur_toggle, row, 1)
-
-        # Blur Kernel Size
-        row += 1
-        label = QLabel("Blur Kernel Size:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.blur_kernel_input = self.create_spinbox(1, 31, self.camera_settings.get_blur_kernel_size())
-        layout.addWidget(self.blur_kernel_input, row, 1)
-
-        # Threshold Type
-        row += 1
-        label = QLabel("Threshold Type:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.threshold_type_combo = QComboBox()
-        self.threshold_type_combo.setMinimumHeight(40)
-        self.threshold_type_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.threshold_type_combo.addItems(["binary", "binary_inv", "trunc", "tozero", "tozero_inv"])
-        self.threshold_type_combo.setCurrentText(self.camera_settings.get_threshold_type())
-        layout.addWidget(self.threshold_type_combo, row, 1)
-
-        # Dilate Enabled
-        row += 1
-        label = QLabel("Dilate:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.dilate_enabled_toggle = QToggle()
-        self.dilate_enabled_toggle.setCheckable(True)
-        self.dilate_enabled_toggle.setMinimumHeight(35)
-        self.dilate_enabled_toggle.setChecked(self.camera_settings.get_dilate_enabled())
-        layout.addWidget(self.dilate_enabled_toggle, row, 1)
-
-        # Dilate Kernel Size
-        row += 1
-        label = QLabel("Dilate Kernel:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.dilate_kernel_input = self.create_spinbox(1, 31, self.camera_settings.get_dilate_kernel_size())
-        layout.addWidget(self.dilate_kernel_input, row, 1)
-
-        # Dilate Iterations
-        row += 1
-        label = QLabel("Dilate Iterations:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.dilate_iterations_input = self.create_spinbox(0, 20, self.camera_settings.get_dilate_iterations())
-        layout.addWidget(self.dilate_iterations_input, row, 1)
-
-        # Erode Enabled
-        row += 1
-        label = QLabel("Erode:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.erode_enabled_toggle = QToggle()
-        self.erode_enabled_toggle.setCheckable(True)
-        self.erode_enabled_toggle.setMinimumHeight(35)
-        self.erode_enabled_toggle.setChecked(self.camera_settings.get_erode_enabled())
-        layout.addWidget(self.erode_enabled_toggle, row, 1)
-
-        # Erode Kernel Size
-        row += 1
-        label = QLabel("Erode Kernel:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.erode_kernel_input = self.create_spinbox(1, 31, self.camera_settings.get_erode_kernel_size())
-        layout.addWidget(self.erode_kernel_input, row, 1)
-
-        # Erode Iterations
-        row += 1
-        label = QLabel("Erode Iterations:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.erode_iterations_input = self.create_spinbox(0, 20, self.camera_settings.get_erode_iterations())
-        layout.addWidget(self.erode_iterations_input, row, 1)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
-    def create_calibration_settings_group(self):
-        """Create calibration settings group"""
-        group = QGroupBox("Calibration")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # Chessboard Width
-        label = QLabel("Chessboard Width:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.chessboard_width_input = self.create_spinbox(1, 100, self.camera_settings.get_chessboard_width())
-        layout.addWidget(self.chessboard_width_input, row, 1)
-
-        # Chessboard Height
-        row += 1
-        label = QLabel("Chessboard Height:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.chessboard_height_input = self.create_spinbox(1, 100, self.camera_settings.get_chessboard_height())
-        layout.addWidget(self.chessboard_height_input, row, 1)
-
-        # Square Size
-        row += 1
-        label = QLabel("Square Size:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.square_size_input = self.create_double_spinbox(1.0, 1000.0, self.camera_settings.get_square_size_mm(),
-                                                            " mm")
-        layout.addWidget(self.square_size_input, row, 1)
-
-        # Calibration Skip Frames
-        row += 1
-        label = QLabel("Skip Frames:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.calib_skip_frames_input = self.create_spinbox(0, 100, self.camera_settings.get_calibration_skip_frames())
-        layout.addWidget(self.calib_skip_frames_input, row, 1)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
-    def create_brightness_settings_group(self):
-        """Create brightness control settings group"""
-        group = QGroupBox("Brightness Control")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # Auto Brightness
-        label = QLabel("Auto Brightness:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.brightness_auto_toggle = QToggle()
-        self.brightness_auto_toggle.setCheckable(True)
-        self.brightness_auto_toggle.setMinimumHeight(35)
-        self.brightness_auto_toggle.setChecked(self.camera_settings.get_brightness_auto())
-        layout.addWidget(self.brightness_auto_toggle, row, 1)
-
-        # Kp
-        row += 1
-        label = QLabel("Kp:")
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.kp_input = self.create_double_spinbox(0.0, 10.0, self.camera_settings.get_brightness_kp())
-        layout.addWidget(self.kp_input, row, 1)
-
-        # Ki
-        row += 1
-        label = QLabel("Ki:")
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.ki_input = self.create_double_spinbox(0.0, 10.0, self.camera_settings.get_brightness_ki())
-        layout.addWidget(self.ki_input, row, 1)
-
-        # Kd
-        row += 1
-        label = QLabel("Kd:")
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.kd_input = self.create_double_spinbox(0.0, 10.0, self.camera_settings.get_brightness_kd())
-        layout.addWidget(self.kd_input, row, 1)
-
-        # Target Brightness
-        row += 1
-        label = QLabel("Target Brightness:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.target_brightness_input = self.create_spinbox(0, 255, self.camera_settings.get_target_brightness())
-        layout.addWidget(self.target_brightness_input, row, 1)
-
-        # Brightness Area Controls
-        row += 1
-        area_label = QLabel("Brightness Area:")  # TODO TRANSLATE
-        area_label.setWordWrap(True)
-        layout.addWidget(area_label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        
-        # Area control buttons layout
-        area_buttons_layout = QHBoxLayout()
-        
-        # Define Area button
-        self.define_brightness_area_button = MaterialButton("Define Area")
-        self.define_brightness_area_button.setMinimumHeight(35)
-        self.define_brightness_area_button.clicked.connect(lambda: self.toggle_brightness_area_selection_mode(True))
-        area_buttons_layout.addWidget(self.define_brightness_area_button)
-        
-        # Reset Area button
-        self.reset_brightness_area_button = MaterialButton("Reset")
-        self.reset_brightness_area_button.setMinimumHeight(35)
-        self.reset_brightness_area_button.clicked.connect(self.reset_brightness_area)
-        area_buttons_layout.addWidget(self.reset_brightness_area_button)
-        
-        # Create widget to hold button layout
-        area_buttons_widget = QWidget()
-        area_buttons_widget.setLayout(area_buttons_layout)
-        layout.addWidget(area_buttons_widget, row, 1)
-        
-        # Show current area coordinates
-        row += 1
-        self.brightness_area_status_label = QLabel(self.get_brightness_area_status_text())
-        self.brightness_area_status_label.setWordWrap(True)
-        self.brightness_area_status_label.setStyleSheet("color: #666; font-size: 10px;")
-        layout.addWidget(self.brightness_area_status_label, row, 0, 1, 2)
-
-        # Update display after initialization
-        QTimer.singleShot(100, self.refresh_brightness_area_display)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
-    def create_aruco_settings_group(self):
-        """Create ArUco detection settings group"""
-        group = QGroupBox("ArUco Detection")  # TODO TRANSLATE
-        layout = QGridLayout(group)
-
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 25, 20, 20)
-
-        row = 0
-
-        # ArUco Enabled
-        label = QLabel("Enable ArUco:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.aruco_enabled_toggle = QToggle()
-        self.aruco_enabled_toggle.setCheckable(True)
-        self.aruco_enabled_toggle.setMinimumHeight(35)
-        self.aruco_enabled_toggle.setChecked(self.camera_settings.get_aruco_enabled())
-        layout.addWidget(self.aruco_enabled_toggle, row, 1)
-
-        # ArUco Dictionary
-        row += 1
-        label = QLabel("Dictionary:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.aruco_dictionary_combo = QComboBox()
-        self.aruco_dictionary_combo.setMinimumHeight(40)
-        self.aruco_dictionary_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.aruco_dictionary_combo.addItems([
-            "DICT_4X4_50", "DICT_4X4_100", "DICT_4X4_250", "DICT_4X4_1000",
-            "DICT_5X5_50", "DICT_5X5_100", "DICT_5X5_250", "DICT_5X5_1000",
-            "DICT_6X6_50", "DICT_6X6_100", "DICT_6X6_250", "DICT_6X6_1000",
-            "DICT_7X7_50", "DICT_7X7_100", "DICT_7X7_250", "DICT_7X7_1000"
-        ])
-        self.aruco_dictionary_combo.setCurrentText(self.camera_settings.get_aruco_dictionary())
-        layout.addWidget(self.aruco_dictionary_combo, row, 1)
-
-        # Flip Image
-        row += 1
-        label = QLabel("Flip Image:")  # TODO TRANSLATE
-        label.setWordWrap(True)
-        layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        self.aruco_flip_toggle = QToggle()
-        self.aruco_flip_toggle.setCheckable(True)
-        self.aruco_flip_toggle.setMinimumHeight(35)
-        self.aruco_flip_toggle.setChecked(self.camera_settings.get_aruco_flip_image())
-        layout.addWidget(self.aruco_flip_toggle, row, 1)
-
-        layout.setColumnStretch(1, 1)
-        return group
-
     def _connect_widget_signals(self):
         """
         Connect all widget signals to the unified value_changed_signal.
@@ -1717,178 +1105,5 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         print("Camera settings updated from CameraSettings object.")
 
-    def translate(self):
-        """Update UI text based on current language"""
-        print(f"Translating CameraSettingsTabLayout...")
 
-        # Update styling to ensure responsive fonts are applied
-        self.setup_styling()
-
-        # Core settings group
-        if hasattr(self, 'core_group'):
-            self.core_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.CAMERA_SETTINGS))
-            # Update core settings labels by accessing the layout
-            core_layout = self.core_group.layout()
-            if core_layout:
-                # Camera Index
-                if core_layout.itemAtPosition(0, 0):
-                    core_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.CAMERA_INDEX))
-                # Width
-                if core_layout.itemAtPosition(1, 0):
-                    core_layout.itemAtPosition(1, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.WIDTH))
-                # Height
-                if core_layout.itemAtPosition(2, 0):
-                    core_layout.itemAtPosition(2, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.HEIGHT))
-                # Skip Frames
-                if core_layout.itemAtPosition(3, 0):
-                    core_layout.itemAtPosition(3, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.SKIP_FRAMES))
-
-        # Contour settings group  
-        if hasattr(self, 'contour_group'):
-            self.contour_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.CONTOUR_DETECTION))
-            # Update contour settings labels
-            contour_layout = self.contour_group.layout()
-            if contour_layout:
-                # Enable Detection
-                if contour_layout.itemAtPosition(0, 0):
-                    contour_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.ENABLE_DETECTION))
-                # Draw Contours
-                if contour_layout.itemAtPosition(1, 0):
-                    contour_layout.itemAtPosition(1, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.DRAW_CONTOURS))
-                # Threshold
-                if contour_layout.itemAtPosition(2, 0):
-                    contour_layout.itemAtPosition(2, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.THRESHOLD))
-                # Threshold Pickup Area
-                if contour_layout.itemAtPosition(3, 0):
-                    contour_layout.itemAtPosition(3, 0).widget().setText(
-                        f"{self.translator.get(TranslationKeys.CameraSettings.THRESHOLD)} 2")
-                # Epsilon
-                if contour_layout.itemAtPosition(4, 0):
-                    contour_layout.itemAtPosition(5, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.EPSILON))
-                # Min Contour Area
-                if contour_layout.itemAtPosition(5, 0):
-                    contour_layout.itemAtPosition(5, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.MIN_CONTOUR_AREA))
-                # Max Contour Area
-                if contour_layout.itemAtPosition(6, 0):
-                    contour_layout.itemAtPosition(6, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.MAX_CONTOUR_AREA))
-
-        # Preprocessing settings group
-        if hasattr(self, 'preprocessing_group'):
-            self.preprocessing_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.PREPROCESSING))
-            # Update preprocessing settings labels
-            preprocessing_layout = self.preprocessing_group.layout()
-            if preprocessing_layout:
-                # Gaussian Blur
-                if preprocessing_layout.itemAtPosition(0, 0):
-                    preprocessing_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.GAUSSIAN_BLUR))
-                # Blur Kernel Size
-                if preprocessing_layout.itemAtPosition(1, 0):
-                    preprocessing_layout.itemAtPosition(1, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.BLUR_KERNEL_SIZE))
-                # Threshold Type
-                if preprocessing_layout.itemAtPosition(2, 0):
-                    preprocessing_layout.itemAtPosition(2, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.THRESHOLD_TYPE))
-                # Dilate
-                if preprocessing_layout.itemAtPosition(3, 0):
-                    preprocessing_layout.itemAtPosition(3, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.DILATE))
-                # Dilate Kernel
-                if preprocessing_layout.itemAtPosition(4, 0):
-                    preprocessing_layout.itemAtPosition(4, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.DILATE_KERNEL))
-                # Dilate Iterations
-                if preprocessing_layout.itemAtPosition(5, 0):
-                    preprocessing_layout.itemAtPosition(5, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.DILATE_ITERATIONS))
-                # Erode
-                if preprocessing_layout.itemAtPosition(6, 0):
-                    preprocessing_layout.itemAtPosition(6, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.ERODE))
-                # Erode Kernel
-                if preprocessing_layout.itemAtPosition(7, 0):
-                    preprocessing_layout.itemAtPosition(7, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.ERODE_KERNEL))
-                # Erode Iterations
-                if preprocessing_layout.itemAtPosition(8, 0):
-                    preprocessing_layout.itemAtPosition(8, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.ERODE_ITERATIONS))
-
-        # Calibration settings group
-        if hasattr(self, 'calibration_group'):
-            self.calibration_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.CALIBRATION))
-            # Update calibration settings labels
-            calibration_layout = self.calibration_group.layout()
-            if calibration_layout:
-                # Chessboard Width
-                if calibration_layout.itemAtPosition(0, 0):
-                    calibration_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.CHESSBOARD_WIDTH))
-                # Chessboard Height
-                if calibration_layout.itemAtPosition(1, 0):
-                    calibration_layout.itemAtPosition(1, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.CHESSBOARD_HEIGHT))
-                # Square Size
-                if calibration_layout.itemAtPosition(2, 0):
-                    calibration_layout.itemAtPosition(2, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.SQUARE_SIZE))
-                # Skip Frames (calibration)
-                if calibration_layout.itemAtPosition(3, 0):
-                    calibration_layout.itemAtPosition(3, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.SKIP_FRAMES))
-
-        # Brightness settings group
-        if hasattr(self, 'brightness_group'):
-            self.brightness_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.BRIGHTNESS_CONTROL))
-            # Update brightness settings labels
-            brightness_layout = self.brightness_group.layout()
-            if brightness_layout:
-                # Auto Brightness
-                if brightness_layout.itemAtPosition(0, 0):
-                    brightness_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.AUTO_BRIGHTNESS))
-                # Kp (keep as is, technical term)
-                # Ki (keep as is, technical term)
-                # Kd (keep as is, technical term)
-                # Target Brightness
-                if brightness_layout.itemAtPosition(4, 0):
-                    brightness_layout.itemAtPosition(4, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.TARGET_BRIGHTNESS))
-
-        # ArUco settings group
-        if hasattr(self, 'aruco_group'):
-            self.aruco_group.setTitle(self.translator.get(TranslationKeys.CameraSettings.ARUCO_DETECTION))
-            # Update ArUco settings labels
-            aruco_layout = self.aruco_group.layout()
-            if aruco_layout:
-                # Enable ArUco
-                if aruco_layout.itemAtPosition(0, 0):
-                    aruco_layout.itemAtPosition(0, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.ENABLE_ARUCO))
-                # Dictionary
-                if aruco_layout.itemAtPosition(1, 0):
-                    aruco_layout.itemAtPosition(1, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.DICTIONARY))
-                # Flip Image
-                if aruco_layout.itemAtPosition(2, 0):
-                    aruco_layout.itemAtPosition(2, 0).widget().setText(
-                        self.translator.get(TranslationKeys.CameraSettings.FLIP_IMAGE))
-
-        # Update camera status label (dynamic content)
-        if hasattr(self, 'camera_status_label') and hasattr(self, 'current_camera_state'):
-            self.camera_status_label.setText(
-                f"{self.translator.get(TranslationKeys.CameraSettings.CAMERA_STATUS)}: {self.current_camera_state}")
-
-        # Update camera preview label
 

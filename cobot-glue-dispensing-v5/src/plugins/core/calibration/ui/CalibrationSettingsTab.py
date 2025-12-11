@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import QHBoxLayout
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout, QGroupBox, QTabWidget, QPushButton
 from PyQt6.QtCore import Qt
 
+from plugins.core.calibration.ui.utils import convert_camera_coordinates_to_image_coordinates
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 
 # Work area points file paths (for fallback only)
@@ -233,7 +234,7 @@ class CalibrationServiceTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         # Convert camera coordinates to actual image coordinates for drawing
         if len(camera_corners) == 4:
-            corners = self.convert_camera_coordinates_to_image_coordinates(camera_corners)
+            corners = convert_camera_coordinates_to_image_coordinates(self.original_image,camera_corners)
         else:
             corners = []
 
@@ -278,7 +279,7 @@ class CalibrationServiceTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         if len(camera_corners) == 4:
             # Convert camera coordinates to image coordinates first
-            image_corners = self.convert_camera_coordinates_to_image_coordinates(camera_corners)
+            image_corners = convert_camera_coordinates_to_image_coordinates(self.original_image,camera_corners)
 
             # Calculate the scale factor from image to label coordinates
             label_size = self.calibration_preview_label.size()
@@ -1032,66 +1033,6 @@ class CalibrationServiceTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         return label_corners
 
-    def convert_label_coordinates_to_image_coordinates(self, label_corners):
-        """Convert corner coordinates from label scale back to camera resolution for drawing"""
-        if self.original_image is None:
-            return label_corners
-
-        # Get the actual image size
-        img_height, img_width = self.original_image.shape[:2]
-        label_size = self.calibration_preview_label.size()
-
-        # Calculate scaling factors
-        scale_x = img_width / label_size.width()
-        scale_y = img_height / label_size.height()
-
-        # Use the smaller scale to maintain aspect ratio (consistent with display logic)
-        scale = min(scale_x, scale_y)
-
-        # Convert coordinates
-        image_corners = []
-        for x, y in label_corners:
-            image_x = x * scale
-            image_y = y * scale
-
-            # Ensure coordinates are within image bounds
-            image_x = max(0, min(image_x, img_width - 1))
-            image_y = max(0, min(image_y, img_height - 1))
-
-            image_corners.append((int(image_x), int(image_y)))
-
-        return image_corners
-
-    def convert_camera_coordinates_to_image_coordinates(self, camera_corners):
-        """Convert coordinates from camera resolution (1280x720) to actual image scale for drawing"""
-        if self.original_image is None:
-            return [(int(x), int(y)) for x, y in camera_corners]
-
-        # Get the actual image size
-        img_height, img_width = self.original_image.shape[:2]
-
-        # Camera resolution is fixed at 1280x720
-        camera_width = 1280
-        camera_height = 720
-
-        # Calculate scaling factors from camera resolution to actual image size
-        scale_x = img_width / camera_width
-        scale_y = img_height / camera_height
-
-        # Convert coordinates
-        image_corners = []
-        for x, y in camera_corners:
-            image_x = x * scale_x
-            image_y = y * scale_y
-
-            # Ensure coordinates are within image bounds
-            image_x = max(0, min(image_x, img_width - 1))
-            image_y = max(0, min(image_y, img_height - 1))
-
-            image_corners.append((int(image_x), int(image_y)))
-
-        return image_corners
-
     def load_all_saved_work_areas(self):
         """Load saved work area points for both pickup and spray areas on initialization"""
         print("Loading all saved work area points...")
@@ -1105,9 +1046,6 @@ class CalibrationServiceTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         # Load current area (pickup by default)
         self.load_saved_work_area_points(self.current_work_area)
 
-    def _emit_robot_setting_changed(self,key,value):
-        """Emit robot setting changed signal"""
-        self.robotCalibrationSettingChanged.emit(key, value)
 
     def position_floating_button(self, parent_widget):
         """Position the floating button on the right edge of the widget"""

@@ -128,18 +128,18 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             super(QWidget, self.parent_widget).resizeEvent(event)
 
     def create_main_content(self):
-        """Create the main scrollable content area with responsive layout"""
+        """Create the main scrollable content area with a responsive layout"""
         # Since this is now a QVBoxLayout, we add directly to self
         self.setContentsMargins(0, 0, 0, 0)
 
-        # Create scroll area
+        # Create a scroll area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         QScroller.grabGesture(scroll_area.viewport(), QScroller.ScrollerGestureType.TouchGesture)
 
-        # Create main content widget
+        # Create a main content widget
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
 
@@ -500,12 +500,6 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.addWidget(reset_button)
 
         parent_layout.addWidget(group)
-
-    # def on_cell_changed(self, index):
-    #     """Handle cell selection change"""
-    #     self.current_cell = index + 1
-    #     self.update_cell_settings()
-    #     self.showToast(f"Switched to Load Cell {self.current_cell}")
 
     def on_cell_changed(self, index):
         """Handle cell selection change"""

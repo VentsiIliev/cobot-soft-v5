@@ -6,7 +6,7 @@ No callbacks - just clean, clear method calls!
 """
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from enum import Enum
 
 from applications.glue_dispensing_application.settings import GlueSettings
@@ -21,7 +21,7 @@ from frontend.core.services.types.ServiceResult import ServiceResult
 # Import settings classes for type hints and validation
 
 # Import UI component classes for validation
-from plugins.core.settings.ui.CameraSettingsTabLayout import CameraSettingsTabLayout
+from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
 
