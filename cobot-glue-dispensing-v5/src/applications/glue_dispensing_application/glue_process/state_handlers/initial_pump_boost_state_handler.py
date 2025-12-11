@@ -10,7 +10,7 @@ InitialPumpBoostResult = namedtuple(
         "next_state",       # Next FSM state (STARTING_PUMP, ERROR, etc.)
         "next_path_index",  # Path index for continuation
         "next_point_index", # Point index for continuation
-        "next_path",        # Path (can be same as context.current_path)
+        "next_path",        # Path (can be the same as context.current_path)
         "next_settings",    # Settings for continuation
         "motor_started"     # New motor state flag
     ]
@@ -30,10 +30,10 @@ def handle_pump_initial_boost(context,logger_context) -> GlueProcessState:
 
     # --- Case 1: Spray mode active and motor not started ---
     if spray_on and not context.motor_started:
-        # Get motor address for current path
+        # Get a motor address for the current path
         motor_address = context.get_motor_address_for_current_path()
         if motor_address == -1:
-            # stop processing due to invalid motor address
+            # stop processing due to an invalid motor address
             log_error_message(
                 logger_context,
                 message=f"Invalid motor address for path {path_index}, point_offset={point_index}"
