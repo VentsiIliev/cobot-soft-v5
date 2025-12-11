@@ -1,11 +1,10 @@
 import time
 from dataclasses import dataclass
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, \
-    QFrame, QSizePolicy, QApplication
-from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen, QMouseEvent
+from PyQt6.QtWidgets import QVBoxLayout, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, \
+    QFrame, QSizePolicy
+from PyQt6.QtGui import QPixmap, QImage, QPainter, QMouseEvent
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QPushButton
 
 import numpy as np
 
@@ -108,8 +107,11 @@ class CameraFeed(QFrame):
             bytes_per_line = 3 * width
             q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
             pixmap = QPixmap.fromImage(q_image)
+        elif isinstance(image, QPixmap):
+            # Handle QPixmap objects directly (already processed images)
+            pixmap = image
         else:
-            print("Unsupported image type")
+            print(f"Unsupported image type: {type(image)}")
             return
 
         if pixmap.isNull():
@@ -154,6 +156,9 @@ class CameraFeed(QFrame):
                 bytes_per_line = 3 * width
                 q_image = QImage(static_image.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
                 pixmap = QPixmap.fromImage(q_image)
+            elif isinstance(static_image, QPixmap):
+                # Handle QPixmap objects directly
+                pixmap = static_image
             else:
                 raise TypeError("Unsupported image type")
 

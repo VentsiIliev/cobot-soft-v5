@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from PyQt6 import QtCore
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtCore import Qt
@@ -72,12 +73,13 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         # Initialize latest frame cache
         self.latest_frame_cache = None
+        self.latest_threshold_cache = None  # Cache for threshold preview
 
         # Initialize preview click handlers (will be set when labels are created)
         self.camera_preview_handler = None
         self.threshold_preview_handler = None
 
-        # PERFORMANCE OPTIMIZATION: Create background worker thread for image processing
+        # PERFORMANCE OPTIMIZATION: Create a background worker thread for image processing
         self.frame_processor = CameraFrameProcessor()
         self.frame_processor.frame_processed.connect(self._on_frame_processed)
         self.frame_processor.start()
@@ -86,11 +88,11 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         # Create main content with new layout
         self.create_main_content()
 
-        # Connect all widget signals to unified emission pattern
+        # Connect all widget signals to a unified emission pattern
         self._connect_widget_signals()
 
         # PERFORMANCE FIX: Reduce timer frequency and don't start by default
-        # Only update camera preview when settings tab is actually visible
+        # Only update camera preview when the settings tab is actually visible
         self.updateFrequency = 100  # Changed from 30ms to 100ms (10 FPS instead of 33 FPS)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._process_latest_cached_frame)
@@ -98,7 +100,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.timer_active = False
         print("[CameraSettingsTabLayout] Timer created but not started (performance optimization)")
 
-        # Connect to parent widget resize events if possible
+        # Connect to the parent widget resize events if possible
         if self.parent_widget:
             self.parent_widget.resizeEvent = self.on_parent_resize
 
@@ -114,7 +116,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     def _on_frame_processed(self, pixmap):
         """
         Slot called when background thread finishes processing a frame.
-        Runs on main GUI thread - just updates the pixmap (fast operation).
+        Runs on the main GUI thread - just updates the pixmap (fast operation).
         """
         if hasattr(self, 'camera_preview_label') and self.camera_preview_label:
             try:
@@ -147,15 +149,15 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     def _on_vision_frame_received(self, frame):
         """
         Callback from VisionService via MessageBroker (runs in VisionService thread).
-        Cache the frame for the timer to pick up - avoids blocking main thread!
+        Cache the frame for the timer to pick up - avoids blocking the main thread!
         """
-        if self.timer_active:  # Only cache frames when timer is active
+        if self.timer_active:  # Only cache frames when the timer is active
             # Handle both dict-wrapped frames and direct numpy arrays
             if isinstance(frame, dict):
-                # Frame is wrapped in dict with "image" key (from MessagePublisher)
+                # Frame is wrapped in dict with the "image" key (from MessagePublisher)
                 actual_frame = frame.get("image")
             else:
-                # Frame is direct numpy array (from VisionService)
+                # Frame is a direct numpy array (from VisionService)
                 actual_frame = frame
 
             self.latest_frame_cache = actual_frame
@@ -163,12 +165,12 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     def _process_latest_cached_frame(self):
         """
         Timer callback - sends cached frame to worker thread (non-blocking).
-        This runs on main thread but is super fast - just checks cache and delegates to worker.
+        This runs on the main thread but is superfast - just checks cache and delegates to worker.
         """
         if self.latest_frame_cache is not None:
-            # Send to worker thread for processing (non-blocking)
+            # Send to a worker thread for processing (non-blocking)
             self.frame_processor.add_frame(self.latest_frame_cache)
-            # Don't clear cache - let it be overwritten by newer frames
+            # Don't clear the cache - let it be overwritten by newer frames
 
     def start_camera_updates(self):
         """Start the camera feed timer - call this when tab becomes visible"""
@@ -224,6 +226,136 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             import traceback
             traceback.print_exc()
 
+    def _get_camera_frame_for_preview(self):
+        """Callback for CameraFeed to get the latest camera frame (numpy array in RGB format) with overlays"""
+        if self.latest_frame_cache is None:
+            return None
+
+        try:
+            # Convert camera frame to RGB format expected by CameraFeed
+            import cv2
+            frame = self.latest_frame_cache
+
+            # Handle different frame formats
+            if len(frame.shape) == 3:
+                # Color image - assume BGR and convert to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            elif len(frame.shape) == 2:
+                # Grayscale - convert to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            else:
+                print(f"Unsupported camera frame format: shape {frame.shape}")
+                return None
+
+            # Verify the result is a valid numpy array
+            if not isinstance(rgb_frame, np.ndarray) or rgb_frame.size == 0:
+                print(f"Color conversion failed: result is {type(rgb_frame)}")
+                return None
+
+            # CRITICAL FIX: Apply brightness area overlay before returning
+            # Check if we need to draw brightness area overlay
+            needs_overlay = False
+            if not self.brightness_area_selection_mode:
+                points = self.camera_settings.get_brightness_area_points()
+                if points and len(points) == 4:
+                    needs_overlay = True
+            elif self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
+                needs_overlay = True
+
+            if needs_overlay:
+                # Draw brightness area overlay on the numpy array
+                rgb_frame = self._draw_brightness_overlay_on_frame(rgb_frame)
+
+            return rgb_frame
+
+        except Exception as e:
+            print(f"Error converting camera frame: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _draw_brightness_overlay_on_frame(self, rgb_frame):
+        """Draw brightness area overlay directly on numpy frame"""
+        try:
+            # Get original camera resolution
+            original_width = self.camera_settings.get_camera_width()
+            original_height = self.camera_settings.get_camera_height()
+
+            # Get current frame dimensions
+            frame_height, frame_width = rgb_frame.shape[:2]
+
+            # Draw saved brightness area (if exists and not in selection mode)
+            if not self.brightness_area_selection_mode:
+                points = self.camera_settings.get_brightness_area_points()
+                if points and len(points) == 4:
+                    # Scale points from original camera coordinates to current frame coordinates
+                    scaled_points = []
+                    for p in points:
+                        x = int((p[0] / original_width) * frame_width)
+                        y = int((p[1] / original_height) * frame_height)
+                        scaled_points.append((x, y))
+
+                    # Draw polygon on the frame
+                    scaled_points_array = np.array(scaled_points, dtype=np.int32)
+                    cv2.polylines(rgb_frame, [scaled_points_array], isClosed=True,
+                                 color=(0, 255, 0), thickness=2)  # Green color in RGB
+
+            # Draw selection points if in selection mode
+            if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
+                for i, point in enumerate(self.brightness_area_points):
+                    # Scale from original camera coordinates to current frame coordinates
+                    x = int((point[0] / original_width) * frame_width)
+                    y = int((point[1] / original_height) * frame_height)
+
+                    # Draw point circle
+                    cv2.circle(rgb_frame, (x, y), 5, (255, 0, 0), -1)  # Red filled circle
+
+                    # Draw point number
+                    cv2.putText(rgb_frame, f"{i + 1}", (x - 5, y - 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+                # Draw lines between points
+                if len(self.brightness_area_points) >= 2:
+                    scaled_points = []
+                    for point in self.brightness_area_points:
+                        x = int((point[0] / original_width) * frame_width)
+                        y = int((point[1] / original_height) * frame_height)
+                        scaled_points.append((x, y))
+
+                    # Draw lines
+                    for i in range(len(scaled_points) - 1):
+                        cv2.line(rgb_frame, scaled_points[i], scaled_points[i + 1],
+                                (255, 255, 0), 2)  # Yellow lines
+
+                    # Close the rectangle if we have 4 points
+                    if len(scaled_points) == 4:
+                        cv2.line(rgb_frame, scaled_points[3], scaled_points[0],
+                                (255, 255, 0), 2)
+
+            return rgb_frame
+
+        except Exception as e:
+            print(f"Error drawing brightness overlay: {e}")
+            import traceback
+            traceback.print_exc()
+            return rgb_frame
+
+    def _get_threshold_frame_for_preview(self):
+        """Callback for CameraFeed to get the latest threshold frame (QPixmap)"""
+        return self.latest_threshold_cache if self.latest_threshold_cache is not None else None
+
+    def _on_camera_preview_clicked(self, event):
+        """Handle mouse click on the camera preview feed"""
+        # Get click position from the graphics view
+        pos = event.pos()
+        self.on_preview_clicked(pos.x(), pos.y())
+
+    def _on_threshold_preview_clicked(self, event):
+        """Handle mouse-click on the threshold preview feed"""
+        # Get click position from the graphics view
+        pos = event.pos()
+        self.on_threshold_preview_clicked(pos.x(), pos.y())
+
     def update_camera_preview(self, pixmap):
         """Update the camera preview with a new frame, maintaining 16:9 aspect ratio"""
         if hasattr(self, 'camera_preview_label'):
@@ -238,11 +370,8 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
     def update_threshold_preview_from_cv2(self, cv2_threshold_image):
         """Update the threshold preview with a threshold image"""
-        if not self._is_widget_valid('threshold_preview_label'):
-            return
-
         try:
-            # Convert to RGB if needed
+            # Convert CV2 image to QPixmap and cache it for CameraFeed
             if len(cv2_threshold_image.shape) == 3:
                 rgb_image = cv2_threshold_image[:, :, ::-1]  # BGR to RGB
                 height, width = rgb_image.shape[:2]
@@ -256,32 +385,13 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                                  QImage.Format.Format_Grayscale8)
 
             pixmap = QPixmap.fromImage(q_image)
-            self.update_threshold_preview(pixmap)
+
+            # Cache the pixmap for CameraFeed to display
+            self.latest_threshold_cache = pixmap
+
         except RuntimeError as e:
             import traceback
             traceback.print_exc()
-            # Widget was deleted during execution
-            print(f"Widget deleted during threshold preview update: {e}")
-            self._cleanup_if_destroyed()
-
-    def update_threshold_preview(self, pixmap):
-        """Update the threshold preview with a new pixmap, maintaining aspect ratio"""
-        if not self._is_widget_valid('threshold_preview_label'):
-            return
-
-        try:
-            label_size = self.threshold_preview_label.size()
-            scaled_pixmap = pixmap.scaled(
-                label_size,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.threshold_preview_label.setPixmap(scaled_pixmap)
-            self.threshold_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        except RuntimeError as e:
-            import traceback
-            traceback.print_exc()
-            # Widget was deleted during execution
             print(f"Widget deleted during threshold preview update: {e}")
             self._cleanup_if_destroyed()
 
@@ -298,7 +408,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             super(QWidget, self.parent_widget).resizeEvent(event)
 
     def update_layout_for_screen_size(self):
-        """Update layout based on current screen size"""
+        """Update layout based on the current screen size"""
         self.clear_layout()
         self.create_main_content()
 
@@ -308,7 +418,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             return False
         widget = getattr(self, widget_name)
         try:
-            # Try to access a basic property to see if widget is still valid
+            # Try to access a basic property to see if the widget is still valid
             _ = widget.isVisible()
             return True
         except RuntimeError:
@@ -316,7 +426,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             return False
 
     def _cleanup_if_destroyed(self):
-        """Clean up MessageBroker subscriptions if widget is destroyed"""
+        """Clean up MessageBroker subscriptions if the widget is destroyed"""
         try:
             broker = MessageBroker()
             broker.unsubscribe(VisionTopics.SERVICE_STATE, self.onVisionSystemStateUpdate)
@@ -360,7 +470,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 child.widget().setParent(None)
 
     def create_main_content(self):
-        """Create the main content with settings on left and preview on right"""
+        """Create the main content with settings on the left and preview on the right"""
         main_horizontal_layout = QHBoxLayout()
         main_horizontal_layout.setSpacing(20)
         main_horizontal_layout.setContentsMargins(0, 0, 0, 0)
@@ -718,7 +828,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 widget.blockSignals(False)
 
         # CRITICAL FIX: Update visual appearance of QToggle widgets
-        # QToggle widgets use stateChanged signal to update their appearance,
+        #  use stateChanged signal to update their appearance,
         # but signals were blocked during setChecked() calls above.
         # So we must manually update their visual state.
         toggle_widgets = [

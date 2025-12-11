@@ -3,57 +3,74 @@ Preview Click Handler - Reusable component for handling preview image clicks
 Extracts common logic for coordinate mapping and pixel value extraction
 """
 from typing import Optional, Tuple, Callable
-from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import QLabel, QGraphicsView
 from PyQt6.QtGui import QPixmap
 
 
 class PreviewClickHandler:
     """
-    Handles click events on preview labels with coordinate mapping and pixel info extraction.
+    Handles click events on preview labels/graphics views with coordinate mapping and pixel info extraction.
 
     This class encapsulates the common logic for:
     - Mapping click coordinates to pixmap coordinates (accounting for centered alignment)
     - Validating click is within image bounds
     - Extracting pixel color information
     - Optional coordinate scaling for different resolutions
+
+    Supports both QLabel and QGraphicsView widgets.
     """
 
-    def __init__(self, label: QLabel, preview_name: str = "Preview"):
+    def __init__(self, widget, preview_name: str = "Preview"):
         """
         Initialize the handler.
 
         Args:
-            label: The QLabel widget displaying the preview
+            widget: The QLabel or QGraphicsView widget displaying the preview
             preview_name: Name for debug/logging purposes
         """
-        self.label = label
+        self.widget = widget
         self.preview_name = preview_name
+        self.is_graphics_view = isinstance(widget, QGraphicsView)
+
+    def _get_pixmap(self) -> Optional[QPixmap]:
+        """Get the pixmap from either QLabel or QGraphicsView"""
+        if self.is_graphics_view:
+            # Get pixmap from QGraphicsView's scene
+            scene = self.widget.scene()
+            if scene and len(scene.items()) > 0:
+                first_item = scene.items()[0]
+                if hasattr(first_item, 'pixmap'):
+                    return first_item.pixmap()
+            return None
+        else:
+            # Get pixmap from QLabel
+            return self.widget.pixmap() if self.widget else None
 
     def map_click_to_pixmap_coords(self, click_x: int, click_y: int) -> Optional[Tuple[int, int]]:
         """
-        Map click coordinates from label space to pixmap space.
-        Accounts for centered alignment of pixmap within label.
+        Map click coordinates from widget space to pixmap space.
+        Accounts for centered alignment of pixmap within widget.
 
         Args:
-            click_x: X coordinate of click in label space
-            click_y: Y coordinate of click in label space
+            click_x: X coordinate of click in widget space
+            click_y: Y coordinate of click in widget space
 
         Returns:
             Tuple of (pixmap_x, pixmap_y) if click is within pixmap, None otherwise
         """
-        pixmap = self.label.pixmap() if self.label else None
+        pixmap = self._get_pixmap()
         if pixmap is None:
             print(f"{self.preview_name} Clicked on {click_x}:{click_y} - no image available")
             return None
 
-        label_w = self.label.width()
-        label_h = self.label.height()
+        widget_w = self.widget.width()
+        widget_h = self.widget.height()
         img_w = pixmap.width()
         img_h = pixmap.height()
 
-        # Calculate top-left of the drawn pixmap inside the label (centered alignment)
-        left = (label_w - img_w) // 2
-        top = (label_h - img_h) // 2
+        # Calculate top-left of the drawn pixmap inside the widget (centered alignment)
+        left = (widget_w - img_w) // 2
+        top = (widget_h - img_h) // 2
 
         # Map click coordinates to pixmap coordinates
         pixmap_x = int(click_x - left)
@@ -77,7 +94,7 @@ class PreviewClickHandler:
         Returns:
             Tuple of (r, g, b) values, or None if extraction fails
         """
-        pixmap = self.label.pixmap()
+        pixmap = self._get_pixmap()
         if pixmap is None:
             return None
 
@@ -100,7 +117,7 @@ class PreviewClickHandler:
         Returns:
             Tuple of (scaled_x, scaled_y) in target resolution
         """
-        pixmap = self.label.pixmap()
+        pixmap = self._get_pixmap()
         if pixmap is None:
             return (pixmap_x, pixmap_y)
 
@@ -119,8 +136,8 @@ class PreviewClickHandler:
         Complete click handling workflow.
 
         Args:
-            click_x: X coordinate of click in label space
-            click_y: Y coordinate of click in label space
+            click_x: X coordinate of click in widget space
+            click_y: Y coordinate of click in widget space
             on_valid_click: Callback (pixmap_x, pixmap_y, r, g, b) for valid clicks
             scale_to_resolution: Optional (width, height) tuple to scale coordinates to
 

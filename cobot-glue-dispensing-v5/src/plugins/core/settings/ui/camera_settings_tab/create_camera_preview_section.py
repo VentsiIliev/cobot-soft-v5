@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout
 
-from frontend.widgets.ClickableLabel import ClickableLabel
+from frontend.widgets.CameraFeed import CameraFeed, CameraFeedConfig
 from plugins.core.dashboard.ui.widgets.MachineIndicatorsWidget import MaterialButton
 
 
@@ -26,52 +26,53 @@ def create_camera_preview_section(self):
     self.camera_status_label.setStyleSheet("font-weight: bold; color: #d32f2f;")
     preview_layout.addWidget(self.camera_status_label)
 
-    # Camera preview area
-    self.camera_preview_label = ClickableLabel("Calibration Preview")
-    self.camera_preview_label.clicked.connect(self.on_preview_clicked)
-    self.camera_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.camera_preview_label.setStyleSheet("""
-        QLabel {
-            background-color: #333;
-            color: white;
-            font-size: 16px;
-            border: 1px solid #666;
-            border-radius: 4px;
-        }
-    """)
-    self.camera_preview_label.setFixedSize(460, 259)
-    self.camera_preview_label.setScaledContents(False)
-    preview_layout.addWidget(self.camera_preview_label)
+    # Camera preview using CameraFeed widget
+    camera_config = CameraFeedConfig(
+        updateFrequency=30,  # 30ms update
+        screen_size=(460, 259),
+        resolution_small=(460, 259),
+        resolution_large=(460, 259),  # Keep same size, no toggle for settings
+        current_resolution=(460, 259)
+    )
+
+    self.camera_preview_feed = CameraFeed(
+        cameraFeedConfig=camera_config,
+        updateCallback=lambda: self._get_camera_frame_for_preview(),
+        toggleCallback=None  # No toggle in settings view
+    )
+
+    # Make the graphics view clickable for point selection
+    self.camera_preview_feed.graphics_view.mousePressEvent = lambda event: self._on_camera_preview_clicked(event)
+
+    preview_layout.addWidget(self.camera_preview_feed)
 
     # Initialize click handler for camera preview
     from plugins.core.settings.ui.camera_settings_tab.preview_click_handler import PreviewClickHandler
-    self.camera_preview_handler = PreviewClickHandler(self.camera_preview_label, "Camera Preview")
+    # Note: We'll use the PreviewClickHandler with the graphics view instead of a label
+    self.camera_preview_handler = PreviewClickHandler(self.camera_preview_feed.graphics_view, "Camera Preview")
 
-    # Set target size for worker thread
-    if hasattr(self, 'frame_processor'):
-        self.frame_processor.set_target_size(460, 259)
+    # Threshold preview using CameraFeed widget
+    threshold_config = CameraFeedConfig(
+        updateFrequency=100,  # Update less frequently (threshold doesn't change as often)
+        screen_size=(460, 259),
+        resolution_small=(460, 259),
+        resolution_large=(460, 259),
+        current_resolution=(460, 259)
+    )
 
-    # Threshold preview area
-    self.threshold_preview_label = ClickableLabel("Threshold Preview")
-    self.threshold_preview_label.clicked.connect(self.on_threshold_preview_clicked)
-    self.threshold_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.threshold_preview_label.setStyleSheet("""
-        QLabel {
-            background-color: #222;
-            color: white;
-            font-size: 16px;
-            border: 1px solid #666;
-            border-radius: 4px;
-        }
-    """)
-    self.threshold_preview_label.setFixedSize(460, 259)
-    self.threshold_preview_label.setScaledContents(False)
-    preview_layout.addWidget(self.threshold_preview_label)
+    self.threshold_preview_feed = CameraFeed(
+        cameraFeedConfig=threshold_config,
+        updateCallback=lambda: self._get_threshold_frame_for_preview(),
+        toggleCallback=None
+    )
+
+    # Make the graphics view clickable
+    self.threshold_preview_feed.graphics_view.mousePressEvent = lambda event: self._on_threshold_preview_clicked(event)
+
+    preview_layout.addWidget(self.threshold_preview_feed)
 
     # Initialize click handler for threshold preview
-    self.threshold_preview_handler = PreviewClickHandler(self.threshold_preview_label, "Threshold Preview")
-
-    # set
+    self.threshold_preview_handler = PreviewClickHandler(self.threshold_preview_feed.graphics_view, "Threshold Preview")
 
     # Control buttons grid
     button_grid = QGridLayout()
