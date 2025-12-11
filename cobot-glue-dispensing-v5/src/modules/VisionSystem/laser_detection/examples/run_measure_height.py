@@ -311,7 +311,7 @@ if __name__ == "__main__":
     measurements = []
     height_map = {}  # Dictionary to store (x, y) -> height mapping
     num_iterations = 3  # Number of times to repeat the full sequence
-    all_iterations = []  # List to store each full iteration results
+    all_iterations = []  # List to store each full iteration result
     height_map_mean = {}  # Dictionary for average height per point
 
     print(f"\nStarting height measurement for {len(transformed)} points per iteration...")
