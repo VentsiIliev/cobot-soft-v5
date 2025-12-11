@@ -4,7 +4,8 @@ Provides dependency injection and centralized component creation.
 """
 from pathlib import Path
 from typing import Optional
-
+from modules.shared.MessageBroker import MessageBroker
+from communication_layer.api.v1.topics import GlueTopics
 from modules.shared.tools.glue_monitor_system.config.config import load_config
 from modules.shared.tools.glue_monitor_system.config.config_validator import GlueMonitorConfig
 from modules.shared.tools.glue_monitor_system.interfaces.interfaces import (
@@ -50,8 +51,7 @@ class DataPublisher(IDataPublisher):
     """Publisher for weight data to message brokers."""
     
     def __init__(self):
-        from modules.shared.MessageBroker import MessageBroker
-        from communication_layer.api.v1.topics import GlueTopics
+
         self.broker = MessageBroker()
         self.topics = GlueTopics
     

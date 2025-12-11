@@ -16,7 +16,7 @@ class GlueMeter(Sensor):
     Methods:
         __init__(url, fetchTimeout=2):
             Initializes a GlueMeter instance with the specified URL and timeout.
-        setFetchTimeut(timeout):
+        setFetchTimeout(timeout):
             Sets the timeout duration for HTTP requests.
         setUrl(url):
             Sets the URL endpoint for fetching glue weight data.

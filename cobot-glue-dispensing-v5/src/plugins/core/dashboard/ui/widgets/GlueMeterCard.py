@@ -9,7 +9,7 @@ from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
 
 
 class GlueMeterCard(QFrame):
-    change_glue_requested = pyqtSignal(int)  # Emits cell index when change glue button is clicked
+    change_glue_requested = pyqtSignal(int)  # Emits cell index when the change glue button is clicked
 
     def __init__(self, label_text: str, index: int, controller_service=None):
         super().__init__()
@@ -120,7 +120,7 @@ class GlueMeterCard(QFrame):
             border-radius: 5px;
             padding: 10px;
         """)
-        # Don't set minimum height - GlueMeterWidget has its own fixed height
+        # Don't set a minimum height-GlueMeterWidget has its own fixed height
 
         # Glue type label styling
         self.glue_type_label.setStyleSheet("""
@@ -163,7 +163,7 @@ class GlueMeterCard(QFrame):
         broker.subscribe(f"GlueMeter_{self.index}/STATE", self.meter_widget.updateState)
         broker.subscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
 
-        # Subscribe to cell state from state management system
+        # Subscribe to cell state from a state management system
         state_topic = f"glue/cell/{self.index}/state"
         print(f"[GlueMeterCard {self.index}] Subscribing to state topic: {state_topic}")
         broker.subscribe(state_topic, self.update_state_indicator)
