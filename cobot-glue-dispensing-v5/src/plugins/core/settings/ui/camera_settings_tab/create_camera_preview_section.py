@@ -43,6 +43,10 @@ def create_camera_preview_section(self):
     self.camera_preview_label.setScaledContents(False)
     preview_layout.addWidget(self.camera_preview_label)
 
+    # Initialize click handler for camera preview
+    from plugins.core.settings.ui.camera_settings_tab.preview_click_handler import PreviewClickHandler
+    self.camera_preview_handler = PreviewClickHandler(self.camera_preview_label, "Camera Preview")
+
     # Set target size for worker thread
     if hasattr(self, 'frame_processor'):
         self.frame_processor.set_target_size(460, 259)
@@ -63,6 +67,9 @@ def create_camera_preview_section(self):
     self.threshold_preview_label.setFixedSize(460, 259)
     self.threshold_preview_label.setScaledContents(False)
     preview_layout.addWidget(self.threshold_preview_label)
+
+    # Initialize click handler for threshold preview
+    self.threshold_preview_handler = PreviewClickHandler(self.threshold_preview_label, "Threshold Preview")
 
     # set
 

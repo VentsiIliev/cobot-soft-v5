@@ -1,30 +1,29 @@
+import cv2
 from PyQt6 import QtCore
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QImage, QPixmap, QPen, QFont, QBrush
+from PyQt6.QtGui import QImage, QPixmap, QPen
 from PyQt6.QtWidgets import QScroller, QWidget
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QScrollArea)
 
 from communication_layer.api.v1.topics import VisionTopics
 from core.model.settings.CameraSettings import CameraSettings
 from core.model.settings.enums.CameraSettingKey import CameraSettingKey
+from frontend.core.utils.localization import TranslationKeys, get_app_translator
 from frontend.widgets.ToastWidget import ToastWidget
 from modules.shared.MessageBroker import MessageBroker
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
-import cv2
-from frontend.core.utils.localization import TranslationKeys, get_app_translator
-from plugins.core.settings.ui.camera_settings_tab.brightness_area import _draw_saved_brightness_area, \
-    update_brightness_area_overlay, toggle_brightness_area_selection_mode, _draw_selection_points, \
-    _apply_brightness_overlay_to_pixmap, get_brightness_area_status_text, finish_brightness_area_selection, \
+from plugins.core.settings.ui.camera_settings_tab.brightness_area import _apply_brightness_overlay_to_pixmap, \
     handle_brightness_area_point_selection
+from plugins.core.settings.ui.camera_settings_tab.preview_click_handler import PreviewClickHandler
 from plugins.core.settings.ui.camera_settings_tab.camera_frame_processor import CameraFrameProcessor
+from plugins.core.settings.ui.camera_settings_tab.create_camera_preview_section import create_camera_preview_section
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_aruco_settings_group import \
     create_aruco_settings_group
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_brightness_settings_group import \
     create_brightness_settings_group
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_calibration_settings_group import \
     create_calibration_settings_group
-from plugins.core.settings.ui.camera_settings_tab.create_camera_preview_section import create_camera_preview_section
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_contour_settings_group import \
     create_contour_settings_group
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_core_settings_group import \
@@ -73,6 +72,10 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         # Initialize latest frame cache
         self.latest_frame_cache = None
+
+        # Initialize preview click handlers (will be set when labels are created)
+        self.camera_preview_handler = None
+        self.threshold_preview_handler = None
 
         # PERFORMANCE OPTIMIZATION: Create background worker thread for image processing
         self.frame_processor = CameraFrameProcessor()
@@ -430,60 +433,46 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         translate(self)
 
     def on_preview_clicked(self, x, y):
+        """Handle camera preview clicks using PreviewClickHandler"""
         try:
-            label = getattr(self, "camera_preview_label", None)
-            pixmap = label.pixmap() if label is not None else None
-            if pixmap is None:
-                print(f"Preview Clicked on {x}:{y} - no image available")
+            if not self.camera_preview_handler:
+                print("Camera preview handler not initialized")
                 return
 
-            label_w = label.width()
-            label_h = label.height()
-            img_w = pixmap.width()
-            img_h = pixmap.height()
-
-            # Calculate top-left of the drawn pixmap inside the label (centered alignment)
-            left = (label_w - img_w) // 2
-            top = (label_h - img_h) // 2
-
-            # Map click coordinates to pixmap coordinates
-            ix = int(x - left)
-            iy = int(y - top)
-
-            if not (0 <= ix < img_w and 0 <= iy < img_h):
-                print(f"Preview Clicked on {x}:{y} - outside image area")
-                return
-
-            # Scale coordinates from preview to original camera resolution
-            # Get original camera resolution from settings
+            # Get original camera resolution for scaling
             original_width = self.camera_settings.get_camera_width()
             original_height = self.camera_settings.get_camera_height()
             
-            # Scale the coordinates
-            scaled_x = int((ix / img_w) * original_width)
-            scaled_y = int((iy / img_h) * original_height)
+            # Use handler to process click with coordinate scaling
+            result = self.camera_preview_handler.handle_click(
+                x, y,
+                scale_to_resolution=(original_width, original_height)
+            )
+
+            if result is None:
+                return
+
+            pixmap_x, pixmap_y = result['pixmap_coords']
+            r, g, b = result['color_rgb']
+            scaled_x, scaled_y = result['scaled_coords']
 
             # Handle brightness area selection mode
             if self.brightness_area_selection_mode:
-                handle_brightness_area_point_selection(self,scaled_x, scaled_y)
+                handle_brightness_area_point_selection(self, scaled_x, scaled_y)
                 return
 
             # Default behavior: show pixel info
-            qimage = pixmap.toImage()
-            color = qimage.pixelColor(ix, iy)
-            r, g, b = color.red(), color.green(), color.blue()
-
-            # Use OpenCV to convert the RGB pixel to grayscale
             import numpy as np
-            arr = np.uint8([[[r, g, b]]])  # shape (1,1,3)
+            arr = np.uint8([[[r, g, b]]])
             gray = int(cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)[0, 0])
 
-            # Print RGB and grayscale value
             print(f"Preview Clicked on {x}:{y} - pixel (R,G,B) = ({r},{g},{b}) - Grayscale = {gray}")
-
             self.showToast(f"(R,G,B) = ({r},{g},{b}) ; Grayscale = {gray}")
+
         except Exception as e:
             print(f"Exception in on_preview_clicked: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _draw_selection_preview(self, painter):
         """Draw preview of area being selected."""
@@ -518,43 +507,32 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             self.camera_preview_label._original_pixmap = pixmap.copy()
 
     def on_threshold_preview_clicked(self, x, y):
-        """Handle threshold preview clicks"""
+        """Handle threshold preview clicks using PreviewClickHandler"""
         try:
-            label = getattr(self, "threshold_preview_label", None)
-            pixmap = label.pixmap() if label is not None else None
-            if pixmap is None:
-                print(f"Threshold Preview Clicked on {x}:{y} - no image available")
+            if not self.threshold_preview_handler:
+                print("Threshold preview handler not initialized")
                 return
 
-            label_w = label.width()
-            label_h = label.height()
-            img_w = pixmap.width()
-            img_h = pixmap.height()
+            # Use handler to process click (no scaling needed for a threshold)
+            result = self.threshold_preview_handler.handle_click(x, y)
 
-            # Calculate top-left of the drawn pixmap inside the label (centered alignment)
-            left = (label_w - img_w) // 2
-            top = (label_h - img_h) // 2
-
-            # Map click coordinates to pixmap coordinates
-            ix = int(x - left)
-            iy = int(y - top)
-
-            if not (0 <= ix < img_w and 0 <= iy < img_h):
-                print(f"Threshold Preview Clicked on {x}:{y} - outside image area")
+            if result is None:
                 return
 
-            qimage = pixmap.toImage()
-            color = qimage.pixelColor(ix, iy)
-            r, g, b = color.red(), color.green(), color.blue()
+            pixmap_x, pixmap_y = result['pixmap_coords']
+            r, g, b = result['color_rgb']
 
-            # For threshold images, typically they are grayscale
-            gray = r  # Since it's a threshold image, R=G=B
+            # For threshold images, typically they are grayscale (R=G=B)
+            gray = r
             threshold_value = "255" if gray > 127 else "0"
 
             print(f"Threshold Preview Clicked on {x}:{y} - pixel value = {gray}, threshold = {threshold_value}")
             self.showToast(f"Threshold value: {threshold_value} (gray: {gray})")
+
         except Exception as e:
             print(f"Exception in on_threshold_preview_clicked: {e}")
+            import traceback
+            traceback.print_exc()
 
     def showToast(self, message):
         """Show toast notification"""
@@ -754,6 +732,3 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                 toggle.update_pos_color(toggle.isChecked())
 
         print("Camera settings updated from CameraSettings object.")
-
-
-

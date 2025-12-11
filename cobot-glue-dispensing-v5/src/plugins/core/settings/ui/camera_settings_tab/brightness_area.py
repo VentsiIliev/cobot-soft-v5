@@ -1,5 +1,14 @@
+import json
+from pathlib import Path
+
+from PyQt6.QtCore import QPoint
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPainter
 from PyQt6.QtGui import QPen, QBrush, QFont
+from PyQt6.QtGui import QPolygon
+
+from core.application.ApplicationContext import get_core_settings_path
+from core.model.settings.enums.CameraSettingKey import CameraSettingKey
 
 
 def _draw_saved_brightness_area(self, painter):
@@ -34,8 +43,7 @@ def _draw_saved_brightness_area(self, painter):
             painter.setPen(pen)
 
             # Draw the rectangle connecting the 4 scaled points
-            from PyQt6.QtCore import QPoint
-            from PyQt6.QtGui import QPolygon
+
 
             qpoints = [QPoint(int(p[0]), int(p[1])) for p in scaled_points]
             polygon = QPolygon(qpoints)
@@ -87,8 +95,6 @@ def update_brightness_area_overlay(self):
         # Create a copy to draw on
         overlay_pixmap = original_pixmap.copy()
 
-        from PyQt6.QtGui import QPainter, QPen, QBrush, QFont
-        from PyQt6.QtCore import Qt
 
         painter = QPainter(overlay_pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -144,11 +150,9 @@ def refresh_brightness_area_display(self):
 
         # Force reload the camera settings from the saved file to get latest values
         try:
-            from core.application.ApplicationContext import get_core_settings_path
-            import json
-            from pathlib import Path
 
-            # Load the actual saved settings from file
+
+            # Load the actual saved settings from a file
             camera_settings_path = get_core_settings_path("camera_settings.json")
             if Path(camera_settings_path).exists():
                 with open(camera_settings_path, 'r') as f:
@@ -319,7 +323,6 @@ def _apply_brightness_overlay_to_pixmap(self, pixmap):
         # Create a copy to draw on
         overlay_pixmap = pixmap.copy()
 
-        from PyQt6.QtGui import QPainter
 
         painter = QPainter(overlay_pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -392,7 +395,6 @@ def finish_brightness_area_selection(self):
     try:
         if len(self.brightness_area_points) == 4:
             # Save the points to camera settings
-            from core.model.settings.enums.CameraSettingKey import CameraSettingKey
             self.camera_settings.set_brightness_area_points(self.brightness_area_points)
 
             # Emit value changed signals for each point to trigger settings save
