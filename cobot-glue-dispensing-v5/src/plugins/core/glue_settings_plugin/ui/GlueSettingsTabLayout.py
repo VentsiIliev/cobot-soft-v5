@@ -38,7 +38,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.translator = get_app_translator()
         self.translator.language_changed.connect(self.translate)
         self.create_main_content()
-        # Connect to parent widget resize events if possible
+        # Connect to the parent widget resize events if possible
         if self.parent_widget:
             self.parent_widget.resizeEvent = self.on_parent_resize
 
