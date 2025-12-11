@@ -81,7 +81,7 @@ class TestCompletedStateHandler:
         result2 = handle_completed_state(context)
         result3 = handle_completed_state(context)
 
-        # Should return same result each time
+        # Should return the same result each time
         assert result1 == GlueProcessState.IDLE
         assert result2 == GlueProcessState.IDLE
         assert result3 == GlueProcessState.IDLE

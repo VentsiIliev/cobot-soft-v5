@@ -21,7 +21,10 @@ from modules.utils.custom_logging import LoggerContext
 class TestPauseOperation:
     """Test pause_operation basic functionality."""
 
-    def test_pause_from_executing_state(self, context_with_paths, mock_glue_service, mock_robot_service, logger_context):
+    from unittest.mock import patch, Mock
+
+    def test_pause_from_executing_state(self, context_with_paths, mock_glue_service, mock_robot_service,
+                                        logger_context):
         """pause_operation should pause from EXECUTING_PATH state."""
         context = context_with_paths
         context.service = mock_glue_service
@@ -41,7 +44,9 @@ class TestPauseOperation:
         mock_operation = Mock()
         mock_operation.resume = Mock(return_value=(True, "Resumed"))
 
-        success, message = pause_operation(mock_operation, context, logger_context)
+        # Patch context.get_motor_address_for_current_path to return a valid address
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         assert success is True
         assert "paused" in message.lower()
@@ -62,9 +67,13 @@ class TestPauseOperation:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        pause_operation(mock_operation, context, logger_context)
+
+        # Patch motor address to valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            pause_operation(mock_operation, context, logger_context)
 
         mock_robot_service.stop_motion.assert_called_once()
+
 
     def test_pause_turns_off_pump_and_generator(self, context_with_paths, mock_glue_service, logger_context):
         """pause_operation should turn off pump and generator."""
@@ -80,7 +89,10 @@ class TestPauseOperation:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        pause_operation(mock_operation, context, logger_context)
+
+        # Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            pause_operation(mock_operation, context, logger_context)
 
         # Verify pump off was called
         mock_glue_service.motorOff.assert_called()
@@ -104,6 +116,7 @@ class TestPauseOperation:
         assert success is True
         assert "Resumed" in message
 
+
     def test_pause_saves_paused_from_state(self, context_with_paths, logger_context):
         """pause_operation should save the state from which pause was triggered."""
         context = context_with_paths
@@ -125,7 +138,10 @@ class TestPauseOperation:
             context.state_machine = mock_sm
 
             mock_operation = Mock()
-            pause_operation(mock_operation, context, logger_context)
+
+            # Patch motor address to a valid value for each iteration
+            with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+                pause_operation(mock_operation, context, logger_context)
 
             assert context.paused_from_state == state
 
@@ -155,7 +171,10 @@ class TestPauseWithPumpThread:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        success, message = pause_operation(mock_operation, context, logger_context)
+
+        # Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         assert success is True
         # Pump thread should still be alive (will be stopped by thread itself detecting PAUSED state)
@@ -175,7 +194,10 @@ class TestPauseWithPumpThread:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        success, message = pause_operation(mock_operation, context, logger_context)
+
+        # 🔥 Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         assert success is True
 
@@ -196,7 +218,10 @@ class TestPauseWithPumpThread:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        success, message = pause_operation(mock_operation, context, logger_context)
+
+        # 🔥 Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         assert success is True
 
@@ -255,8 +280,10 @@ class TestPauseOperationErrorHandling:
 
         mock_operation = Mock()
 
-        # Should not raise - exception is caught and logged
-        success, message = pause_operation(mock_operation, context, logger_context)
+        # Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            # Should not raise - exception is caught and logged
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         # Pause should still succeed despite robot stop error
         assert success is True
@@ -291,6 +318,9 @@ class TestPauseOperationParametrized:
         GlueProcessState.SENDING_PATH_POINTS,
         GlueProcessState.TRANSITION_BETWEEN_PATHS,
     ])
+
+
+
     def test_pause_from_various_states(self, context_with_paths, state, logger_context):
         """pause_operation should work from all pausable states."""
         context = context_with_paths
@@ -304,8 +334,12 @@ class TestPauseOperationParametrized:
         context.pump_controller = pump_controller
 
         mock_operation = Mock()
-        success, message = pause_operation(mock_operation, context, logger_context)
+
+        # Patch motor address to a valid value
+        with patch.object(context, "get_motor_address_for_current_path", return_value=1):
+            success, message = pause_operation(mock_operation, context, logger_context)
 
         assert success is True
         assert context.paused_from_state == state
         mock_sm.transition.assert_called_once_with(GlueProcessState.PAUSED)
+

@@ -13,8 +13,7 @@ import os
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from GlueDispensingApplication.CompareContours import _alignContours, _calculateDifferences
-from API.shared.Contour import Contour
+
 
 
 def create_rectangle_contour(center=(400, 300), width=200, height=100):

@@ -25,6 +25,7 @@ def stop_operation(glue_dispensing_operation,context,logger_context):
         # Get motor address for current path
         motor_address = context.get_motor_address_for_current_path()
         if motor_address == -1:
+            context.service.generatorOff()
             log_debug_message(logger_context,
                            message=f"Invalid motor address for current path during stop")
             raise RuntimeError(f"Invalid motor address for current path during stop {motor_address}")
