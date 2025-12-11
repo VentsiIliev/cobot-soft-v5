@@ -29,6 +29,7 @@ from modules.VisionSystem.handlers.contour_detection_handler import handle_conto
 
 # External or domain-specific image processing
 from libs.plvision.PLVision import ImageProcessing
+from modules.VisionSystem.utils import RemoteCamera
 
 # Conditional logging import
 from modules.utils.custom_logging import (
@@ -99,7 +100,10 @@ class VisionSystem:
                                                logger=vision_system_logger,
                                                width=self.camera_settings.get_camera_width(),
                                                height=self.camera_settings.get_camera_height())
+
+
         self.camera, camera_index = camera_initializer.initializeCameraWithRetry(camera_index)
+
         self.camera_settings.set_camera_index(camera_index)
 
         # Load camera calibration data
@@ -218,7 +222,7 @@ class VisionSystem:
         if self.rawMode:
             total_time = time.time() - start_time
             # print(
-                # f"[VisionSystem Timing] Total: {total_time * 1000:.2f}ms | Capture: {capture_time * 1000:.2f}ms | Copy: {copy_time * 1000:.2f}ms | Brightness: {brightness_time * 1000:.2f}ms")
+            # f"[VisionSystem Timing] Total: {total_time * 1000:.2f}ms | Capture: {capture_time * 1000:.2f}ms | Copy: {copy_time * 1000:.2f}ms | Brightness: {brightness_time * 1000:.2f}ms")
             return None, self.rawImage, None
 
         # Timer 4: Processing path
@@ -251,10 +255,11 @@ class VisionSystem:
         # First, undistort the image using camera calibration parameters
         if self.optimal_camera_matrix is None:
             self.optimal_camera_matrix, self.roi = cv2.getOptimalNewCameraMatrix(self.cameraMatrix, self.cameraDist,
-                                                                        (self.camera_settings.get_camera_width(),
-                                                                         self.camera_settings.get_camera_height(),), 0.5,
-                                                                        (self.camera_settings.get_camera_width(),
-                                                                         self.camera_settings.get_camera_height(),))
+                                                                                 (self.camera_settings.get_camera_width(),
+                                                                                  self.camera_settings.get_camera_height(),),
+                                                                                 0.5,
+                                                                                 (self.camera_settings.get_camera_width(),
+                                                                                  self.camera_settings.get_camera_height(),))
         imageParam = ImageProcessing.undistortImage(
             imageParam,
             self.cameraMatrix,

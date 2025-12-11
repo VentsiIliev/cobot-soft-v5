@@ -83,7 +83,9 @@ class CalibrationRobotController:
         self.robot_service.move_to_calibration_position()
 
     def get_current_z_value(self):
-        return self.robot_service.get_current_position()[2]
+        result = self.robot_service.get_current_position()
+        print(f"[CalibrationRobotController] Current Z value: {result} mm")
+        return  result[2]
 
     def get_current_position(self):
         return self.robot_service.get_current_position()

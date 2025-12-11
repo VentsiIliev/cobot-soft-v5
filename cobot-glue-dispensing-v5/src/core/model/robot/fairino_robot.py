@@ -1,7 +1,11 @@
 import platform
 import logging
+from typing import List
 
-from modules.utils.custom_logging import setup_logger, LoggerContext, log_info_message, log_error_message, log_debug_message
+import requests
+
+from modules.utils.custom_logging import setup_logger, LoggerContext, log_info_message, log_error_message, \
+    log_debug_message
 from core.model.robot.IRobot import IRobot
 from core.model.robot.enums.axis import Direction
 from frontend.core.services.domain.RobotService import RobotAxis
@@ -22,6 +26,7 @@ if ENABLE_LOGGING:
 else:
     robot_logger = None
 
+
 class TestRobotWrapper(IRobot):
     """
        A full mock of the Fairino Robot interface.
@@ -32,7 +37,7 @@ class TestRobotWrapper(IRobot):
         print("⚙️  TestRobot initialized (mock robot).")
 
     # --- Motion commands ---
-    def move_cartesian(self, position, tool=0, user=0, vel=100, acc=30,blendR=0):
+    def move_cartesian(self, position, tool=0, user=0, vel=100, acc=30, blendR=0):
         print(f"[MOCK] MoveCart -> pos={position}, tool={tool}, user={user}, vel={vel}, acc={acc}")
         return 0
 
@@ -40,7 +45,7 @@ class TestRobotWrapper(IRobot):
         print(f"[MOCK] MoveL -> pos={position}, tool={tool}, user={user}, vel={vel}, acc={acc}, blendR={blendR}")
         return 0
 
-    def start_jog(self,axis:RobotAxis,direction:Direction,step,vel,acc):
+    def start_jog(self, axis: RobotAxis, direction: Direction, step, vel, acc):
         print(f"[MOCK] StartJOG -> axis={axis}, direction={direction}, step={step}, vel={vel}, acc={acc}")
         return 0
 
@@ -72,10 +77,12 @@ class TestRobotWrapper(IRobot):
         return "TestRobot SDK v1.0"
 
 
+
 class FairinoRobot(IRobot):
     """
       A wrapper for the real robot controller, abstracting motion and I/O operations.
       """
+
     def __init__(self, ip):
         """
                Initializes the robot wrapper and connects to the robot via RPC.
@@ -85,7 +92,7 @@ class FairinoRobot(IRobot):
                """
         self.ip = ip
         self.robot = Robot.RPC(self.ip)  # Real robot - use in production
-        # self.robot = TestRobotWrapper()  # For testing purposes, replace with real robot in production
+        # self.robot = TestRobotWrapper()  # For testing purposes, replace with a real robot in production
         self.logger_context = LoggerContext(logger=robot_logger, enabled=ENABLE_LOGGING)
         if self.robot is not None:
             log_info_message(self.logger_context, f"RobotWrapper initialized for robot at {self.ip}")
@@ -100,9 +107,7 @@ class FairinoRobot(IRobot):
         3 - adaptive speed reduction, default 0"""
         self.overSpeedStrategy = 3
 
-
-
-    def move_cartesian(self,position, tool=0, user=0, vel=30, acc=30,blendR=0):
+    def move_cartesian(self, position, tool=0, user=0, vel=30, acc=30, blendR=0):
         """
               Moves the robot in Cartesian space.
 
@@ -119,10 +124,11 @@ class FairinoRobot(IRobot):
               """
 
         result = self.robot.MoveCart(position, tool, user, vel=vel, acc=acc)
-        log_debug_message(self.logger_context, f"MoveCart to {position} with tool {tool}, user {user}, vel {vel}, acc {acc} -> result: {result}")
+        log_debug_message(self.logger_context,
+                          f"MoveCart to {position} with tool {tool}, user {user}, vel {vel}, acc {acc} -> result: {result}")
         return result
 
-    def move_liner(self,position, tool=0, user=0, vel=30, acc=30, blendR=0):
+    def move_liner(self, position, tool=0, user=0, vel=30, acc=30, blendR=0):
         """
               Executes a linear movement with blending.
 
@@ -139,7 +145,8 @@ class FairinoRobot(IRobot):
               """
 
         result = self.robot.MoveL(position, tool, user, vel=vel, acc=acc, blendR=blendR)
-        log_debug_message(self.logger_context, f"MoveL to {position} with tool {tool}, user {user}, vel {vel}, acc {acc}, blendR {blendR} -> result: {result}")
+        log_debug_message(self.logger_context,
+                          f"MoveL to {position} with tool {tool}, user {user}, vel {vel}, acc {acc}, blendR {blendR} -> result: {result}")
         return result
 
     def get_current_position(self):
@@ -189,7 +196,6 @@ class FairinoRobot(IRobot):
         print(version)
         return version
 
-
     def setDigitalOutput(self, portId, value):
         """
               Sets a digital output pin on the robot.
@@ -198,11 +204,11 @@ class FairinoRobot(IRobot):
                   portId (int): Output port number.
                   value (int): Value to set (0 or 1).
               """
-        result =  self.robot.SetDO(portId, value)
+        result = self.robot.SetDO(portId, value)
         log_debug_message(self.logger_context, f"SetDigitalOutput port {portId} to {value} -> result: {result}")
         return result
 
-    def start_jog(self,axis,direction,step,vel,acc):
+    def start_jog(self, axis, direction, step, vel, acc):
         """
               Starts jogging the robot in a specified axis and direction.
 
@@ -219,8 +225,9 @@ class FairinoRobot(IRobot):
         axis = axis.value
         direction = direction.value
 
-        result = self.robot.StartJOG(ref=4,nb=axis,dir=direction,vel=vel,acc=acc,max_dis=step)
-        log_debug_message(self.logger_context, f"StartJog axis {axis} direction {direction} step {step} vel {vel} acc {acc} -> result: {result}")
+        result = self.robot.StartJOG(ref=4, nb=axis, dir=direction, vel=vel, acc=acc, max_dis=step)
+        log_debug_message(self.logger_context,
+                          f"StartJog axis {axis} direction {direction} step {step} vel {vel} acc {acc} -> result: {result}")
         return result
 
     def stop_motion(self):
@@ -241,4 +248,3 @@ class FairinoRobot(IRobot):
                """
         print(f"RobotWrapper: ResetAllError called")
         return self.robot.ResetAllError()
-
