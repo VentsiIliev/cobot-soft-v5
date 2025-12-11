@@ -111,3 +111,15 @@ class RemoteCamera:
         pass
 
 
+if __name__ == "__main__":
+    # Example usage
+    remote_cam = RemoteCamera("http://192.168.222.178:5000/")
+    while True:
+        frame = remote_cam.capture()
+        if frame is not None:
+            cv2.imshow("Remote Camera", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    remote_cam.close()
+#                                       level=LoggingLevel.INFO,
+#                                        message=f"Camera {cam_id} initialized successfully.",

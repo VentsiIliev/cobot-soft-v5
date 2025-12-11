@@ -29,7 +29,6 @@ from modules.VisionSystem.handlers.contour_detection_handler import handle_conto
 
 # External or domain-specific image processing
 from libs.plvision.PLVision import ImageProcessing
-from modules.VisionSystem.utils import RemoteCamera
 
 # Conditional logging import
 from modules.utils.custom_logging import (
