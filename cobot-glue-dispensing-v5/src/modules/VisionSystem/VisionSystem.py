@@ -79,7 +79,7 @@ class VisionSystem:
             log_debug_message(self.logger_context, message=f"Camera settings provided directly to VisionSystem.init")
 
         else:
-            # Load from config file or use defaults
+            # Load from a config file or use defaults
 
             if configFilePath is not None:
                 config_data = self.settings_manager.loadSettings(configFilePath)

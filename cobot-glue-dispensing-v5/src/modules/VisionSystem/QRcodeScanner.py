@@ -35,16 +35,3 @@ def detect_and_decode_barcode(image):
     print("Returning None")
     return None
 
-
-# VisionSystem = CameraSystem(contourDetection=False)
-#
-# import cv2
-# cap = cv2.VideoCapture(0)
-# while True:
-#     ret, frame = cap.read()
-#     if frame is None:
-#         continue
-#
-#     detect_and_decode_barcode(frame)
-#     cv2.imshow("Barcode Detection", frame)
-#     cv2.waitKey(1)
