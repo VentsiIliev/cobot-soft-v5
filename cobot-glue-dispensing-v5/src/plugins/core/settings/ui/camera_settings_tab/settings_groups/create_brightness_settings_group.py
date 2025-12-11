@@ -4,8 +4,7 @@ from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout, QGridLayout, QGroupBox
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.widgets.SwitchButton import QToggle
 from plugins.core.settings.ui.camera_settings_tab.brightness_area import refresh_brightness_area_display, \
-    reset_brightness_area
-
+    reset_brightness_area, get_brightness_area_status_text, toggle_brightness_area_selection_mode
 
 def create_brightness_settings_group(self):
     """Create a brightness control settings group"""
@@ -71,7 +70,7 @@ def create_brightness_settings_group(self):
     # Define Area button
     self.define_brightness_area_button = MaterialButton("Define Area")
     self.define_brightness_area_button.setMinimumHeight(35)
-    self.define_brightness_area_button.clicked.connect(lambda: self.toggle_brightness_area_selection_mode(True))
+    self.define_brightness_area_button.clicked.connect(lambda: toggle_brightness_area_selection_mode(self, True))
     area_buttons_layout.addWidget(self.define_brightness_area_button)
 
     # Reset Area button
@@ -87,13 +86,13 @@ def create_brightness_settings_group(self):
 
     # Show current area coordinates
     row += 1
-    self.brightness_area_status_label = QLabel(self.get_brightness_area_status_text())
+    self.brightness_area_status_label = QLabel(get_brightness_area_status_text(self))
     self.brightness_area_status_label.setWordWrap(True)
     self.brightness_area_status_label.setStyleSheet("color: #666; font-size: 10px;")
     layout.addWidget(self.brightness_area_status_label, row, 0, 1, 2)
 
     # Update display after initialization
-    QTimer.singleShot(100, refresh_brightness_area_display)
+    QTimer.singleShot(100, lambda: refresh_brightness_area_display(self))
 
     layout.setColumnStretch(1, 1)
     return group

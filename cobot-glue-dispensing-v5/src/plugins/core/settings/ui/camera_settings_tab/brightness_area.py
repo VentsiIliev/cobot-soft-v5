@@ -99,11 +99,11 @@ def update_brightness_area_overlay(self):
 
         # Draw current selection points and area preview
         if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-            self._draw_selection_points(painter)
+            _draw_selection_points(self, painter)
 
             # Draw partial area preview if we have 2 or more points
             if len(self.brightness_area_points) >= 2:
-                self._draw_selection_preview(painter)
+                _draw_selection_preview(self, painter)
 
         painter.end()
 
@@ -169,7 +169,7 @@ def refresh_brightness_area_display(self):
 
         # Update the status label to show the current area
         if hasattr(self, 'brightness_area_status_label'):
-            status_text = self.get_brightness_area_status_text()
+            status_text = get_brightness_area_status_text(self)
             print(f"Setting status label to: {status_text}")
             self.brightness_area_status_label.setText(status_text)
 
@@ -184,6 +184,19 @@ def refresh_brightness_area_display(self):
 def _draw_selection_points(self, painter):
     """Draw the currently selected points during area selection."""
     try:
+        # Get scaling factors to convert from original image coordinates to preview coordinates
+        original_width = self.camera_settings.get_camera_width()
+        original_height = self.camera_settings.get_camera_height()
+
+        # Get the current pixmap dimensions for scaling
+        original_pixmap = getattr(self.camera_preview_label, '_original_pixmap', None)
+        if original_pixmap is None:
+            print("No original pixmap available for coordinate scaling in _draw_selection_points")
+            return
+
+        preview_width = original_pixmap.width()
+        preview_height = original_pixmap.height()
+
         # Set up the drawing style for selection points
         pen = QPen(Qt.GlobalColor.red)
         pen.setWidth(3)
@@ -191,12 +204,14 @@ def _draw_selection_points(self, painter):
         brush = QBrush(Qt.GlobalColor.red)
         painter.setBrush(brush)
 
-        # Draw each selected point
+        # Draw each selected point (scale from original camera coords to preview coords)
         for i, point in enumerate(self.brightness_area_points):
-            x, y = point[0], point[1]
+            # Scale from original camera coordinates to preview coordinates
+            preview_x = int((point[0] / original_width) * preview_width)
+            preview_y = int((point[1] / original_height) * preview_height)
 
             # Draw a point circle
-            painter.drawEllipse(int(x - 5), int(y - 5), 10, 10)
+            painter.drawEllipse(int(preview_x - 5), int(preview_y - 5), 10, 10)
 
             # Draw point number
             font = QFont()
@@ -206,10 +221,72 @@ def _draw_selection_points(self, painter):
 
             # White text on a red background
             painter.setPen(QPen(Qt.GlobalColor.white))
-            painter.drawText(int(x - 5), int(y - 15), f"{i + 1}")
+            painter.drawText(int(preview_x - 5), int(preview_y - 15), f"{i + 1}")
+
+            # Reset pen for the next point
+            painter.setPen(pen)
 
     except Exception as e:
         print(f"Exception in _draw_selection_points: {e}")
+        import traceback
+        traceback.print_exc()
+
+def _draw_selection_preview(self, painter):
+    """Draw preview of the selection area as points are being selected."""
+    try:
+        if len(self.brightness_area_points) < 2:
+            return
+
+        # Get scaling factors to convert from original image coordinates to preview coordinates
+        original_width = self.camera_settings.get_camera_width()
+        original_height = self.camera_settings.get_camera_height()
+
+        # Get the current pixmap dimensions for scaling
+        original_pixmap = getattr(self.camera_preview_label, '_original_pixmap', None)
+        if original_pixmap is None:
+            print("No original pixmap available for coordinate scaling in _draw_selection_preview")
+            return
+
+        preview_width = original_pixmap.width()
+        preview_height = original_pixmap.height()
+
+        # Set up drawing style for preview lines
+        pen = QPen(Qt.GlobalColor.yellow)
+        pen.setWidth(2)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+
+        # Draw lines connecting the selected points
+        from PyQt6.QtCore import QPoint
+        for i in range(len(self.brightness_area_points) - 1):
+            p1 = self.brightness_area_points[i]
+            p2 = self.brightness_area_points[i + 1]
+
+            # Scale from original camera coordinates to preview coordinates
+            preview_x1 = int((p1[0] / original_width) * preview_width)
+            preview_y1 = int((p1[1] / original_height) * preview_height)
+            preview_x2 = int((p2[0] / original_width) * preview_width)
+            preview_y2 = int((p2[1] / original_height) * preview_height)
+
+            painter.drawLine(QPoint(preview_x1, preview_y1), QPoint(preview_x2, preview_y2))
+
+        # If we have 4 points, close the rectangle
+        if len(self.brightness_area_points) == 4:
+            p1 = self.brightness_area_points[3]
+            p2 = self.brightness_area_points[0]
+
+            # Scale from original camera coordinates to preview coordinates
+            preview_x1 = int((p1[0] / original_width) * preview_width)
+            preview_y1 = int((p1[1] / original_height) * preview_height)
+            preview_x2 = int((p2[0] / original_width) * preview_width)
+            preview_y2 = int((p2[1] / original_height) * preview_height)
+
+            painter.drawLine(QPoint(preview_x1, preview_y1), QPoint(preview_x2, preview_y2))
+
+    except Exception as e:
+        print(f"Exception in _draw_selection_preview: {e}")
+        import traceback
+        traceback.print_exc()
 
 def _apply_brightness_overlay_to_pixmap(self, pixmap):
     """
@@ -225,7 +302,7 @@ def _apply_brightness_overlay_to_pixmap(self, pixmap):
         # Determine if we need to draw any overlays
         needs_overlay = False
 
-        # Check if we need to draw saved brightness area (not in selection mode)
+        # Check if we need to draw the saved brightness area (not in selection mode)
         if not self.brightness_area_selection_mode:
             points = self.camera_settings.get_brightness_area_points()
             if points and len(points) == 4:
@@ -235,7 +312,7 @@ def _apply_brightness_overlay_to_pixmap(self, pixmap):
         if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
             needs_overlay = True
 
-        # If no overlay needed, return original pixmap
+        # If no overlay needed, return the original pixmap
         if not needs_overlay:
             return pixmap
 
@@ -253,11 +330,11 @@ def _apply_brightness_overlay_to_pixmap(self, pixmap):
 
         # Draw current selection points and area preview
         if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-            _draw_selection_points(self,painter)
+            _draw_selection_points(self, painter)
 
             # Draw a partial area preview if we have 2 or more points
             if len(self.brightness_area_points) >= 2:
-                self._draw_selection_preview(painter)
+                _draw_selection_preview(self, painter)
 
         painter.end()
 
@@ -285,7 +362,7 @@ def reset_brightness_area(self):
 
         # Update status display
         if hasattr(self, 'brightness_area_status_label'):
-            self.brightness_area_status_label.setText(self.get_brightness_area_status_text())
+            self.brightness_area_status_label.setText(get_brightness_area_status_text(self))
 
         self.showToast("Brightness area reset to defaults")
 
@@ -357,4 +434,3 @@ def handle_brightness_area_point_selection(self, x, y):
 
     except Exception as e:
         print(f"Exception in handle_brightness_area_point_selection: {e}")
-
