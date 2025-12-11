@@ -9,10 +9,10 @@ from typing import Dict, Optional
 
 import requests
 
-from modules.shared.tools.glue_monitor_system.interfaces.interfaces import IWeightDataFetcher, IDataPublisher, IConfigurationManager
-from modules.shared.tools.glue_monitor_system.config.config_validator import GlueMonitorConfig
-from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled
-from modules.shared.tools.glue_monitor_system import error_handling
+from modules.shared.tools.glue_monitor_system.interfaces.protocols import IWeightDataFetcher, IDataPublisher, IConfigurationManager
+from modules.shared.tools.glue_monitor_system.config.validator import GlueMonitorConfig
+from modules.shared.tools.glue_monitor_system.config.loader import log_if_enabled
+from modules.shared.tools.glue_monitor_system.utils import errors
 from modules.utils.custom_logging import LoggingLevel
 
 
@@ -49,7 +49,7 @@ class WeightDataFetcher(IWeightDataFetcher):
             self.fetch_timeout = self._config.global_settings.fetch_timeout_seconds
             
             if self._config.is_test_mode:
-                from modules.shared.tools.glue_monitor_system.testing import mock
+                from modules.shared.tools.glue_monitor_system.testing import mocks
                 mock.init_test_mode(self._config)
                 self.url = f"{self._config.server.base_url}{self._config.endpoints.weights}"
                 print(f"[WeightDataFetcher] Running in TEST mode - using {self.url}")

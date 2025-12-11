@@ -152,7 +152,7 @@ class SelectGlueTypeStep(WizardStep):
         # Load glue types from glue cell configuration
         glue_type_names = []
         try:
-            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+            from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
             cells_manager = GlueCellsManagerSingleton.get_instance()
             glue_type_names = [cell.glueType for cell in cells_manager.cells]
             print(f"Loaded {len(glue_type_names)} glue types from cell configuration")

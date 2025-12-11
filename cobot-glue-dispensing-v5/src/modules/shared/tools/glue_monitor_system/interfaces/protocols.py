@@ -4,7 +4,7 @@ Enables dependency injection and testability.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List
-from modules.shared.tools.glue_monitor_system.config.config_validator import GlueMonitorConfig
+from modules.shared.tools.glue_monitor_system.config.validator import GlueMonitorConfig
 
 
 class IWeightDataFetcher(ABC):

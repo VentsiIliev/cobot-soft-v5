@@ -8,7 +8,7 @@ This service provides the missing link between:
 - How to control it (motor modbus address)
 """
 from typing import Optional
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 from applications.glue_dispensing_application.services.glueSprayService.GlueSprayService import GlueSprayService
 class GlueDispatchService:
     """

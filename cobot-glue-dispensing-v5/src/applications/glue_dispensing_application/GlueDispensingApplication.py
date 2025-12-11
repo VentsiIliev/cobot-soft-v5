@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from communication_layer.api.v1.topics import SystemTopics
 
-from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.services.legacy_fetcher import GlueDataFetcher
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 
 from applications.glue_dispensing_application.pick_and_place_process.pick_and_place_operation import  PickAndPlaceOperation
 from applications.glue_dispensing_application.services.glueSprayService.GlueSprayService import GlueSprayService

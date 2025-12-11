@@ -6,7 +6,7 @@ enabling type-safe communication without circular dependencies.
 """
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional
-from .cell_models import CellConfig, CalibrationConfig, MeasurementConfig
+from .cells import CellConfig, CalibrationConfig, MeasurementConfig
 
 
 @dataclass

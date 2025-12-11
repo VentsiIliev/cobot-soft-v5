@@ -1,7 +1,7 @@
 import inspect
 import logging
 from pathlib import Path
-from modules.shared.tools.glue_monitor_system.config.config_validator import (
+from modules.shared.tools.glue_monitor_system.config.validator import (
     ConfigValidator, GlueMonitorConfig, ConfigurationError
 )
 from modules.utils.custom_logging import LoggingLevel, ColoredFormatter

@@ -222,18 +222,22 @@ class GlueMeterWidget(QWidget):
     def __del__(self):
         """Cleanup when the widget is destroyed"""
         try:
+            from communication_layer.api.v1.topics import GlueCellTopics
+
             print(f">>> GlueMeterWidget {self.id} __del__ called - unsubscribing from MessageBroker")
             broker = MessageBroker()
-            broker.unsubscribe(f"GlueMeter_{self.id}/VALUE", self.updateWidgets)
-            broker.unsubscribe(f"GlueMeter_{self.id}/STATE", self.updateState)
+            broker.unsubscribe(GlueCellTopics.cell_weight(self.id), self.updateWidgets)
+            broker.unsubscribe(GlueCellTopics.cell_state(self.id), self.updateState)
             print(f">>> GlueMeterWidget {self.id} successfully unsubscribed")
         except Exception as e:
             print(f"Error during GlueMeterWidget {self.id} cleanup: {e}")
 
     def closeEvent(self, event) -> None:
+        from communication_layer.api.v1.topics import GlueCellTopics
+
         broker = MessageBroker()
-        broker.unsubscribe(f"GlueMeter_{self.id}/VALUE", self.updateWidgets)
-        broker.unsubscribe(f"GlueMeter_{self.id}/STATE", self.updateState)
+        broker.unsubscribe(GlueCellTopics.cell_weight(self.id), self.updateWidgets)
+        broker.unsubscribe(GlueCellTopics.cell_state(self.id), self.updateState)
         super().closeEvent(event)
 
 

@@ -1,7 +1,7 @@
 import requests
 
 from modules.SensorPublisher import Sensor
-from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
+from modules.shared.tools.glue_monitor_system.services.legacy_fetcher import GlueDataFetcher
 from modules.utils.custom_logging import log_if_enabled, LoggingLevel
 
 
@@ -42,7 +42,7 @@ class GlueMeter(Sensor):
         self.fetcher = GlueDataFetcher()
 
         # Get state from fetcher's state manager
-        from modules.shared.tools.glue_monitor_system.state_management import CellState
+        from modules.shared.tools.glue_monitor_system.core.state_machine import CellState
         self._get_state_from_manager()
 
     def setFetchTimeout(self, timeout):

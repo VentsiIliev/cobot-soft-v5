@@ -28,7 +28,7 @@ def get_default_glue_type() -> str:
         First glue type from configuration, or empty string
     """
     try:
-        from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+        from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 
         cells_manager = GlueCellsManagerSingleton.get_instance()
 

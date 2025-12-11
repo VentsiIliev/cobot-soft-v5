@@ -10,7 +10,6 @@ from PyQt6.QtGui import QPixmap, QIcon, QPalette, QColor
 from PyQt6.QtWidgets import QFrame, QSizePolicy, QSpacerItem, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, \
     QCheckBox, QWidget, QMessageBox, QDialog, QScrollArea, QStyleFactory, QListView
 
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
 from frontend.core.utils.styles.CreateWorkpieceStyles import getStyles
 from frontend.core.utils.styles.CreateWorkpieceStyles import get_input_field_styles
 from frontend.core.utils.styles.CreateWorkpieceStyles import get_popup_view_styles
@@ -21,9 +20,12 @@ from frontend.virtualKeyboard.VirtualKeyboard import FocusLineEdit
 from frontend.core.utils.IconLoader import WORKPIECE_ID_ICON_PATH, WORKPIECE_NAME_ICON_PATH, DESCRIPTION_ICON_PATH, \
     HEIGHT_ICON_PATH, GRIPPER_ID_ICON_PATH, GLUE_TYPE_ICON_PATH, ACCEPT_BUTTON_ICON_PATH, \
     CANCEL_BUTTON_ICON_PATH, GLUE_QTY_ICON_PATH
+
 from modules.shared.tools.enums.Gripper import Gripper
 from modules.shared.tools.enums.Program import Program
 from modules.shared.tools.enums.ToolID import ToolID
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
+
 
 # Assuming the path to stylesheets
 SETTINGS_STYLESHEET = os.path.join("settings.qss")
@@ -422,7 +424,7 @@ class CreateWorkpieceForm(Drawer, QFrame):
         glue_types_list = []
 
         try:
-            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+            from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
             cells_manager = GlueCellsManagerSingleton.get_instance()
             glue_types_list = [cell.glueType for cell in cells_manager.cells]
             print(f"Loaded {len(glue_types_list)} glue types from cell configuration")

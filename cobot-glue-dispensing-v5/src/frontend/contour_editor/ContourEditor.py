@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QFrame, QWidget, QApplication, QMessageBox, QDialog,
 from shapely import Polygon, LineString
 
 from applications.glue_dispensing_application.model.workpiece.GlueWorkpiece import GlueWorkpiece
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 from frontend.contour_editor.widgets.TopbarWidget import TopBarWidget
 
 from .services.CaptureDataHandler import CaptureDataHandler

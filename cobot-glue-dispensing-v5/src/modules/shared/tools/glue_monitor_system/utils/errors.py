@@ -1,4 +1,4 @@
-from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled
+from modules.shared.tools.glue_monitor_system.config.loader import log_if_enabled
 from modules.utils.custom_logging import LoggingLevel
 
 

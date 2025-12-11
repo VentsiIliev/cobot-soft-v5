@@ -5,14 +5,14 @@ Provides dependency injection and centralized component creation.
 from pathlib import Path
 from typing import Optional
 from modules.shared.MessageBroker import MessageBroker
-from communication_layer.api.v1.topics import GlueTopics
-from modules.shared.tools.glue_monitor_system.config.config import load_config
-from modules.shared.tools.glue_monitor_system.config.config_validator import GlueMonitorConfig
-from modules.shared.tools.glue_monitor_system.interfaces.interfaces import (
+from communication_layer.api.v1.topics import GlueCellTopics
+from modules.shared.tools.glue_monitor_system.config.loader import load_config
+from modules.shared.tools.glue_monitor_system.config.validator import GlueMonitorConfig
+from modules.shared.tools.glue_monitor_system.interfaces.protocols import (
     IWeightDataFetcher, IGlueCellsManager, IConfigurationManager, IDataPublisher
 )
-from modules.shared.tools.glue_monitor_system.weight_data_fetcher import WeightDataFetcher
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.services.fetcher import WeightDataFetcher
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 from core.application.ApplicationStorageResolver import get_app_settings_path
 from modules.utils import PathResolver
 
@@ -53,7 +53,7 @@ class DataPublisher(IDataPublisher):
     def __init__(self):
 
         self.broker = MessageBroker()
-        self.topics = GlueTopics
+        self.topics = GlueCellTopics
     
     def publish_weights(self, weights: dict[int, float]) -> None:
         """Publish weight data to relevant topics."""
@@ -63,11 +63,11 @@ class DataPublisher(IDataPublisher):
     def publish_cell_weight(self, cell_id: int, weight: float) -> None:
         """Publish single cell weight."""
         if cell_id == 1:
-            self.broker.publish(self.topics.GLUE_METER_1_VALUE, weight)
+            self.broker.publish(self.topics.CELL_1_WEIGHT, weight)
         elif cell_id == 2:
-            self.broker.publish(self.topics.GLUE_METER_2_VALUE, weight)
+            self.broker.publish(self.topics.CELL_2_WEIGHT, weight)
         elif cell_id == 3:
-            self.broker.publish(self.topics.GLUE_METER_3_VALUE, weight)
+            self.broker.publish(self.topics.CELL_3_WEIGHT, weight)
 
 
 class GlueMonitorServiceFactory:

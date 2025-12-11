@@ -1,6 +1,6 @@
 import numpy as np
 
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 from core.model.workpiece.Workpiece import BaseWorkpiece
 
 

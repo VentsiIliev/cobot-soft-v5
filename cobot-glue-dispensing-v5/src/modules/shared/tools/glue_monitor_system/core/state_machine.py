@@ -121,17 +121,17 @@ class MessageBrokerStatePublisher(IStatePublisher):
 
     def publish_service_state(self, context: StateContext) -> None:
         """Publish service state to MessageBroker"""
-        from communication_layer.api.v1.topics import GlueTopics
-        topic = GlueTopics.GLUE_MONITOR_SERVICE_STATE
+        from communication_layer.api.v1.topics import GlueMonitorServiceTopics
+        topic = GlueMonitorServiceTopics.SERVICE_STATE
         payload = context.to_dict()
         self.broker.publish(topic, payload)
         print(f"[StatePublisher] Service state: {context.current_state} - {context.reason}")
 
     def publish_cell_state(self, context: CellStateContext) -> None:
         """Publish cell state to MessageBroker"""
-        from communication_layer.api.v1.topics import GlueTopics
+        from communication_layer.api.v1.topics import GlueCellTopics
         # Dynamic topic based on cell ID
-        topic = f"glue/cell/{context.cell_id}/state"
+        topic = GlueCellTopics.cell_state(context.cell_id)
         payload = context.to_dict()
         self.broker.publish(topic, payload)
         print(f"[StatePublisher] Cell {context.cell_id} state: {context.current_state} - {context.reason}")

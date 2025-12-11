@@ -4,7 +4,7 @@ from modules import log_if_enabled, LoggingLevel, \
     log_calls_with_timestamp_decorator, setup_logger
 from applications.glue_dispensing_application.glue_process.state_machine.GlueProcessState import \
     GlueProcessTransitionRules, GlueProcessState
-from communication_layer.api.v1.topics import GlueTopics
+from communication_layer.api.v1.topics import GlueProcessTopics
 from modules import MessageBroker
 
 ENABLE_ROBOT_SERVICE_STATE_MACHINE_LOGGING = True
@@ -115,7 +115,7 @@ class GlueProcessStateMachine:
 
     def on_transition_success_callback(self):
         """Hook for actions after successful transition"""
-        self.broker.publish(GlueTopics.PROCESS_STATE, self.current_state)
+        self.broker.publish(GlueProcessTopics.PROCESS_STATE, self.current_state)
 
     def on_invalid_transition_attempt(self, attempted_state: GlueProcessState):
         """Hook for actions on invalid transition attempt"""

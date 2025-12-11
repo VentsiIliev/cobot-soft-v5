@@ -2,7 +2,8 @@ from PyQt6.QtCore import pyqtSignal
 
 from frontend.core.shared.base_widgets.AppWidget import AppWidget
 from communication_layer.api.v1.endpoints import camera_endpoints
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from communication_layer.api.v1.topics import GlueCellTopics
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 
 
 class DashboardAppWidget(AppWidget):
@@ -88,8 +89,8 @@ class DashboardAppWidget(AppWidget):
                                     try:
                                         from modules.shared.MessageBroker import MessageBroker
                                         broker = MessageBroker()
-                                        broker.unsubscribe(f"GlueMeter_{widget.id}/VALUE", widget.updateWidgets)
-                                        broker.unsubscribe(f"GlueMeter_{widget.id}/STATE", widget.updateState)
+                                        broker.unsubscribe(GlueCellTopics.cell_weight(widget.id), widget.updateWidgets)
+                                        broker.unsubscribe(GlueCellTopics.cell_state(widget.id), widget.updateState)
                                         print(f"Successfully unsubscribed GlueMeterWidget {widget.id}")
                                     except Exception as e:
                                         print(f"Error unsubscribing GlueMeterWidget {widget.id}: {e}")
@@ -105,8 +106,8 @@ class DashboardAppWidget(AppWidget):
                                     try:
                                         from modules.shared.MessageBroker import MessageBroker
                                         broker = MessageBroker()
-                                        broker.unsubscribe(f"GlueMeter_{widget.id}/VALUE", widget.updateWidgets)
-                                        broker.unsubscribe(f"GlueMeter_{widget.id}/STATE", widget.updateState)
+                                        broker.unsubscribe(GlueCellTopics.cell_weight(widget.id), widget.updateWidgets)
+                                        broker.unsubscribe(GlueCellTopics.cell_state(widget.id), widget.updateState)
                                         print(f"Successfully unsubscribed GlueMeterWidget {widget.id}")
                                     except Exception as e:
                                         print(f"Error unsubscribing GlueMeterWidget {widget.id}: {e}")
@@ -121,8 +122,8 @@ class DashboardAppWidget(AppWidget):
                                         try:
                                             from modules.shared.MessageBroker import MessageBroker
                                             broker = MessageBroker()
-                                            broker.unsubscribe(f"GlueMeter_{attr_value.id}/VALUE", attr_value.updateWidgets)
-                                            broker.unsubscribe(f"GlueMeter_{attr_value.id}/STATE", attr_value.updateState)
+                                            broker.unsubscribe(GlueCellTopics.cell_weight(attr_value.id), attr_value.updateWidgets)
+                                            broker.unsubscribe(GlueCellTopics.cell_state(attr_value.id), attr_value.updateState)
                                             print(f"Successfully unsubscribed GlueMeterWidget {attr_value.id}")
                                         except Exception as e:
                                             print(f"Error unsubscribing GlueMeterWidget {attr_value.id}: {e}")

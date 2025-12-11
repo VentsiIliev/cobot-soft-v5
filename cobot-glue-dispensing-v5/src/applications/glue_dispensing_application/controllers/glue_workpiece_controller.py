@@ -1,6 +1,6 @@
 from typing_extensions import override
 
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 from applications.glue_dispensing_application.services.workpiece.glue_workpiece_service import GlueWorkpieceService
 from applications.glue_dispensing_application.model.workpiece.GlueWorkpiece import GlueWorkpiece
 from core.controllers.workpiece.BaseWorkpieceController import BaseWorkpieceController

@@ -7,13 +7,13 @@ from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QWidget, QApplication, QHBoxLa
                              QSizePolicy, QComboBox,
                              QScrollArea, QGroupBox, QGridLayout)
 
-from communication_layer.api.v1.topics import GlueTopics
+from communication_layer.api.v1.topics import GlueCellTopics
 from modules.shared.MessageBroker import MessageBroker
-from modules.shared.tools.glue_monitor_system.config.config import (
+from modules.shared.tools.glue_monitor_system.config.loader import (
     UPDATE_SCALE_ENDPOINT, TARE_ENDPOINT, UPDATE_OFFSET_ENDPOINT
 )
-from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.services.legacy_fetcher import GlueDataFetcher
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 from core.application.ApplicationContext import get_core_settings_path
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.core.utils.localization import get_app_translator
@@ -52,10 +52,10 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             
             # Initialize message broker and subscribe to weight topics
             self.broker = MessageBroker()
-            self.broker.subscribe(GlueTopics.GLUE_METER_1_VALUE, self._on_weight1_updated)
-            self.broker.subscribe(GlueTopics.GLUE_METER_2_VALUE, self._on_weight2_updated)
-            self.broker.subscribe(GlueTopics.GLUE_METER_3_VALUE, self._on_weight3_updated)
-            print("Subscribed to GlueMeter weight topics")
+            self.broker.subscribe(GlueCellTopics.CELL_1_WEIGHT, self._on_weight1_updated)
+            self.broker.subscribe(GlueCellTopics.CELL_2_WEIGHT, self._on_weight2_updated)
+            self.broker.subscribe(GlueCellTopics.CELL_3_WEIGHT, self._on_weight3_updated)
+            print("Subscribed to GlueCell weight topics")
             
         except Exception as e:
             print(f"Failed to initialize glue cell system: {e}")
@@ -95,10 +95,10 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         """Unsubscribe from message broker topics to prevent errors after widget destruction"""
         try:
             if hasattr(self, 'broker') and self.broker:
-                self.broker.unsubscribe(GlueTopics.GLUE_METER_1_VALUE, self._on_weight1_updated)
-                self.broker.unsubscribe(GlueTopics.GLUE_METER_2_VALUE, self._on_weight2_updated)
-                self.broker.unsubscribe(GlueTopics.GLUE_METER_3_VALUE, self._on_weight3_updated)
-                print("Unsubscribed from GlueMeter weight topics")
+                self.broker.unsubscribe(GlueCellTopics.CELL_1_WEIGHT, self._on_weight1_updated)
+                self.broker.unsubscribe(GlueCellTopics.CELL_2_WEIGHT, self._on_weight2_updated)
+                self.broker.unsubscribe(GlueCellTopics.CELL_3_WEIGHT, self._on_weight3_updated)
+                print("Unsubscribed from GlueCell weight topics")
         except Exception as e:
             print(f"Error during message broker cleanup: {e}")
 

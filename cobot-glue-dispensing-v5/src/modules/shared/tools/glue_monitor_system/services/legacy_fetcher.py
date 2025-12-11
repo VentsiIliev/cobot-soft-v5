@@ -6,14 +6,14 @@ from pathlib import Path
 
 import requests
 
-from communication_layer.api.v1.topics import GlueTopics
+from communication_layer.api.v1.topics import GlueCellTopics
 from modules.shared.MessageBroker import MessageBroker
-from modules.shared.tools.glue_monitor_system.config.config import log_if_enabled, load_config
+from modules.shared.tools.glue_monitor_system.config.loader import log_if_enabled, load_config
 from modules.utils import PathResolver
 from modules.utils.custom_logging import LoggingLevel
 from core.application.ApplicationStorageResolver import get_app_settings_path
-from modules.shared.tools.glue_monitor_system.testing import mock
-from modules.shared.tools.glue_monitor_system import error_handling
+from modules.shared.tools.glue_monitor_system.testing import mocks
+from modules.shared.tools.glue_monitor_system.utils import errors
 
 def _get_glue_config_path():
     """Get the path to glue cell config using application-specific storage."""
@@ -51,7 +51,7 @@ class GlueDataFetcher:
         self.broker = MessageBroker()
 
         # Initialize state management
-        from modules.shared.tools.glue_monitor_system.state_management import (
+        from modules.shared.tools.glue_monitor_system.core.state_machine import (
             StateManager, MessageBrokerStatePublisher, StateMonitor, CellState
         )
 
@@ -90,9 +90,9 @@ class GlueDataFetcher:
         print(f"[GlueDataFetcher] Running in PRODUCTION mode - using {self.url}")
 
     def publish_weights(self):
-        self.broker.publish(GlueTopics.GLUE_METER_1_VALUE, self.weight1)
-        self.broker.publish(GlueTopics.GLUE_METER_2_VALUE, self.weight2)
-        self.broker.publish(GlueTopics.GLUE_METER_3_VALUE, self.weight3)
+        self.broker.publish(GlueCellTopics.CELL_1_WEIGHT, self.weight1)
+        self.broker.publish(GlueCellTopics.CELL_2_WEIGHT, self.weight2)
+        self.broker.publish(GlueCellTopics.CELL_3_WEIGHT, self.weight3)
 
         # print(f"[GlueDataFetcher] Publishing weights: Cell1={self.weight1}g, Cell2={self.weight2}g, Cell3={self.weight3}g")
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     broker = MessageBroker()
     def print_weight_1(message):
         print(f"Received Weight 1: {message}")
-    broker.subscribe(GlueTopics.GLUE_METER_1_VALUE, print_weight_1)
+    broker.subscribe(GlueCellTopics.CELL_1_WEIGHT, print_weight_1)
 
     while True:
         time.sleep(1)  # Keep the main thread alive

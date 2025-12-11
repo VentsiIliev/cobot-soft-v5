@@ -1,4 +1,4 @@
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 from plugins.core.dashboard.ui.widgets.GlueMeterCard import GlueMeterCard
 from plugins.core.dashboard.ui.config.dashboard_styles import DashboardConfig
 
@@ -16,7 +16,7 @@ class GlueCardFactory:
         card = GlueMeterCard(label_text, index, controller_service=self.controller_service)
 
         # Note: MessageBroker subscriptions are handled inside GlueMeterCard
-        # The card subscribes to GlueMeter_{index}/VALUE, /STATE, and /TYPE
+        # The card subscribes to glue/cell/{index}/weight, /state, and /glue-type
 
         return card
 

@@ -1,7 +1,7 @@
 from applications.glue_dispensing_application.repositories.workpiece.glue_workpiece_json_repository import \
     GlueWorkpieceJsonRepository
 from applications.glue_dispensing_application.model.workpiece.GlueWorkpiece import GlueWorkpiece
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 
 from core.application.ApplicationContext import get_workpiece_storage_path
 class GlueWorkPieceRepositorySingleton:

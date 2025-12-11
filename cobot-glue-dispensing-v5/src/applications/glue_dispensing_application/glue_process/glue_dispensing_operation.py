@@ -29,12 +29,12 @@ from applications.glue_dispensing_application.settings.GlueSettings import GlueS
 
 from applications.glue_dispensing_application.glue_process.state_machine.GlueProcessState import GlueProcessState, \
     GlueProcessTransitionRules
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 
 from modules.utils.custom_logging import log_debug_message, log_error_message, \
     log_calls_with_timestamp_decorator, setup_logger, LoggerContext
 from applications.glue_dispensing_application.glue_process.PumpController import PumpController
-from communication_layer.api.v1.topics import GlueTopics
+from communication_layer.api.v1.topics import GlueProcessTopics
 from core.operation_state_management import OperationResult, IOperation
 from modules.shared.MessageBroker import MessageBroker
 
@@ -299,7 +299,7 @@ class GlueDispensingOperation(IOperation):
         .with_transition_rules(transition_rules)
         .with_state_registry(registry)
         .with_context(self.execution_context)
-        .with_state_topic(GlueTopics.PROCESS_STATE)
+        .with_state_topic(GlueProcessTopics.PROCESS_STATE)
         .build()
         )
 

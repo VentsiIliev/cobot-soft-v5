@@ -1,5 +1,5 @@
-from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
-from modules.shared.tools.glue_monitor_system.glue_meter import GlueMeter
+from modules.shared.tools.glue_monitor_system.services.legacy_fetcher import GlueDataFetcher
+from modules.shared.tools.glue_monitor_system.core.meter import GlueMeter
 
 
 class GlueCell:

@@ -5,14 +5,14 @@ This package contains data models that can be safely imported by both backend an
 avoiding circular dependencies while maintaining type safety and validation.
 """
 
-from .cell_models import (
+from .cells import (
     CalibrationConfig,
-    MeasurementConfig, 
+    MeasurementConfig,
     CellConfig,
     GlueCellsConfig
 )
 
-from .server_models import (
+from .server import (
     ServerConfig,
     EndpointsConfig,
     GlobalSettings,

@@ -2,7 +2,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtWidgets import QFrame
 import datetime
-from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+from modules.shared.tools.glue_monitor_system.core.cell_manager import GlueCellsManagerSingleton
 
 from modules.shared.MessageBroker import MessageBroker
 from plugins.core.dashboard.ui.widgets.GlueMeterWidget import GlueMeterWidget
@@ -158,16 +158,17 @@ class GlueMeterCard(QFrame):
         """)
 
     def subscribe(self) -> None:
-        broker = MessageBroker()
-        broker.subscribe(f"GlueMeter_{self.index}/VALUE", self.meter_widget.updateWidgets)
-        broker.subscribe(f"GlueMeter_{self.index}/STATE", self.meter_widget.updateState)
-        broker.subscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
+        from communication_layer.api.v1.topics import GlueCellTopics
 
-        # Subscribe to cell state from a state management system
-        state_topic = f"glue/cell/{self.index}/state"
-        print(f"[GlueMeterCard {self.index}] Subscribing to state topic: {state_topic}")
-        broker.subscribe(state_topic, self.update_state_indicator)
-        print(f"[GlueMeterCard {self.index}] Successfully subscribed to {state_topic}")
+        broker = MessageBroker()
+        broker.subscribe(GlueCellTopics.cell_weight(self.index), self.meter_widget.updateWidgets)
+        broker.subscribe(GlueCellTopics.cell_state(self.index), self.meter_widget.updateState)
+        broker.subscribe(GlueCellTopics.cell_glue_type(self.index), self.update_glue_type_label)
+
+        # Subscribe to cell state from state management system
+        print(f"[GlueMeterCard {self.index}] Subscribing to state topic: {GlueCellTopics.cell_state(self.index)}")
+        broker.subscribe(GlueCellTopics.cell_state(self.index), self.update_state_indicator)
+        print(f"[GlueMeterCard {self.index}] Successfully subscribed to {GlueCellTopics.cell_state(self.index)}")
 
         # Request current state from GlueDataFetcher
         self.fetch_initial_state()
@@ -178,7 +179,7 @@ class GlueMeterCard(QFrame):
     def fetch_initial_state(self) -> None:
         """Fetch the current state from GlueDataFetcher and update indicator"""
         try:
-            from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
+            from modules.shared.tools.glue_monitor_system.services.legacy_fetcher import GlueDataFetcher
 
             fetcher = GlueDataFetcher()
 
@@ -288,11 +289,13 @@ class GlueMeterCard(QFrame):
             self.glue_type_label.setText("Error loading glue")
 
     def unsubscribe(self) -> None:
+        from communication_layer.api.v1.topics import GlueCellTopics
+
         broker = MessageBroker()
-        broker.unsubscribe(f"GlueMeter_{self.index}/VALUE", self.meter_widget.updateWidgets)
-        broker.unsubscribe(f"GlueMeter_{self.index}/STATE", self.meter_widget.updateState)
-        broker.unsubscribe(f"GlueMeter_{self.index}/TYPE", self.update_glue_type_label)
-        broker.unsubscribe(f"glue/cell/{self.index}/state", self.update_state_indicator)
+        broker.unsubscribe(GlueCellTopics.cell_weight(self.index), self.meter_widget.updateWidgets)
+        broker.unsubscribe(GlueCellTopics.cell_state(self.index), self.meter_widget.updateState)
+        broker.unsubscribe(GlueCellTopics.cell_glue_type(self.index), self.update_glue_type_label)
+        broker.unsubscribe(GlueCellTopics.cell_state(self.index), self.update_state_indicator)
 
     def __del__(self):
         """Cleanup when the widget is destroyed"""

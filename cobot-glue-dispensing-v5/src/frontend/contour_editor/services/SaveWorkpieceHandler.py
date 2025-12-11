@@ -8,7 +8,7 @@ code duplication across the application.
 
 from typing import Dict, Any
 
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 from frontend.dialogs.CustomFeedbackDialog import CustomFeedbackDialog, DialogType
 from frontend.contour_editor.adapters.WorkpieceAdapter import WorkpieceAdapter
 from frontend.contour_editor.EditorDataModel import ContourEditorData

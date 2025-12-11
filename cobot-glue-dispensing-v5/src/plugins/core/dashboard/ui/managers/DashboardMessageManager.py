@@ -1,4 +1,4 @@
-from communication_layer.api.v1.topics import RobotTopics, VisionTopics, SystemTopics
+from communication_layer.api.v1.topics import RobotTopics, VisionTopics, SystemTopics, GlueCellTopics
 from modules.shared.MessageBroker import MessageBroker
 from typing import List, Tuple, Callable
 
@@ -13,8 +13,8 @@ class DashboardMessageManager:
         value_callback = meter.updateWidgets
         state_callback = meter.updateState
 
-        value_topic = f"GlueMeter_{index}/VALUE"
-        state_topic = f"GlueMeter_{index}/STATE"
+        value_topic = GlueCellTopics.cell_weight(index)
+        state_topic = GlueCellTopics.cell_state(index)
 
         self.broker.subscribe(value_topic, value_callback)
         self.broker.subscribe(state_topic, state_callback)

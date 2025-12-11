@@ -229,7 +229,7 @@ class GlueTypesService:
             True if in use, False otherwise
         """
         try:
-            from modules.shared.tools.glue_monitor_system.service_factory import get_service_factory
+            from modules.shared.tools.glue_monitor_system.services.factory import get_service_factory
             cells_manager = get_service_factory().create_cells_manager()
 
             for cell in cells_manager.get_all_cells():
@@ -251,7 +251,7 @@ class GlueTypesService:
             new_name: New glue type name
         """
         try:
-            from modules.shared.tools.glue_monitor_system.service_factory import get_service_factory
+            from modules.shared.tools.glue_monitor_system.services.factory import get_service_factory
             cells_manager = get_service_factory().create_cells_manager()
 
             updated_count = 0
@@ -275,7 +275,7 @@ class GlueTypesService:
             glue_name: Name of deleted glue type
         """
         try:
-            from modules.shared.tools.glue_monitor_system.service_factory import get_service_factory
+            from modules.shared.tools.glue_monitor_system.services.factory import get_service_factory
             cells_manager = get_service_factory().create_cells_manager()
 
             cleared_count = 0

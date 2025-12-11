@@ -6,7 +6,7 @@ All models are immutable (frozen=True) to prevent accidental mutations.
 """
 from dataclasses import dataclass
 from typing import List
-from .cell_models import CellConfig
+from .cells import CellConfig
 
 
 @dataclass(frozen=True)

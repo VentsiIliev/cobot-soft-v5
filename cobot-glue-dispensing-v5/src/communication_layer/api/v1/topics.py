@@ -90,31 +90,91 @@ class PickAndPlaceTopics(TopicCategory):
     PICK_AND_PLACE_STATE = "pick-and-place/state"
 
 
-class GlueTopics(TopicCategory):
-    """Glue dispensing specific topics"""
-    # Glue meter values
-    GLUE_METER_1_VALUE = "GlueMeter_1/VALUE"
-    GLUE_METER_2_VALUE = "GlueMeter_2/VALUE"
-    GLUE_METER_3_VALUE = "GlueMeter_3/VALUE"
+class GlueCellTopics(TopicCategory):
+    """Individual glue cell monitoring topics"""
 
-    # Glue monitor service state
-    GLUE_MONITOR_SERVICE_STATE = "glue/monitor/service/state"
+    # Weight data - standardized naming
+    CELL_1_WEIGHT = "glue/cell/1/weight"
+    CELL_2_WEIGHT = "glue/cell/2/weight"
+    CELL_3_WEIGHT = "glue/cell/3/weight"
 
-    # Glue cell states (per cell)
-    GLUE_CELL_1_STATE = "glue/cell/1/state"
-    GLUE_CELL_2_STATE = "glue/cell/2/state"
-    GLUE_CELL_3_STATE = "glue/cell/3/state"
+    # State information
+    CELL_1_STATE = "glue/cell/1/state"
+    CELL_2_STATE = "glue/cell/2/state"
+    CELL_3_STATE = "glue/cell/3/state"
 
-    PROCESS_STATE = "glue-process/state"
-    GLUE_DISPENSING_LOG = "glue-dispensing/log"
+    # Configuration/metadata
+    CELL_1_GLUE_TYPE = "glue/cell/1/glue-type"
+    CELL_2_GLUE_TYPE = "glue/cell/2/glue-type"
+    CELL_3_GLUE_TYPE = "glue/cell/3/glue-type"
+
+    # Dynamic formatters (for code that iterates)
+    @staticmethod
+    def cell_weight(cell_id: int) -> str:
+        return f"glue/cell/{cell_id}/weight"
+
+    @staticmethod
+    def cell_state(cell_id: int) -> str:
+        return f"glue/cell/{cell_id}/state"
+
+    @staticmethod
+    def cell_glue_type(cell_id: int) -> str:
+        return f"glue/cell/{cell_id}/glue-type"
+
+
+class GlueMonitorServiceTopics(TopicCategory):
+    """Glue monitor service lifecycle topics"""
+
+    # Service state
+    SERVICE_STATE = "glue/monitor/service/state"
+    SERVICE_STARTED = "glue/monitor/service/started"
+    SERVICE_STOPPED = "glue/monitor/service/stopped"
+    SERVICE_ERROR = "glue/monitor/service/error"
+
+    # Aggregated data
+    ALL_CELLS_STATE = "glue/monitor/cells/state"
+    CONNECTION_STATUS = "glue/monitor/connection/status"
+
+    # Configuration
+    CONFIG_UPDATED = "glue/monitor/config/updated"
+
+
+class GlueProcessTopics(TopicCategory):
+    """Glue dispensing process topics"""
+
+    # Process lifecycle
+    PROCESS_STATE = "glue/process/state"
+    PROCESS_STARTED = "glue/process/started"
+    PROCESS_PAUSED = "glue/process/paused"
+    PROCESS_RESUMED = "glue/process/resumed"
+    PROCESS_STOPPED = "glue/process/stopped"
+    PROCESS_COMPLETED = "glue/process/completed"
+    PROCESS_ERROR = "glue/process/error"
+
+    # Progress tracking
+    PROCESS_PROGRESS = "glue/process/progress"
+    PATH_COMPLETED = "glue/process/path/completed"
+
+    # Logging
+    PROCESS_LOG = "glue/process/log"
 
 
 class GlueSprayServiceTopics(TopicCategory):
-    """Glue spray service specific topics"""
-    GENERATOR_ON = "glue-spray/generator-on"
-    GENERATOR_OFF = "glue-spray/generator-off"
-    MOTOR_ON = "glue-spray/motor-on"
-    MOTOR_OFF = "glue-spray/motor-off"
+    """Glue spray equipment control topics"""
+
+    # Generator control
+    GENERATOR_ON = "glue/spray/generator/on"
+    GENERATOR_OFF = "glue/spray/generator/off"
+    GENERATOR_STATE = "glue/spray/generator/state"
+
+    # Motor control
+    MOTOR_ON = "glue/spray/motor/on"
+    MOTOR_OFF = "glue/spray/motor/off"
+    MOTOR_STATE = "glue/spray/motor/state"
+
+    # Fan control
+    FAN_SPEED = "glue/spray/fan/speed"
+    FAN_STATE = "glue/spray/fan/state"
 
 
 class UITopics(TopicCategory):
@@ -133,7 +193,11 @@ class TopicRegistry:
         'system': SystemTopics,
         'robot': RobotTopics,
         'vision': VisionTopics,
-        'glue': GlueTopics,
+        'pick_and_place': PickAndPlaceTopics,
+        'glue_cell': GlueCellTopics,
+        'glue_monitor': GlueMonitorServiceTopics,
+        'glue_process': GlueProcessTopics,
+        'glue_spray': GlueSprayServiceTopics,
         'ui': UITopics
     }
 

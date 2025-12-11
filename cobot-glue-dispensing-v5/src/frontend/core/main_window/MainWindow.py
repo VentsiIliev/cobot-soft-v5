@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QVBoxLayout, QApplication)
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QMessageBox
 
-from applications.glue_dispensing_application.model.workpiece.GlueWorkpieceField import GlueWorkpieceField
+from modules.shared.GlueWorkpieceField import GlueWorkpieceField
 from communication_layer.api.v1.endpoints import workpiece_endpoints, operations_endpoints, robot_endpoints
 from frontend.contour_editor.utils.utils import create_light_gray_pixmap, qpixmap_to_cv
 from frontend.core.shared.base_widgets.AppWidget import AppWidget
