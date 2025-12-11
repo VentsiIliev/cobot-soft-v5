@@ -188,10 +188,9 @@ class DashboardWidget(TranslatableWidget):
                 if card_index in self.glue_cards_dict:
                     card = self.glue_cards_dict[card_index]
                     print(f"Found card with index {card_index}, updating combo to {selected_glue_type}")
-                    card.glue_type_combo.setCurrentText(selected_glue_type)
+                    card.glue_type_label.setText(selected_glue_type)
                 else:
-                    print(f"Warning: Card with index {card_index} not found in dictionary")
-                    print(f"Available card indices: {list(self.glue_cards_dict.keys())}")
+                    raise ValueError(f"Invalid card index: {card_index} or glue type: {selected_glue_type}")
 
                 # Emit signal to update configuration
                 print(f"Emitting glue_type_changed_signal: {card_index}, {selected_glue_type}")
