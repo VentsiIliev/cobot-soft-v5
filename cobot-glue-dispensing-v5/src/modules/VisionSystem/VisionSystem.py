@@ -103,7 +103,7 @@ class VisionSystem:
 
 
         self.camera, camera_index = camera_initializer.initializeCameraWithRetry(camera_index)
-
+        self.camera.set_auto_exposure(True)
         self.camera_settings.set_camera_index(camera_index)
 
         # Load camera calibration data
