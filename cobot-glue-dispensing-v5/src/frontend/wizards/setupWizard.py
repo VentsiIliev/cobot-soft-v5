@@ -6,7 +6,6 @@ from PyQt6.QtGui import QPixmap, QFont, QColor, QIcon
 import sys
 
 from frontend.widgets.MaterialButton import MaterialButton
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 
 class WizardStep(QWizardPage):
@@ -150,20 +149,15 @@ class SelectGlueTypeStep(WizardStep):
         self.glue_group = QButtonGroup(self)
         self.radio_buttons = []
 
-        # Load glue types dynamically from API
+        # Load glue types from glue cell configuration
         glue_type_names = []
         try:
-            glue_type_names = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, trying glue cell configuration")
-            # Fallback: Load from glue cell configuration
-            try:
-                from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-                cells_manager = GlueCellsManagerSingleton.get_instance()
-                glue_type_names = [cell.glueType for cell in cells_manager.cells]
-                print(f"Loaded {len(glue_type_names)} glue types from cell configuration")
-            except Exception as config_error:
-                print(f"Failed to load glue types from configuration: {config_error}")
+            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+            cells_manager = GlueCellsManagerSingleton.get_instance()
+            glue_type_names = [cell.glueType for cell in cells_manager.cells]
+            print(f"Loaded {len(glue_type_names)} glue types from cell configuration")
+        except Exception as config_error:
+            print(f"Failed to load glue types from configuration: {config_error}")
 
         # ✅ NO HARDCODED FALLBACKS - Show error if no types available
         if not glue_type_names:

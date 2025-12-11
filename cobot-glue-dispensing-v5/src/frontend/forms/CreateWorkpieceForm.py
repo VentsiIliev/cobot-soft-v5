@@ -418,22 +418,16 @@ class CreateWorkpieceForm(Drawer, QFrame):
                 self.add_input_field(field, placeholder, icon_path)
 
         # Dropdown fields
-        # Load glue types dynamically from API
-        from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
+        # Load glue types from glue cell configuration
         glue_types_list = []
 
         try:
-            glue_types_list = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, trying configuration")
-            # Fallback: Load from glue cell configuration
-            try:
-                from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-                cells_manager = GlueCellsManagerSingleton.get_instance()
-                glue_types_list = [cell.glueType for cell in cells_manager.cells]
-                print(f"Loaded {len(glue_types_list)} glue types from cell configuration")
-            except Exception as config_error:
-                print(f"Failed to load glue types from configuration: {config_error}")
+            from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
+            cells_manager = GlueCellsManagerSingleton.get_instance()
+            glue_types_list = [cell.glueType for cell in cells_manager.cells]
+            print(f"Loaded {len(glue_types_list)} glue types from cell configuration")
+        except Exception as config_error:
+            print(f"Failed to load glue types from configuration: {config_error}")
 
         # ✅ NO HARDCODED FALLBACKS - Prompt user to configure glue types
         if not glue_types_list:

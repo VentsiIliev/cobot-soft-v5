@@ -14,7 +14,6 @@ from modules.shared.tools.glue_monitor_system.config.config import (
 )
 from modules.shared.tools.glue_monitor_system.data_fetcher import GlueDataFetcher
 from modules.shared.tools.glue_monitor_system.glue_cells_manager import GlueCellsManagerSingleton
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 from core.application.ApplicationContext import get_core_settings_path
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.core.utils.localization import get_app_translator
@@ -272,25 +271,15 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         label = QLabel("Glue Type:")
         label.setWordWrap(True)
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
-        
+
         self.glue_type_dropdown = QComboBox()
         self.glue_type_dropdown.setMinimumHeight(40)
         self.glue_type_dropdown.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        # Populate with available glue types from API
-        try:
-            available_types = get_all_glue_type_names()
-            print(f"Loaded glue types from API: {available_types}")
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            available_types = ["Type A", "Type B", "Type C", "Type D"]
 
-        # Add a default empty option and "Custom" option for flexibility
-        if available_types:
-            self.glue_type_dropdown.addItems(available_types)
-            print(f"Glue type dropdown populated with {len(available_types)} types: {available_types}")
-        else:
-            print("Warning: No glue types available, using fallback")
-            self.glue_type_dropdown.addItems(["Type A", "Type B", "Type C", "Type D"])
+        # Populate with available glue types from API via controller_service
+        available_types = self._fetch_glue_types()
+        self.glue_type_dropdown.addItems(available_types)
+        print(f"Glue type dropdown populated with {len(available_types)} types: {available_types}")
 
         layout.addWidget(self.glue_type_dropdown, row, 1)
 
@@ -628,8 +617,36 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             "min_weight_threshold": cell_dto['measurement']['min_weight_threshold'],
             "max_weight_threshold": cell_dto['measurement']['max_weight_threshold']
         }
-        
+
         print(f"Parsed cell {cell_id}: {cell_dto['type']}, capacity={cell_dto['capacity']}g, motor={cell_dto.get('motor_address', 0)}")
+
+    def _fetch_glue_types(self):
+        """Fetch glue types from the controller via endpoints"""
+        if not self.controller_service:
+            raise RuntimeError("[GlueCellSettingsTabLayout] controller_service is required to fetch glue types")
+
+        try:
+            from communication_layer.api.v1.endpoints import glue_endpoints
+            from communication_layer.api.v1.Response import Response
+
+            # Get the request sender from the controller
+            controller = self.controller_service.get_controller()
+            response_dict = controller.requestSender.send_request(glue_endpoints.GLUE_TYPES_GET)
+            response = Response.from_dict(response_dict)
+
+            if response.status == 'success' and response.data:
+                glue_types_data = response.data.get('glue_types', [])
+                # Extract just the names
+                glue_type_names = [gt.get('name') for gt in glue_types_data if gt.get('name')]
+                print(f"[GlueCellSettingsTabLayout] Fetched {len(glue_type_names)} glue types: {glue_type_names}")
+                return glue_type_names
+            else:
+                raise RuntimeError(f"[GlueCellSettingsTabLayout] Failed to fetch glue types: {response.message}")
+        except Exception as e:
+            print(f"[GlueCellSettingsTabLayout] Error fetching glue types: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
 
     def update_cell_settings(self):

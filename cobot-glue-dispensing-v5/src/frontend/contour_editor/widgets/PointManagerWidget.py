@@ -15,7 +15,6 @@ from frontend.contour_editor.widgets.LayerButtonsWidget import LayerButtonsWidge
 from frontend.contour_editor.widgets.SegmentButtonsAndComboWidget import SegmentButtonsAndComboWidget
 from PyQt6.QtWidgets import QApplication
 
-from applications.glue_dispensing_application.services.glue.glue_type_migration import get_all_glue_type_names
 
 RESOURCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..","icons")
 HIDE_ICON = os.path.join(RESOURCE_DIR, "hide.png")
@@ -510,12 +509,16 @@ class PointManagerWidget(QWidget):
         inputKeys.append(RobotSettingKey.VELOCITY.value)
         inputKeys.append(RobotSettingKey.ACCELERATION.value)
 
-        # Get dynamic glue types from API instead of using enum
-        try:
-            glue_type_names = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
+        # Get glue types from contour editor (fetched via settings manager)
+        # Ask the contour editor's settings manager to fetch the latest glue types
+        if not self.contour_editor or not hasattr(self.contour_editor, 'settings_manager'):
+            raise RuntimeError("[PointManagerWidget] Cannot fetch glue types: contour editor or settings manager not available")
+
+        self.contour_editor.settings_manager._fetch_glue_types()
+        glue_type_names = self.contour_editor.glue_type_names
+
+        if not glue_type_names:
+            raise RuntimeError("[PointManagerWidget] Failed to fetch glue types from controller")
 
         comboEnums = [[GlueSettingKey.GLUE_TYPE.value, glue_type_names]]
 

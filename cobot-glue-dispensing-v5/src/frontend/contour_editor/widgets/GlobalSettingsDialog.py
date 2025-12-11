@@ -7,7 +7,7 @@ from frontend.contour_editor.widgets.SegmentSettingsWidget import SegmentSetting
 
 
 class GlobalSettingsDialog(QDialog):
-    def __init__(self, point_manager_widget, parent=None):
+    def __init__(self, point_manager_widget,glue_type_names, parent=None):
         super().__init__(parent)
         self.point_manager_widget = point_manager_widget
         self.contour_editor = point_manager_widget.contour_editor
@@ -32,14 +32,8 @@ class GlobalSettingsDialog(QDialog):
         
         inputKeys.append(RobotSettingKey.VELOCITY.value)
         inputKeys.append(RobotSettingKey.ACCELERATION.value)
-        
-        # Get dynamic glue types from API instead of using enum
-        try:
-            glue_type_names = get_all_glue_type_names()
-        except Exception as e:
-            print(f"Failed to load glue types from API: {e}, using defaults")
-            glue_type_names = ["Type A", "Type B", "Type C", "Type D"]
 
+        glue_type_names = self.glue_type_names
         # Pass glue type names as a list instead of enum class
         comboEnums = [[GlueSettingKey.GLUE_TYPE.value, glue_type_names]]
 

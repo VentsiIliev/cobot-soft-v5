@@ -9,8 +9,9 @@ from frontend.contour_editor.widgets.GlobalSettingsDialog import GlobalSettingsD
 
 
 class SettingsManager:
-    def __init__(self, editor):
+    def __init__(self, editor,glue_type_names):
         self.editor = editor
+        self.glue_type_names = glue_type_names
         self.point_manager_widget = None  # Will be set later by parent
 
         # Load and apply initial settings
@@ -94,6 +95,8 @@ class SettingsManager:
     
     def show_global_settings(self):
         """Show the global settings dialog (Ctrl+G)"""
+        # Fetch the latest glue types before showing the dialog
+        self._fetch_glue_types()
 
         # Use the stored point_manager_widget reference
         if self.point_manager_widget:
@@ -101,7 +104,7 @@ class SettingsManager:
             screen_geometry = screen.geometry()
             screen_width = screen_geometry.width()
             screen_height = screen_geometry.height()
-            dialog = GlobalSettingsDialog(self.point_manager_widget, parent=self.editor)
+            dialog = GlobalSettingsDialog(self.point_manager_widget,self.glue_type_names, parent=self.editor)
             dialog.setMinimumWidth(screen_width)
             dialog.setMinimumHeight(int(screen_height / 2))
             dialog.setMaximumHeight(int(screen_height / 2))
@@ -109,3 +112,33 @@ class SettingsManager:
             dialog.show()
         else:
             raise ValueError("[SettingsManager] point_manager_widget is not set - cannot open global settings dialog")
+
+    def _fetch_glue_types(self):
+        """Fetch glue types from the controller via endpoints"""
+        # Navigate up to find the parent with controller
+        parent = self.editor.parent
+        if not parent or not hasattr(parent, 'controller'):
+            raise RuntimeError("[SettingsManager] Cannot fetch glue types: parent controller not available")
+
+        try:
+            from communication_layer.api.v1.endpoints import glue_endpoints
+            from communication_layer.api.v1.Response import Response
+
+            controller = parent.controller
+            response_dict = controller.requestSender.send_request(glue_endpoints.GLUE_TYPES_GET)
+            response = Response.from_dict(response_dict)
+
+            if response.status == "success" and response.data:
+                glue_types_data = response.data.get("glue_types", [])
+                # Extract just the names
+                self.glue_type_names = [gt.get("name") for gt in glue_types_data if gt.get("name")]
+                # Update the editor's glue_type_names as well
+                self.editor.glue_type_names = self.glue_type_names
+                print(f"[SettingsManager] Fetched {len(self.glue_type_names)} glue types: {self.glue_type_names}")
+            else:
+                raise RuntimeError(f"[SettingsManager] Failed to load glue types: {response.message}")
+        except Exception as e:
+            print(f"[SettingsManager] Error fetching glue types: {e}")
+            import traceback
+            traceback.print_exc()
+            raise

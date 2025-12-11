@@ -23,12 +23,15 @@ from modules.shared.core.contour_editor.BezierSegmentManager import BezierSegmen
 class ContourEditor(QFrame):
     pointsUpdated = pyqtSignal()
     update_camera_feed_requested = pyqtSignal()
-
+    glue_type_names_list_requested = pyqtSignal()
     def __init__(self, visionSystem, image_path=None, contours=None, parent=None, workpiece: BaseWorkpiece = None):
         super().__init__()
 
+        # Initialize glue type names (will be fetched via controller when needed)
+        self.glue_type_names = []
+
         # Initialize all managers first to avoid AttributeError during Qt events
-        self.settings_manager = SettingsManager(self)
+        self.settings_manager = SettingsManager(self,self.glue_type_names)
         self.event_manager = EventManager(self)  # Initialize early for event handling
         self.renderer = EditorRenderer(self)
         self.mode_manager = ModeManager(self)
