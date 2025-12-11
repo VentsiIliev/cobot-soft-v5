@@ -23,14 +23,14 @@ from .widgets.SlidingPanel import SlidingPanel
 from .utils.utils import shrink_contour_points, generate_spray_pattern
 from frontend.forms.CreateWorkpieceForm import CreateWorkpieceForm
 from frontend.dialogs.CustomFeedbackDialog import CustomFeedbackDialog, DialogType
-from communication_layer.api.v1.endpoints import glue_endpoints
-from communication_layer.api.v1.Response import Response
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 class MainApplicationFrame(QFrame):
     capture_requested = pyqtSignal()
     update_camera_feed_requested = pyqtSignal()
     save_workpiece_requested = pyqtSignal(dict)
+    execute_workpiece_requested = pyqtSignal(object)  # Signal to request workpiece execution
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
@@ -463,27 +463,28 @@ class MainApplicationFrame(QFrame):
         Validates glue types before proceeding.
         """
 
-        # ✅ Step 1: Fetch all registered glue types via API endpoint
-        registered_glue_types = []
-        try:
+        # ✅ Step 1: Request glue types via signal (will be fetched by ContourEditorAppWidget)
+        print("[onStart] Requesting glue types via signal...")
+        if hasattr(self.contourEditor, 'editor_with_rulers'):
+            if hasattr(self.contourEditor.editor_with_rulers, 'editor'):
+                editor = self.contourEditor.editor_with_rulers.editor
+                if hasattr(editor, 'fetch_glue_types_requested'):
+                    editor.fetch_glue_types_requested.emit()
+                    # Wait briefly for signal to be processed (Qt event loop)
+                    QApplication.processEvents()
 
-
-            # Get glue types through proper architecture
-            controller = self.parent.controller
-            response_dict = controller.requestSender.send_request(glue_endpoints.GLUE_TYPES_GET)
-            response = Response.from_dict(response_dict)
-
-            if response.status == "success" and response.data:
-                glue_types_data = response.data.get("glue_types", [])
-                # Extract just the names
-                registered_glue_types = [gt.get("name") for gt in glue_types_data if gt.get("name")]
-                print(f"[onStart] Registered glue types: {registered_glue_types}")
+                    # Get the updated glue types
+                    registered_glue_types = editor.glue_type_names
+                    print(f"[onStart] Registered glue types: {registered_glue_types}")
+                else:
+                    print("[onStart] ERROR: fetch_glue_types_requested signal not found")
+                    registered_glue_types = []
             else:
-                print(f"[onStart] Error loading glue types: {response.message}")
-        except Exception as e:
-            print(f"[onStart] Error loading glue types from API: {e}")
-            import traceback
-            traceback.print_exc()
+                print("[onStart] ERROR: editor not found")
+                registered_glue_types = []
+        else:
+            print("[onStart] ERROR: editor_with_rulers not found")
+            registered_glue_types = []
 
         # ✅ Step 2: Check if any glue types are registered
         if not registered_glue_types:
@@ -598,7 +599,8 @@ class MainApplicationFrame(QFrame):
         wp = GlueWorkpiece.from_dict(complete_data)
         print("Workpiece created:", wp)
         print("Start button pressed: CONTOUR EDITOR ")
-        self.parent.controller.handleExecuteFromGallery(wp)
+        # Emit signal to request execution instead of direct controller call
+        self.execute_workpiece_requested.emit(wp)
 
     def on_workpiece_save_clicked(self):
         """Handle the second save button click - save the workpiece"""

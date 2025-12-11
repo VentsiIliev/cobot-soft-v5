@@ -7,10 +7,11 @@ from frontend.contour_editor.widgets.SegmentSettingsWidget import SegmentSetting
 
 
 class GlobalSettingsDialog(QDialog):
-    def __init__(self, point_manager_widget,glue_type_names, parent=None):
+    def __init__(self, point_manager_widget, glue_type_names, parent=None):
         super().__init__(parent)
         self.point_manager_widget = point_manager_widget
         self.contour_editor = point_manager_widget.contour_editor
+        self.glue_type_names = glue_type_names  # Store glue_type_names
         self.setWindowTitle("Global Settings")
         self.setMinimumWidth(500)
         self.setMinimumHeight(700)

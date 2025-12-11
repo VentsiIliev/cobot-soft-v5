@@ -27,10 +27,17 @@ class ContourEditorAppWidget(AppWidget):
             self.content_widget = MainApplicationFrame(parent=self.parent)
             print(f"✅ MainApplicationFrame created: {type(self.content_widget)}")
             
-            # Connect signals
+            # Inject controller into content_widget for backward compatibility
+            self.content_widget.controller = self.controller
+
+            # Connect signals for data requests - handle all controller/service calls here
+            self._connect_editor_signals()
+
+            # Connect other signals
             self.content_widget.capture_requested.connect(self.on_camera_capture_requested)
             self.content_widget.update_camera_feed_requested.connect(self.on_update_camera_feed_requested)
             self.content_widget.save_workpiece_requested.connect(lambda data: self.via_camera_on_create_workpiece_submit(data))
+            self.content_widget.execute_workpiece_requested.connect(self.on_execute_workpiece_requested)
             print("✅ Contour editor signals connected")
             
             # Replace the last widget in the layout (the placeholder) with the real widget
@@ -57,6 +64,55 @@ class ContourEditorAppWidget(AppWidget):
             import traceback
             traceback.print_exc()
             print(f"Contour Editor failed to load due to error: {e}, using placeholder")
+
+    def _connect_editor_signals(self):
+        """Connect signals from nested editors to handle data requests centrally"""
+        # Navigate to the innermost editor
+        if hasattr(self.content_widget, 'contourEditor'):
+            if hasattr(self.content_widget.contourEditor, 'editor_with_rulers'):
+                if hasattr(self.content_widget.contourEditor.editor_with_rulers, 'editor'):
+                    editor = self.content_widget.contourEditor.editor_with_rulers.editor
+
+                    # Connect fetch_glue_types signal
+                    if hasattr(editor, 'fetch_glue_types_requested'):
+                        editor.fetch_glue_types_requested.connect(self.on_fetch_glue_types_requested)
+                        print("✅ Connected fetch_glue_types_requested signal")
+
+                    # Connect glue_types_received to update editor's list
+                    if hasattr(editor, 'glue_types_received'):
+                        editor.glue_types_received.connect(lambda types: setattr(editor, 'glue_type_names', types))
+                        print("✅ Connected glue_types_received signal")
+
+    def on_fetch_glue_types_requested(self):
+        """Handle request to fetch glue types - centralized controller access"""
+        print("[ContourEditorAppWidget] Fetching glue types via ControllerService...")
+        try:
+            from frontend.core.services import ControllerService
+
+            controller_service = ControllerService(self.controller)
+            result = controller_service.settings.get_glue_types()
+
+            if result.success and result.data:
+                # Extract just the names
+                glue_type_names = [gt.get("name") for gt in result.data if gt.get("name")]
+                print(f"[ContourEditorAppWidget] Fetched {len(glue_type_names)} glue types")
+
+                # Update the editor via signal
+                if hasattr(self.content_widget, 'contourEditor'):
+                    if hasattr(self.content_widget.contourEditor, 'editor_with_rulers'):
+                        if hasattr(self.content_widget.contourEditor.editor_with_rulers, 'editor'):
+                            editor = self.content_widget.contourEditor.editor_with_rulers.editor
+                            editor.glue_type_names = glue_type_names
+                            # Emit signal with the data
+                            if hasattr(editor, 'glue_types_received'):
+                                editor.glue_types_received.emit(glue_type_names)
+            else:
+                print(f"[ContourEditorAppWidget] Failed to fetch glue types: {result.message}")
+        except Exception as e:
+            print(f"[ContourEditorAppWidget] Error fetching glue types: {e}")
+            import traceback
+            traceback.print_exc()
+
 
 
     def on_update_camera_feed_requested(self):
@@ -178,3 +234,13 @@ class ContourEditorAppWidget(AppWidget):
 
     def load_workpiece(self,workpiece):
         self.content_widget.contourEditor.load_workpiece(workpiece)
+
+    def on_execute_workpiece_requested(self, workpiece):
+        """Handle workpiece execution request - centralized controller access"""
+        print(f"[ContourEditorAppWidget] Executing workpiece via controller: {workpiece}")
+        try:
+            self.controller.handleExecuteFromGallery(workpiece)
+        except Exception as e:
+            print(f"[ContourEditorAppWidget] Error executing workpiece: {e}")
+            import traceback
+            traceback.print_exc()

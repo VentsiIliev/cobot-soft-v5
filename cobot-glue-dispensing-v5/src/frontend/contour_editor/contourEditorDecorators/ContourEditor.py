@@ -24,6 +24,9 @@ class ContourEditor(QFrame):
     pointsUpdated = pyqtSignal()
     update_camera_feed_requested = pyqtSignal()
     glue_type_names_list_requested = pyqtSignal()
+    fetch_glue_types_requested = pyqtSignal()  # Signal to request glue types from controller
+    glue_types_received = pyqtSignal(list)  # Signal to receive glue types (list of names)
+
     def __init__(self, visionSystem, image_path=None, contours=None, parent=None, workpiece: BaseWorkpiece = None):
         super().__init__()
 

@@ -114,31 +114,14 @@ class SettingsManager:
             raise ValueError("[SettingsManager] point_manager_widget is not set - cannot open global settings dialog")
 
     def _fetch_glue_types(self):
-        """Fetch glue types from the controller via endpoints"""
-        # Navigate up to find the parent with controller
-        parent = self.editor.parent
-        if not parent or not hasattr(parent, 'controller'):
-            raise RuntimeError("[SettingsManager] Cannot fetch glue types: parent controller not available")
+        """Request glue types via signal - controller will handle the fetch and respond"""
+        print("[SettingsManager] Requesting glue types via signal...")
 
-        try:
-            from communication_layer.api.v1.endpoints import glue_endpoints
-            from communication_layer.api.v1.Response import Response
-
-            controller = parent.controller
-            response_dict = controller.requestSender.send_request(glue_endpoints.GLUE_TYPES_GET)
-            response = Response.from_dict(response_dict)
-
-            if response.status == "success" and response.data:
-                glue_types_data = response.data.get("glue_types", [])
-                # Extract just the names
-                self.glue_type_names = [gt.get("name") for gt in glue_types_data if gt.get("name")]
-                # Update the editor's glue_type_names as well
-                self.editor.glue_type_names = self.glue_type_names
-                print(f"[SettingsManager] Fetched {len(self.glue_type_names)} glue types: {self.glue_type_names}")
-            else:
-                raise RuntimeError(f"[SettingsManager] Failed to load glue types: {response.message}")
-        except Exception as e:
-            print(f"[SettingsManager] Error fetching glue types: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
+        # Emit signal to request glue types from parent controller
+        if hasattr(self.editor, 'fetch_glue_types_requested'):
+            self.editor.fetch_glue_types_requested.emit()
+            # Update local list from editor (will be populated by signal response)
+            self.glue_type_names = self.editor.glue_type_names
+            print(f"[SettingsManager] Current glue types count: {len(self.glue_type_names)}")
+        else:
+            raise RuntimeError("[SettingsManager] Editor does not have fetch_glue_types_requested signal")
