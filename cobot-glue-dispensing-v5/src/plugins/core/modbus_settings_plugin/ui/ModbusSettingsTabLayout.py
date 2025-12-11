@@ -5,8 +5,11 @@ from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QWidget, QHBoxLayout,
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.widgets.ToastWidget import ToastWidget
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
+
+
 class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
     value_changed_signal = pyqtSignal(str, object, str)
+
     def __init__(self, parent_widget=None, controller_service=None):
         BaseSettingsTabLayout.__init__(self, parent_widget)
         QVBoxLayout.__init__(self)
@@ -20,6 +23,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.create_main_content()
         # Connect auto-save signals
         self._connect_auto_save_signals()
+
     def _load_settings_from_endpoints(self):
         """Load Modbus settings via controller_service and endpoints"""
         if not self.controller_service:
@@ -42,7 +46,6 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             import traceback
             traceback.print_exc()
 
-
     def create_main_content(self):
         """Create the main UI content"""
         # Create scroll area
@@ -62,6 +65,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         content_layout.addStretch()
         scroll_area.setWidget(content_widget)
         self.addWidget(scroll_area)
+
     def create_connection_group(self):
         """Create serial connection settings group"""
         group = QGroupBox("Serial Connection")
@@ -133,6 +137,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.addWidget(self.parity_dropdown, row, 1)
         group.setLayout(layout)
         return group
+
     def create_communication_group(self):
         """Create Modbus communication settings group"""
         group = QGroupBox("Modbus Settings")
@@ -173,6 +178,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.addWidget(self.max_retries_spinbox, row, 1)
         group.setLayout(layout)
         return group
+
     def create_advanced_group(self):
         """Create advanced settings group"""
         group = QGroupBox("Advanced Settings")
@@ -187,6 +193,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.addWidget(info_label)
         group.setLayout(layout)
         return group
+
     def create_test_group(self):
         """Create connection test group"""
         group = QGroupBox("Connection Test")
@@ -205,21 +212,30 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         layout.addWidget(self.status_label)
         group.setLayout(layout)
         return group
+
     def _connect_auto_save_signals(self):
         """Connect all input widgets to auto-save"""
         self.port_input.textChanged.connect(lambda: self._on_field_changed('port', self.port_input.text()))
-        self.baudrate_dropdown.currentTextChanged.connect(lambda: self._on_field_changed('baudrate', int(self.baudrate_dropdown.currentText())))
-        self.bytesize_dropdown.currentTextChanged.connect(lambda: self._on_field_changed('bytesize', int(self.bytesize_dropdown.currentText())))
-        self.stopbits_dropdown.currentTextChanged.connect(lambda: self._on_field_changed('stopbits', int(float(self.stopbits_dropdown.currentText()))))
+        self.baudrate_dropdown.currentTextChanged.connect(
+            lambda: self._on_field_changed('baudrate', int(self.baudrate_dropdown.currentText())))
+        self.bytesize_dropdown.currentTextChanged.connect(
+            lambda: self._on_field_changed('bytesize', int(self.bytesize_dropdown.currentText())))
+        self.stopbits_dropdown.currentTextChanged.connect(
+            lambda: self._on_field_changed('stopbits', int(float(self.stopbits_dropdown.currentText()))))
         self.parity_dropdown.currentIndexChanged.connect(self._on_parity_changed)
-        self.slave_address_spinbox.valueChanged.connect(lambda: self._on_field_changed('slave_address', self.slave_address_spinbox.value()))
-        self.timeout_spinbox.valueChanged.connect(lambda: self._on_field_changed('timeout', self.timeout_spinbox.value()))
-        self.max_retries_spinbox.valueChanged.connect(lambda: self._on_field_changed('max_retries', self.max_retries_spinbox.value()))
+        self.slave_address_spinbox.valueChanged.connect(
+            lambda: self._on_field_changed('slave_address', self.slave_address_spinbox.value()))
+        self.timeout_spinbox.valueChanged.connect(
+            lambda: self._on_field_changed('timeout', self.timeout_spinbox.value()))
+        self.max_retries_spinbox.valueChanged.connect(
+            lambda: self._on_field_changed('max_retries', self.max_retries_spinbox.value()))
+
     def _on_parity_changed(self, index):
         """Handle parity change"""
         parity_values = ['N', 'E', 'O', 'M', 'S']
         parity = parity_values[index] if index < len(parity_values) else 'N'
         self._on_field_changed('parity', parity)
+
     def _on_field_changed(self, field, value):
         """Handle field change and save via endpoint"""
         if not self.controller_service:
@@ -250,6 +266,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             import traceback
             traceback.print_exc()
             self.showToast(f"❌ Error updating {field}")
+
     def _on_test_connection(self):
         """Test Modbus connection"""
         self.status_label.setText("Testing connection...")
@@ -263,11 +280,13 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             response = Response.from_dict(response_dict)
             if response.status == 'success':
                 self.status_label.setText(f"✅ Connection successful!\n{response.message}")
-                self.status_label.setStyleSheet("padding: 15px; background: #d4edda; border-radius: 5px; color: #155724;")
+                self.status_label.setStyleSheet(
+                    "padding: 15px; background: #d4edda; border-radius: 5px; color: #155724;")
                 self.showToast("✅ Modbus connection successful")
             else:
                 self.status_label.setText(f"❌ Connection failed:\n{response.message}")
-                self.status_label.setStyleSheet("padding: 15px; background: #f8d7da; border-radius: 5px; color: #721c24;")
+                self.status_label.setStyleSheet(
+                    "padding: 15px; background: #f8d7da; border-radius: 5px; color: #721c24;")
                 self.showToast("❌ Connection test failed")
         except Exception as e:
             self.status_label.setText(f"❌ Error testing connection:\n{str(e)}")
@@ -278,6 +297,7 @@ class ModbusSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             traceback.print_exc()
         finally:
             self.test_button.setEnabled(True)
+
     def showToast(self, message):
         """Show toast notification"""
         if hasattr(self, 'parent_widget') and self.parent_widget:

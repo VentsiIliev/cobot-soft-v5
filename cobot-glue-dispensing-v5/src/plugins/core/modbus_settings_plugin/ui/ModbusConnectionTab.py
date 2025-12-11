@@ -30,6 +30,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             print("Warning: controller_service not available, using defaults")
             self._use_default_config()
             return
+
         try:
             print("Loading Modbus settings via SettingsService...")
             result = self.controller_service.settings.get_modbus_settings()
@@ -40,10 +41,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
                 print(f"Failed to load Modbus config: {result.message}")
                 self._use_default_config()
         except Exception as e:
-            print(f"Error loading Modbus settings: {e}")
-            import traceback
-            traceback.print_exc()
-            self._use_default_config()
+            raise RuntimeError(f"Error loading Modbus settings: {e}")
 
     def _use_default_config(self):
         """Use default configuration"""
@@ -64,11 +62,13 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         # Create content widget
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(20)
+
         # Add groups
         content_layout.addWidget(self.create_connection_group())
         content_layout.addWidget(self.create_communication_group())
@@ -76,6 +76,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         content_layout.addWidget(self.create_test_group())
         content_layout.addStretch()
         scroll_area.setWidget(content_widget)
+
         self.addWidget(scroll_area)
 
     def create_connection_group(self):
@@ -85,6 +86,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         layout.setSpacing(15)
         layout.setColumnStretch(1, 1)
         row = 0
+
         # Serial Port
         label = QLabel("Serial Port:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -106,6 +108,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
 
         layout.addLayout(port_layout, row, 1)
         row += 1
+
         # Baudrate
         label = QLabel("Baudrate:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -118,6 +121,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             self.baudrate_dropdown.setCurrentIndex(index)
         layout.addWidget(self.baudrate_dropdown, row, 1)
         row += 1
+
         # Bytesize
         label = QLabel("Data Bits:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -130,6 +134,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             self.bytesize_dropdown.setCurrentIndex(index)
         layout.addWidget(self.bytesize_dropdown, row, 1)
         row += 1
+
         # Stopbits
         label = QLabel("Stop Bits:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -142,6 +147,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
             self.stopbits_dropdown.setCurrentIndex(index)
         layout.addWidget(self.stopbits_dropdown, row, 1)
         row += 1
+
         # Parity
         label = QLabel("Parity:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -160,6 +166,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.parity_dropdown.setCurrentIndex(index)
         layout.addWidget(self.parity_dropdown, row, 1)
         group.setLayout(layout)
+
         return group
 
     def create_communication_group(self):
@@ -169,6 +176,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         layout.setSpacing(15)
         layout.setColumnStretch(1, 1)
         row = 0
+
         # Slave Address
         label = QLabel("Slave Address:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -179,6 +187,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.slave_address_spinbox.setMinimumHeight(40)
         layout.addWidget(self.slave_address_spinbox, row, 1)
         row += 1
+
         # Timeout
         label = QLabel("Timeout (seconds):")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -191,6 +200,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.timeout_spinbox.setMinimumHeight(40)
         layout.addWidget(self.timeout_spinbox, row, 1)
         row += 1
+
         # Max Retries
         label = QLabel("Max Retries:")
         layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -201,6 +211,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.max_retries_spinbox.setMinimumHeight(40)
         layout.addWidget(self.max_retries_spinbox, row, 1)
         group.setLayout(layout)
+
         return group
 
     def create_advanced_group(self):
@@ -216,6 +227,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         info_label.setStyleSheet("color: #ff9800; padding: 10px;")
         layout.addWidget(info_label)
         group.setLayout(layout)
+
         return group
 
     def create_test_group(self):
@@ -223,11 +235,13 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         group = QGroupBox("Connection Test")
         layout = QVBoxLayout()
         layout.setSpacing(15)
+
         # Test button
         self.test_button = MaterialButton("Test Connection")
         self.test_button.setMinimumHeight(50)
         self.test_button.clicked.connect(self._on_test_connection)
         layout.addWidget(self.test_button)
+
         # Status label
         self.status_label = QLabel("Click 'Test Connection' to verify Modbus communication")
         self.status_label.setWordWrap(True)
@@ -235,6 +249,7 @@ class ModbusConnectionTab(BaseSettingsTabLayout, QVBoxLayout):
         self.status_label.setStyleSheet("padding: 15px; background: #f5f5f5; border-radius: 5px;")
         layout.addWidget(self.status_label)
         group.setLayout(layout)
+
         return group
 
     def _connect_auto_save_signals(self):
