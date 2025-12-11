@@ -45,7 +45,7 @@ class ModbusClient:
         try:
             self.client: minimalmodbus.Instrument = minimalmodbus.Instrument(port, self.slave, debug=False)
         except Exception as e:
-            raise Exception(f"Не може да се отвори порт {port}. Проверете връзката и настройките на порта.") from e
+            raise Exception(f"ERROR Can not open port {port}. Check the connection and port settings.") from e
 
         self.client.serial.baudrate = baudrate
         self.client.serial.bytesize = bytesize
@@ -76,7 +76,7 @@ class ModbusClient:
                 except Exception as e:
                     modbus_error = ModbusExceptionType.from_exception(e)
                     print(
-                        f"ModbusClient.writeRegister -> Грешка при запис в регистър {register}: {e} - {modbus_error.name}: {modbus_error.description()}")
+                        f"ModbusClient.writeRegister -> ERROR writing register {register}: {e} - {modbus_error.name}: {modbus_error.description()}")
                     import traceback
                     traceback.print_exc()
                     attempts += 1
@@ -136,7 +136,7 @@ class ModbusClient:
                     values = self.client.read_registers(start_register, count)
                     return values, None
                 except Exception as e:
-                    print(f"ModbusClient.readRegisters -> Грешка при четене на регистрите: {e}")
+                    print(f"ModbusClient.readRegisters -> ERROR reading registers: {e}")
                     modbus_error = ModbusExceptionType.from_exception(e)
                     attempts += 1
                     if attempts >= self.max_retries:
