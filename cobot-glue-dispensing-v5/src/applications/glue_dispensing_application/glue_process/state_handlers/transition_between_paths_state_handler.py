@@ -6,7 +6,7 @@ from collections import namedtuple
 TransitionResult = namedtuple(
     "TransitionResult",
     [
-        "handled",           # whether transition was valid and completed
+        "handled",           # whether the transition was valid and completed
         "next_state",        # next state (STARTING or COMPLETED)
         "next_path_index",   # index for the next path
         "next_point_index",  # starting point index (usually 0)
@@ -29,20 +29,18 @@ def handle_transition_between_paths(context,logger_context,turn_off_pump_between
     # ✅ Optional: Turn off motor between paths
     if turn_off_pump_between_paths:
         if context.motor_started and context.spray_on:
-            try:
-                log_debug_message(logger_context, message="Turning off motor between paths...")
+            log_debug_message(logger_context, message="Turning off motor between paths...")
 
-                # Get motor address for current path
-                motor_address = context.get_motor_address_for_current_path()
-                if motor_address == -1:
-                    log_error_message(logger_context, message=f"Invalid motor address for current path during transition")
-                    raise RuntimeError(f"Invalid motor address for current path during transition {motor_address}")
+            # Get motor address for current path
+            motor_address = context.get_motor_address_for_current_path()
+            if motor_address == -1:
+                log_error_message(logger_context, message=f"Invalid motor address for current path during transition")
+                raise RuntimeError(f"Invalid motor address for current path during transition {motor_address}")
 
-                context.pump_controller.pump_off(context.service,context.robot_service,motor_address,context.current_settings)
-                context.motor_started = False
-                log_debug_message(logger_context, message="Motor stopped successfully.")
-            except Exception as e:
-                log_error_message(logger_context, message=f"Error stopping motor: {e}")
+            context.pump_controller.pump_off(context.service,context.robot_service,motor_address,context.current_settings)
+            context.motor_started = False
+            log_debug_message(logger_context, message="Motor stopped successfully.")
+
 
     # ✅ Decide next state
     if next_path_index >= len(context.paths):
