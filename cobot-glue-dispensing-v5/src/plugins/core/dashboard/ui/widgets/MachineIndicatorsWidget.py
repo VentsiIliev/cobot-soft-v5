@@ -8,9 +8,10 @@ from PyQt6.QtWidgets import (
     QMainWindow
 )
 
+from communication_layer.api.v1.topics import VisionTopics
 from modules.shared.MessageBroker import MessageBroker
 from frontend.widgets.LanguageSelectorWidget import LanguageSelectorWidget
-from communication_layer.api.v1 import VisionTopics
+
 
 class MachineState(Enum):
     STOPPED = "STOPPED"

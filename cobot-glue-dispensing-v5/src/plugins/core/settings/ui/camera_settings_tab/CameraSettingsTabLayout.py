@@ -13,6 +13,10 @@ from modules.shared.MessageBroker import MessageBroker
 from plugins.core.settings.ui.BaseSettingsTabLayout import BaseSettingsTabLayout
 import cv2
 from frontend.core.utils.localization import TranslationKeys, get_app_translator
+from plugins.core.settings.ui.camera_settings_tab.brightness_area import _draw_saved_brightness_area, \
+    update_brightness_area_overlay, toggle_brightness_area_selection_mode, _draw_selection_points, \
+    _apply_brightness_overlay_to_pixmap, get_brightness_area_status_text, finish_brightness_area_selection, \
+    handle_brightness_area_point_selection
 from plugins.core.settings.ui.camera_settings_tab.camera_frame_processor import CameraFrameProcessor
 from plugins.core.settings.ui.camera_settings_tab.settings_groups.create_aruco_settings_group import \
     create_aruco_settings_group
@@ -103,63 +107,6 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         broker.subscribe(topic=VisionTopics.LATEST_IMAGE,
                          callback=self._on_vision_frame_received)
 
-    def _apply_brightness_overlay_to_pixmap(self, pixmap):
-        """
-        Apply brightness area overlay to the given pixmap and return the modified pixmap.
-
-        Args:
-            pixmap: The QPixmap to apply overlay to
-
-        Returns:
-            QPixmap with overlay applied, or original if no overlay needed
-        """
-        try:
-            # Determine if we need to draw any overlays
-            needs_overlay = False
-
-            # Check if we need to draw saved brightness area (not in selection mode)
-            if not self.brightness_area_selection_mode:
-                points = self.camera_settings.get_brightness_area_points()
-                if points and len(points) == 4:
-                    needs_overlay = True
-
-            # Check if we need to draw selection elements
-            if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-                needs_overlay = True
-
-            # If no overlay needed, return original pixmap
-            if not needs_overlay:
-                return pixmap
-
-            # Create a copy to draw on
-            overlay_pixmap = pixmap.copy()
-
-            from PyQt6.QtGui import QPainter
-
-            painter = QPainter(overlay_pixmap)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            # Draw saved brightness area (if exists and not in selection mode)
-            if not self.brightness_area_selection_mode:
-                self._draw_saved_brightness_area(painter)
-
-            # Draw current selection points and area preview
-            if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-                self._draw_selection_points(painter)
-
-                # Draw partial area preview if we have 2 or more points
-                if len(self.brightness_area_points) >= 2:
-                    self._draw_selection_preview(painter)
-
-            painter.end()
-
-            return overlay_pixmap
-
-        except Exception as e:
-            print(f"Exception in _apply_brightness_overlay_to_pixmap: {e}")
-            import traceback
-            traceback.print_exc()
-            return pixmap  # Return original on error
 
     def _on_frame_processed(self, pixmap):
         """
@@ -182,7 +129,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
                     # Store original only when needed
                     self.camera_preview_label._original_pixmap = pixmap
                     # Apply brightness area overlay
-                    final_pixmap = self._apply_brightness_overlay_to_pixmap(pixmap)
+                    final_pixmap = _apply_brightness_overlay_to_pixmap(self,pixmap)
                 else:
                     # No overlay needed - use pixmap directly (no copy!)
                     final_pixmap = pixmap
@@ -518,7 +465,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
             # Handle brightness area selection mode
             if self.brightness_area_selection_mode:
-                self.handle_brightness_area_point_selection(scaled_x, scaled_y)
+                handle_brightness_area_point_selection(self,scaled_x, scaled_y)
                 return
 
             # Default behavior: show pixel info
@@ -537,218 +484,6 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
             self.showToast(f"(R,G,B) = ({r},{g},{b}) ; Grayscale = {gray}")
         except Exception as e:
             print(f"Exception in on_preview_clicked: {e}")
-
-    def handle_brightness_area_point_selection(self, x, y):
-        """Handle point selection for brightness area definition."""
-        try:
-            # Add the point to our temporary list
-            self.brightness_area_points.append([x, y])
-            point_num = len(self.brightness_area_points)
-            
-            self.showToast(f"Point {point_num}/4 selected: ({x}, {y})")
-            
-            # Check if we have collected all points
-            if len(self.brightness_area_points) >= self.brightness_area_max_points:
-                self.finish_brightness_area_selection()
-            else:
-                # Update visual feedback for partial selection
-                self.update_brightness_area_overlay()
-                
-        except Exception as e:
-            print(f"Exception in handle_brightness_area_point_selection: {e}")
-
-    def finish_brightness_area_selection(self):
-        """Complete brightness area selection and save points."""
-        try:
-            if len(self.brightness_area_points) == 4:
-                # Save the points to camera settings
-                from core.model.settings.enums.CameraSettingKey import CameraSettingKey
-                self.camera_settings.set_brightness_area_points(self.brightness_area_points)
-                
-                # Emit value changed signals for each point to trigger settings save
-                for i, point in enumerate(self.brightness_area_points):
-                    key = [CameraSettingKey.BRIGHTNESS_AREA_P1.value, CameraSettingKey.BRIGHTNESS_AREA_P2.value,
-                           CameraSettingKey.BRIGHTNESS_AREA_P3.value, CameraSettingKey.BRIGHTNESS_AREA_P4.value][i]
-                    self.value_changed_signal.emit(key, point, self.className)
-                
-                self.showToast("Brightness area saved successfully!")
-                
-                # Update status display
-                if hasattr(self, 'brightness_area_status_label'):
-                    self.brightness_area_status_label.setText(self.get_brightness_area_status_text())
-                
-                # Exit selection mode
-                self.toggle_brightness_area_selection_mode(False)
-            else:
-                self.showToast("Error: Need exactly 4 points for brightness area")
-                
-        except Exception as e:
-            print(f"Exception in finish_brightness_area_selection: {e}")
-            self.showToast(f"Error saving brightness area: {e}")
-
-    def toggle_brightness_area_selection_mode(self, enable=None):
-        """Toggle brightness area selection mode on/off."""
-        try:
-            if enable is None:
-                enable = not self.brightness_area_selection_mode
-                
-            self.brightness_area_selection_mode = enable
-            
-            if enable:
-                # Starting selection mode
-                self.brightness_area_points = []
-                self.showToast("Select 4 corner points for brightness area")
-                self.update_brightness_area_overlay()
-            else:
-                # Exiting selection mode
-                self.brightness_area_points = []
-                self.update_brightness_area_overlay()
-                
-        except Exception as e:
-            print(f"Exception in toggle_brightness_area_selection_mode: {e}")
-            import traceback
-            traceback.print_exc()
-
-    def update_brightness_area_overlay(self):
-        """Update visual overlay to show current brightness area and selection state."""
-        try:
-            if not hasattr(self, 'camera_preview_label'):
-                return
-            
-            # Get the current pixmap from the camera preview
-            original_pixmap = getattr(self.camera_preview_label, '_original_pixmap', None)
-            if original_pixmap is None:
-                # If no original pixmap stored, use current pixmap as base
-                current_pixmap = self.camera_preview_label.pixmap()
-                if current_pixmap is not None:
-                    original_pixmap = current_pixmap.copy()
-                else:
-                    return
-            
-            # Determine if we need to draw any overlays
-            needs_overlay = False
-            
-            # Check if we need to draw saved brightness area (not in selection mode)
-            if not self.brightness_area_selection_mode:
-                points = self.camera_settings.get_brightness_area_points()
-                if points and len(points) == 4:
-                    needs_overlay = True
-            
-            # Check if we need to draw selection elements
-            if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-                needs_overlay = True
-            
-            # If no overlay needed, just update with original pixmap
-            if not needs_overlay:
-                self.update_camera_preview(original_pixmap)
-                return
-            
-            # Create a copy to draw on
-            overlay_pixmap = original_pixmap.copy()
-            
-            from PyQt6.QtGui import QPainter, QPen, QBrush, QFont
-            from PyQt6.QtCore import Qt
-            
-            painter = QPainter(overlay_pixmap)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            
-            # Draw saved brightness area (if exists and not in selection mode)
-            if not self.brightness_area_selection_mode:
-                self._draw_saved_brightness_area(painter)
-            
-            # Draw current selection points and area preview
-            if self.brightness_area_selection_mode and len(self.brightness_area_points) > 0:
-                self._draw_selection_points(painter)
-                
-                # Draw partial area preview if we have 2 or more points
-                if len(self.brightness_area_points) >= 2:
-                    self._draw_selection_preview(painter)
-            
-            painter.end()
-            
-            # Update the camera preview with the overlay using proper scaling
-            self.update_camera_preview(overlay_pixmap)
-            
-        except Exception as e:
-            print(f"Exception in update_brightness_area_overlay: {e}")
-
-    def _draw_saved_brightness_area(self, painter):
-        """Draw the currently saved brightness area."""
-        try:
-            points = self.camera_settings.get_brightness_area_points()
-            if points and len(points) == 4:
-                # Get scaling factors to convert from original image coordinates to preview coordinates
-                original_width = self.camera_settings.get_camera_width()
-                original_height = self.camera_settings.get_camera_height()
-                
-                # Get the current pixmap dimensions for scaling
-                original_pixmap = getattr(self.camera_preview_label, '_original_pixmap', None)
-                if original_pixmap is None:
-                    print("No original pixmap available for coordinate scaling")
-                    return
-                    
-                preview_width = original_pixmap.width()
-                preview_height = original_pixmap.height()
-                
-                # Scale points from original camera coordinates to preview coordinates
-                scaled_points = []
-                for p in points:
-                    preview_x = int((p[0] / original_width) * preview_width)
-                    preview_y = int((p[1] / original_height) * preview_height)
-                    scaled_points.append([preview_x, preview_y])
-                
-                # Set up drawing style for saved area
-                pen = QPen(Qt.GlobalColor.green)
-                pen.setWidth(2)
-                pen.setStyle(Qt.PenStyle.SolidLine)
-                painter.setPen(pen)
-                
-                # Draw the rectangle connecting the 4 scaled points
-                from PyQt6.QtCore import QPoint
-                from PyQt6.QtGui import QPolygon
-                
-                qpoints = [QPoint(int(p[0]), int(p[1])) for p in scaled_points]
-                polygon = QPolygon(qpoints)
-                painter.drawPolygon(polygon)
-                
-                # Label it at the center of scaled points
-                center_x = sum(p[0] for p in scaled_points) // 4
-                center_y = sum(p[1] for p in scaled_points) // 4
-                
-
-
-        except Exception as e:
-            print(f"Exception in _draw_saved_brightness_area: {e}")
-
-    def _draw_selection_points(self, painter):
-        """Draw the currently selected points during area selection."""
-        try:
-            # Set up drawing style for selection points
-            pen = QPen(Qt.GlobalColor.red)
-            pen.setWidth(3)
-            painter.setPen(pen)
-            brush = QBrush(Qt.GlobalColor.red)
-            painter.setBrush(brush)
-            
-            # Draw each selected point
-            for i, point in enumerate(self.brightness_area_points):
-                x, y = point[0], point[1]
-                
-                # Draw point circle
-                painter.drawEllipse(int(x-5), int(y-5), 10, 10)
-                
-                # Draw point number
-                font = QFont()
-                font.setPointSize(12)
-                font.setBold(True)
-                painter.setFont(font)
-                
-                # White text on red background
-                painter.setPen(QPen(Qt.GlobalColor.white))
-                painter.drawText(int(x-5), int(y-15), f"{i+1}")
-                
-        except Exception as e:
-            print(f"Exception in _draw_selection_points: {e}")
 
     def _draw_selection_preview(self, painter):
         """Draw preview of area being selected."""
@@ -781,91 +516,6 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         """Store the original pixmap before overlay modifications."""
         if hasattr(self, 'camera_preview_label'):
             self.camera_preview_label._original_pixmap = pixmap.copy()
-
-    def refresh_brightness_area_display(self):
-        """Refresh the brightness area display to show current saved settings."""
-        try:
-            print("=== Refreshing brightness area display ===")
-            
-            # Force reload the camera settings from the saved file to get latest values
-            try:
-                from core.application.ApplicationContext import get_core_settings_path
-                import json
-                from pathlib import Path
-                
-                # Load the actual saved settings from file
-                camera_settings_path = get_core_settings_path("camera_settings.json")
-                if Path(camera_settings_path).exists():
-                    with open(camera_settings_path, 'r') as f:
-                        saved_data = json.load(f)
-                    
-                    print(f"Loaded settings from file: {saved_data}")
-                    
-                    # Update our camera settings instance with the saved data
-                    if saved_data:
-                        self.camera_settings.updateSettings(saved_data)
-                        print("Updated camera_settings instance with saved data")
-                    
-            except Exception as e:
-                print(f"Error reloading camera settings: {e}")
-            
-            points = self.camera_settings.get_brightness_area_points()
-            print(f"Current brightness area points from settings: {points}")
-            
-            # Update the status label to show current area
-            if hasattr(self, 'brightness_area_status_label'):
-                status_text = self.get_brightness_area_status_text()
-                print(f"Setting status label to: {status_text}")
-                self.brightness_area_status_label.setText(status_text)
-            
-            # Update the visual overlay to show current area
-            self.update_brightness_area_overlay()
-            
-        except Exception as e:
-            print(f"Exception in refresh_brightness_area_display: {e}")
-            import traceback
-            traceback.print_exc()
-
-    def reset_brightness_area(self):
-        """Reset brightness area to default values."""
-        try:
-            # Reset to default hardcoded values from brightness_manager.py
-            default_points = [[940, 612], [1004, 614], [1004, 662], [940, 660]]
-            self.camera_settings.set_brightness_area_points(default_points)
-            
-            # Emit value changed signals for each point to trigger settings save
-            from core.model.settings.enums.CameraSettingKey import CameraSettingKey
-            for i, point in enumerate(default_points):
-                key = [CameraSettingKey.BRIGHTNESS_AREA_P1.value, CameraSettingKey.BRIGHTNESS_AREA_P2.value,
-                       CameraSettingKey.BRIGHTNESS_AREA_P3.value, CameraSettingKey.BRIGHTNESS_AREA_P4.value][i]
-                self.value_changed_signal.emit(key, point, self.className)
-            
-            # Update status display
-            if hasattr(self, 'brightness_area_status_label'):
-                self.brightness_area_status_label.setText(self.get_brightness_area_status_text())
-            
-            self.showToast("Brightness area reset to defaults")
-            
-        except Exception as e:
-            print(f"Exception in reset_brightness_area: {e}")
-            self.showToast(f"Error resetting area: {e}")
-
-    def get_brightness_area_status_text(self):
-        """Get status text showing current brightness area points."""
-        try:
-            points = self.camera_settings.get_brightness_area_points()
-            if points and len(points) == 4:
-                # Format points nicely
-                point_strs = [f"({p[0]},{p[1]})" for p in points]
-                status = f"Area: {' → '.join(point_strs)}"
-                return status
-            else:
-                return "Area: Not defined"
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"get_brightness_area_status_text: Exception = {e}")
-            return f"Area: Error ({e})"
 
     def on_threshold_preview_clicked(self, x, y):
         """Handle threshold preview clicks"""

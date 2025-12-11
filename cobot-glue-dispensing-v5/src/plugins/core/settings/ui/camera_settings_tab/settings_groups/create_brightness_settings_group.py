@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import QLabel, QWidget, QHBoxLayout, QGridLayout, QGroupBox
 
 from frontend.widgets.MaterialButton import MaterialButton
 from frontend.widgets.SwitchButton import QToggle
+from plugins.core.settings.ui.camera_settings_tab.brightness_area import refresh_brightness_area_display, \
+    reset_brightness_area
 
 
 def create_brightness_settings_group(self):
@@ -75,7 +77,7 @@ def create_brightness_settings_group(self):
     # Reset Area button
     self.reset_brightness_area_button = MaterialButton("Reset")
     self.reset_brightness_area_button.setMinimumHeight(35)
-    self.reset_brightness_area_button.clicked.connect(self.reset_brightness_area)
+    self.reset_brightness_area_button.clicked.connect(lambda: reset_brightness_area(self))
     area_buttons_layout.addWidget(self.reset_brightness_area_button)
 
     # Create widget to hold button layout
@@ -91,7 +93,7 @@ def create_brightness_settings_group(self):
     layout.addWidget(self.brightness_area_status_label, row, 0, 1, 2)
 
     # Update display after initialization
-    QTimer.singleShot(100, self.refresh_brightness_area_display)
+    QTimer.singleShot(100, refresh_brightness_area_display)
 
     layout.setColumnStretch(1, 1)
     return group
