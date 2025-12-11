@@ -77,7 +77,7 @@ class GlueCellSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         self.create_main_content()
 
-        # Connect to parent widget resize events if possible (like CalibrationSettingsTab does)
+        # Connect to the parent widget resize events if possible (like CalibrationSettingsTab does)
         if self.parent_widget:
             self.parent_widget.resizeEvent = self.on_parent_resize
 

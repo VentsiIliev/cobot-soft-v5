@@ -32,7 +32,7 @@ class GlueSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
 
         self.dropdown = None
         self.parent_widget = parent_widget
-        self.glue_types_name = glue_types
+        self.glue_type_names = glue_types
         self.glueSprayService = GlueSprayService(glueSettings)
         self.glueDispatchService = GlueDispatchService(self.glueSprayService)
         self.translator = get_app_translator()

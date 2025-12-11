@@ -157,7 +157,7 @@ class SettingsContent(BackgroundWidget):
         self.robotSettingsTab.setLayout(robot_tab_layout)
 
     def _create_glue_tab(self):
-        """Create glue settings tab."""
+        """Create the glue settings tab."""
         self.glueSettingsTab = BackgroundTabPage()
         self.addTab(self.glueSettingsTab, "")
 

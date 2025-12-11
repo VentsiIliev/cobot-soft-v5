@@ -211,6 +211,31 @@ class SettingsService:
             traceback.print_exc()
             return ServiceResult.error_result(error_msg)
 
+    def get_glue_types(self) -> ServiceResult:
+        """Get all registered glue types"""
+        try:
+            print("[SettingsService] Fetching glue types...")
+
+            glue_types_request = glue_endpoints.GLUE_TYPES_GET
+            glue_types_response_dict = self.controller.requestSender.send_request(glue_types_request)
+            glue_types_response = Response.from_dict(glue_types_response_dict)
+
+            if glue_types_response.status == Constants.RESPONSE_STATUS_SUCCESS:
+                # Extract glue_types list from response data
+                glue_types = glue_types_response.data.get("glue_types", [])
+                return ServiceResult.success_result(
+                    "Glue types retrieved successfully",
+                    data=glue_types
+                )
+            else:
+                return ServiceResult.error_result(f"Failed to retrieve glue types: {glue_types_response.message}")
+
+        except Exception as e:
+            error_msg = f"Failed to retrieve glue types: {str(e)}"
+            import traceback
+            traceback.print_exc()
+            return ServiceResult.error_result(error_msg)
+
     def get_modbus_settings(self) -> ServiceResult:
         """Get Modbus configuration settings"""
         try:
