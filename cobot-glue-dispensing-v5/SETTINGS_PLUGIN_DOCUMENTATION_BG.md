@@ -373,7 +373,26 @@ src/plugins/core/settings/
 │   ├── SettingsContent.py             # Tab контейнер
 │   ├── BaseSettingsTabLayout.py       # Базов клас за tabs
 │   ├── CameraSettingsTabLayout.py     # Camera tab
-│   ├── GlueCellSettingsTabLayout.py   # Glue cells tab
+│   ├── GlueCellSettingsTabLayout.py   # Glue cells tab (DEPRECATED - use glue_cell_settings_tab/)
+│   │
+│   ├── glue_cell_settings_tab/        # Нова модулна архитектура (v2.0)
+│   │   ├── GlueCellSettingsUI.py      # Главен widget (DUMB - само емитира сигнали)
+│   │   ├── models/                    # Dataclass модели
+│   │   │   ├── cell_config.py         # CellConfig, ConnectionSettings, etc.
+│   │   │   └── monitoring_state.py    # MonitoringState, CellStatus
+│   │   ├── groups/                    # UI групи (DUMB компоненти)
+│   │   │   ├── base.py                # GlueCellSettingGroupBox
+│   │   │   ├── cell_selector.py       # CellSelectorGroup
+│   │   │   ├── connection_settings.py # ConnectionSettingsGroup
+│   │   │   ├── calibration_settings.py# CalibrationSettingsGroup
+│   │   │   ├── measurement_settings.py# MeasurementSettingsGroup
+│   │   │   └── monitoring_display.py  # MonitoringDisplayGroup
+│   │   ├── sub_tabs/                  # Tab композиция
+│   │   │   ├── configuration_tab.py   # ConfigurationTab (групира connection + calibration + measurement)
+│   │   │   └── monitoring_tab.py      # MonitoringTab (real-time мониторинг)
+│   │   └── utils/                     # Utilities
+│   │       ├── styling.py             # Централизирани CSS константи
+│   │       └── validators.py          # Validation helpers
 │   │
 │   ├── robot_settings_tab/            # Robot settings sub-module
 │   │   ├── __init__.py
@@ -1212,6 +1231,417 @@ class SomeSettingsTab(QWidget):
 - Settings се зареждат само ако потребителят ги отвори
 - По-малко initial network/disk I/O
 - По-добър user experience
+---
+## Glue Cell Settings Refactoring (v2.0) - Централизиран Data Access Pattern
+
+### Преглед на Рефакторирането
+
+**Проблеми в Старата Имплементация (GlueCellSettingsTabLayout.py - 1405 реда):**
+- ❌ Монолитен файл с 1405 реда код
+- ❌ Директни HTTP заявки (`requests.get()`) в UI компонентите
+- ❌ Бизнес логика смесена с UI код
+- ❌ Дублиран CSS код (4+ пъти повторение)
+- ❌ Непоследователни update patterns (SettingsService, endpoints, директен HTTP)
+- ❌ Липса на MessageBroker cleanup pattern
+
+**Новата Архитектура (glue_cell_settings_tab/ - модулна структура):**
+- ✅ Модулна структура с малки файлове (<200 реда всеки)
+- ✅ **DUMB UI компоненти** - само емитират сигнали, без бизнес логика
+- ✅ **SMART SettingsAppWidget** - цялата бизнес логика на едно място
+- ✅ Type-safe dataclasses за всички настройки
+- ✅ Централизиран CSS в utils/styling.py
+- ✅ Правилен MessageBroker cleanup pattern
+- ✅ Backward compatible сигнали
+
+### Архитектура - Централизиран Data Access
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  GlueCellSettingsUI (DUMB UI Layer)                 │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │ CellSelectorGroup                                            │   │
+│  │  - cell_changed_signal.emit(cell_id)                        │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │ QTabWidget                                                   │   │
+│  │  ├─ ConfigurationTab (DUMB)                                 │   │
+│  │  │   ├─ ConnectionSettingsGroup                             │   │
+│  │  │   │   - connection_changed_signal("glue_type", value)    │   │
+│  │  │   ├─ CalibrationSettingsGroup                            │   │
+│  │  │   │   - calibration_changed_signal("zero_offset", val)   │   │
+│  │  │   │   - tare_requested_signal()                          │   │
+│  │  │   └─ MeasurementSettingsGroup                            │   │
+│  │  │       - measurement_changed_signal("sampling_rate", val) │   │
+│  │  │                                                            │   │
+│  │  └─ MonitoringTab (DUMB)                                    │   │
+│  │      └─ MonitoringDisplayGroup                              │   │
+│  │          - set_weight(weight) (само показва данни)          │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  Всички сигнали се пропагират нагоре:                               │
+│  config_changed_signal("calibration.zero_offset", value)            │
+│          ↓                                                           │
+│  value_changed_signal("load_cell_1_zero_offset", value, "...")     │
+│          ↓                                                           │
+│  SettingsContent.setting_changed(key, value, className)             │
+└───────────────────────────────┬───────────────────────────────────┘
+                                 │
+                                 ↓ (pyqtSignal)
+┌─────────────────────────────────────────────────────────────────────┐
+│            SettingsAppWidget (SMART - Business Logic Layer)         │
+│                                                                       │
+│  _handle_setting_change(key, value, className):                     │
+│    1. Parse key: "load_cell_1_zero_offset" → cell_id=1, field       │
+│    2. Validate (напр. motor address конфликти)                       │
+│    3. controller_service.settings.update_glue_cell(...)              │
+│    4. Update cached config: self.glue_cell_configs[cell_id]         │
+│                                                                       │
+│  _handle_cell_changed(cell_id):                                     │
+│    1. config = self.glue_cell_configs[cell_id]                      │
+│    2. glue_cell_tab.set_cell_config(config)                         │
+│                                                                       │
+│  _handle_tare_requested(cell_id):                                   │
+│    1. result = controller_service.settings.tare_glue_cell(cell_id)  │
+│    2. Update cached config with new offset                           │
+│    3. Update UI: glue_cell_tab.set_calibration(...)                 │
+│                                                                       │
+│  Data Cache:                                                         │
+│    self.glue_cell_configs = {                                       │
+│      1: CellConfig(...),                                            │
+│      2: CellConfig(...),                                            │
+│      3: CellConfig(...)                                             │
+│    }                                                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Dataclass Модели (Type Safety)
+
+```python
+@dataclass
+class ConnectionSettings:
+    """Connection и hardware настройки за glue cell"""
+    glue_type: str
+    motor_address: int
+    capacity: int
+    url: str
+    fetch_timeout: int
+    mode: str = "production"  # "production" или "test"
+
+    @property
+    def ip_address(self) -> str:
+        """Извлича IP адрес от URL"""
+        # Парсва "http://192.168.222.143/weight1" → "192.168.222.143"
+        ...
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Конвертира в dictionary за API комуникация"""
+        ...
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ConnectionSettings':
+        """Създава от dictionary (API response)"""
+        ...
+
+@dataclass
+class CalibrationSettings:
+    """Calibration параметри"""
+    zero_offset: float
+    scale_factor: float
+    temperature_compensation: bool = False
+
+@dataclass
+class MeasurementSettings:
+    """Measurement и filtering настройки"""
+    sampling_rate: int
+    filter_cutoff: float
+    averaging_samples: int
+    min_weight_threshold: float
+    max_weight_threshold: float
+
+@dataclass
+class CellConfig:
+    """Пълна конфигурация за glue cell"""
+    cell_id: int
+    connection: ConnectionSettings
+    calibration: CalibrationSettings
+    measurement: MeasurementSettings
+
+    @classmethod
+    def from_dto(cls, cell_dto: Dict[str, Any]) -> 'CellConfig':
+        """Създава от DTO формат (API response)"""
+        ...
+```
+
+### DUMB UI Components Pattern
+
+**Принципи:**
+- ✅ Само емитират сигнали
+- ✅ Приемат данни чрез `set_*()` методи
+- ✅ НЕ правят API заявки
+- ✅ НЕ съдържат бизнес логика
+- ✅ Използват dataclasses за type safety
+
+**Пример - CalibrationSettingsGroup:**
+```python
+class CalibrationSettingsGroup(GlueCellSettingGroupBox):
+    """DUMB UI компонент - само емитира сигнали"""
+
+    # Сигнал при промяна на поле
+    calibration_changed_signal = pyqtSignal(str, object)  # field_name, value
+
+    # Сигнал при заявка за tare (НЕ го прави директно!)
+    tare_requested_signal = pyqtSignal()
+
+    def __init__(self):
+        super().__init__("Calibration Settings")
+        self.build_ui()
+
+    def build_ui(self):
+        """Изгражда UI layout"""
+        # Zero Offset spinbox
+        self.zero_offset_input = self.create_double_spinbox(...)
+        self.zero_offset_input.valueChanged.connect(
+            lambda val: self.calibration_changed_signal.emit("zero_offset", val)
+        )
+
+        # Tare button - само емитира signal
+        tare_button = MaterialButton("Tare (Zero)")
+        tare_button.clicked.connect(self.tare_requested_signal.emit)
+
+    def get_settings(self) -> CalibrationSettings:
+        """Чете от UI widgets и връща dataclass"""
+        return CalibrationSettings(
+            zero_offset=self.zero_offset_input.value(),
+            scale_factor=self.scale_factor_input.value()
+        )
+
+    def update_values(self, settings: CalibrationSettings):
+        """Актуализира UI от dataclass (блокира сигнали)"""
+        self.zero_offset_input.blockSignals(True)
+        self.zero_offset_input.setValue(settings.zero_offset)
+        self.zero_offset_input.blockSignals(False)
+```
+
+### Signal Flow - Централизиран Pattern
+
+```
+[1] Потребител променя Zero Offset
+      ↓
+[2] QDoubleSpinBox.valueChanged емитира signal
+      ↓
+[3] CalibrationSettingsGroup емитира:
+    calibration_changed_signal("zero_offset", 123.45)
+      ↓
+[4] ConfigurationTab препраща (с namespace):
+    config_changed_signal("calibration.zero_offset", 123.45)
+      ↓
+[5] GlueCellSettingsUI транслира (legacy format):
+    value_changed_signal("load_cell_1_zero_offset", 123.45, "GlueCellSettingsUI")
+      ↓
+[6] SettingsContent препраща:
+    setting_changed("load_cell_1_zero_offset", 123.45, "GlueCellSettingsUI")
+      ↓
+[7] SettingsAppWidget._handle_setting_change():
+    - Parse key: "load_cell_1_zero_offset" → cell_id=1, field="zero_offset"
+    - Map field → section: "zero_offset" → "calibration"
+    - Validate (ако е нужно)
+    - controller_service.settings.update_glue_cell(
+        cell_id=1,
+        {"calibration": {"zero_offset": 123.45}}
+      )
+    - Update cached config: glue_cell_configs[1].calibration.zero_offset = 123.45
+      ↓
+[8] Backend персистира промяната
+```
+
+### Tare Operation - Централизирана в SettingsAppWidget
+
+```
+[1] Потребител кликва "Tare (Zero)" бутон
+      ↓
+[2] CalibrationSettingsGroup емитира:
+    tare_requested_signal()
+      ↓
+[3] ConfigurationTab препраща:
+    tare_requested_signal()
+      ↓
+[4] GlueCellSettingsUI препраща (с cell_id):
+    tare_requested_signal(self.current_cell)  # напр. cell_id=1
+      ↓
+[5] SettingsAppWidget._handle_tare_requested(cell_id):
+    # Прави API заявка
+    result = controller_service.settings.tare_glue_cell(cell_id)
+
+    if result.status == 'success':
+        # Получава нов offset от response
+        new_offset = result.data.get('new_offset', 0.0)
+
+        # Актуализира cached config
+        self.glue_cell_configs[cell_id].calibration.zero_offset = new_offset
+
+        # Актуализира UI (само ако този cell е показан)
+        if self.glue_cell_tab.current_cell == cell_id:
+            self.glue_cell_tab.set_calibration(
+                self.glue_cell_configs[cell_id].calibration
+            )
+
+        self.show_toast(f"✅ Cell {cell_id} tared successfully")
+```
+
+### MessageBroker Integration (Weight Updates)
+
+**GlueCellSettingsUI подписва за weight updates:**
+```python
+class GlueCellSettingsUI(BaseSettingsTabLayout, QVBoxLayout):
+    def __init__(self, parent_widget=None):
+        # ...
+
+        # Subscribe to MessageBroker за weight updates
+        self.broker = MessageBroker()
+        self.weight_subscriptions = []
+
+        for cell_id in [1, 2, 3]:
+            topic = GlueCellTopics.cell_weight(cell_id)
+            callback = lambda weight, cid=cell_id: self._on_weight_updated(cid, weight)
+            self.broker.subscribe(topic, callback)
+            self.weight_subscriptions.append((topic, callback))
+
+    def _on_weight_updated(self, cell_id: int, weight: float):
+        """Handle weight update от MessageBroker"""
+        # Актуализира само ако това е текущият cell
+        if cell_id == self.current_cell:
+            self.monitoring_tab.set_weight(weight, is_connected=True)
+
+    def cleanup(self):
+        """КРИТИЧНО: Unsubscribe от MessageBroker"""
+        for topic, callback in self.weight_subscriptions:
+            self.broker.unsubscribe(topic, callback)
+        self.weight_subscriptions.clear()
+```
+
+**Cleanup Pattern:**
+```python
+# В SettingsContent
+def cleanup_tabs(self):
+    """Cleanup всички tabs преди затваряне"""
+    if hasattr(self, 'glue_cell_tab') and self.glue_cell_tab:
+        self.glue_cell_tab.cleanup()  # Unsubscribe от MessageBroker
+```
+
+### Централизирани CSS Стилове
+
+**Старо (дублиран код):**
+```python
+# ЛОШО - повторение в 4+ места в кода
+self.current_weight_label.setStyleSheet("""
+    QLabel {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2E8B57;
+        background-color: #F0F8F0;
+        border: 2px solid #90EE90;
+        ...
+    }
+""")
+```
+
+**Ново (централизирано в utils/styling.py):**
+```python
+# utils/styling.py
+WEIGHT_STYLE_NORMAL = """QLabel { ... }"""
+WEIGHT_STYLE_LOW = """QLabel { color: #B22222; ... }"""
+WEIGHT_STYLE_HIGH = """QLabel { color: #FF8C00; ... }"""
+WEIGHT_STYLE_DISCONNECTED = """QLabel { color: #696969; ... }"""
+
+def get_weight_style(weight: float, min_threshold: float, max_threshold: float) -> str:
+    """Връща подходящ style базиран на thresholds"""
+    if weight < min_threshold:
+        return WEIGHT_STYLE_LOW
+    elif weight > max_threshold:
+        return WEIGHT_STYLE_HIGH
+    else:
+        return WEIGHT_STYLE_NORMAL
+
+# Използване в MonitoringDisplayGroup
+from plugins.core.settings.ui.glue_cell_settings_tab.utils.styling import get_weight_style
+
+style = get_weight_style(weight, self.min_threshold, self.max_threshold, is_connected)
+self.current_weight_label.setStyleSheet(style)
+```
+
+### Motor Address Validation - Централизирана
+
+**Старо (в UI компонент):**
+```python
+# ЛОШО - валидацията е в UI кода
+def _on_motor_address_changed(self, value):
+    # Проверка за конфликти директно в UI
+    for cell_id, config in self.cell_configs.items():
+        if config.motor_address == value:
+            self.showToast("Conflict!")
+            # Revert...
+```
+
+**Ново (в SettingsAppWidget):**
+```python
+# ДОБРО - валидацията е в business logic layer
+# В SettingsAppWidget
+def _validate_motor_address(self, cell_id: int, new_address: int) -> tuple[bool, str]:
+    """Проверява за motor address конфликти"""
+    for cid, config in self.glue_cell_configs.items():
+        if cid != cell_id and config.connection.motor_address == new_address:
+            return False, f"⚠️ Motor address {new_address} already used by Cell {cid}"
+    return True, ""
+
+def _handle_glue_cell_setting_change(self, key: str, value, className: str):
+    # ...
+    field_name = parse_field_from_key(key)
+
+    # Валидация преди запазване
+    if field_name == "motor_address":
+        is_valid, error_msg = self._validate_motor_address(cell_id, value)
+        if not is_valid:
+            self.show_toast(error_msg)
+            # Reload UI to revert
+            self._reload_cell_ui(cell_id)
+            return
+
+    # Запазва след успешна валидация
+    result = self.controller_service.settings.update_glue_cell(...)
+```
+
+### Backward Compatibility
+
+**Запазена е съвместимост със старите сигнали:**
+```python
+# Старият интерфейс все още работи
+class GlueCellSettingsUI:
+    value_changed_signal = pyqtSignal(str, object, str)  # key, value, className
+
+    def getValues(self):
+        """Backward compatibility метод"""
+        config = self.config_tab.get_settings(self.current_cell)
+        return {
+            f"load_cell_{self.current_cell}_zero_offset": config.calibration.zero_offset,
+            # ... всички други полета
+        }
+```
+
+### Предимства на Новата Архитектура
+
+| Аспект | Стара | Нова |
+|--------|-------|------|
+| **Размер на файла** | 1405 реда | ~280 реда (главен widget) |
+| **Дублиран код** | CSS повторение 4+ пъти | Централизиран в utils/styling.py |
+| **Business Logic** | Смесена с UI | Централизирана в SettingsAppWidget |
+| **API Заявки** | Директен HTTP + endpoints | Само endpoints през controller_service |
+| **Type Safety** | Dict с магически стрингове | Dataclasses с type hints |
+| **Testability** | Трудно | Лесно (DUMB UI мокване) |
+| **Maintainability** | Монолитен файл | Модулна структура |
+| **Extensibility** | Трудно добавяне | Лесно - нова group класа |
+
 ---
 ## Заключение
 Settings Plugin имплементира пълноценна система за управление на настройки с:

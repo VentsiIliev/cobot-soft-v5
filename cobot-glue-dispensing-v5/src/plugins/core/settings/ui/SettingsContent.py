@@ -12,6 +12,7 @@ from frontend.widgets.robotManualControl.RobotJogWidget import RobotJogWidget
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
 from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
+from plugins.core.settings.ui.glue_cell_settings_tab.GlueCellSettingsUI import GlueCellSettingsUI
 from communication_layer.api.v1.endpoints import glue_endpoints
 from applications.glue_dispensing_application.settings.GlueSettings import GlueSettings
 
@@ -74,11 +75,14 @@ class SettingsContent(BackgroundWidget):
         self.cameraSettingsTab = None
         self.robotSettingsTab = None
         self.glueSettingsTab = None
-        
+
         # Initialize layout containers
         self.cameraSettingsTabLayout = None
         self.robotSettingsTabLayout = None
         self.glueSettingsTabLayout = None
+
+        # New modular glue cell settings UI (v2.0 refactored architecture)
+        self.glue_cell_tab = None
 
         # Get needed tabs from application context
         needed_tabs = self._get_needed_settings_tabs()
@@ -175,15 +179,24 @@ class SettingsContent(BackgroundWidget):
             import traceback
             traceback.print_exc()
 
-        # Create glue settings with default settings and glue types
+        # Create OLD glue settings (legacy - will be deprecated)
         self.glueSettingsTabLayout = GlueSettingsTabLayout(
             self.glueSettingsTab,
             GlueSettings(),
             glue_type_names  # Pass loaded glue types
         )
 
+        # Create NEW modular glue cell settings UI (v2.0 refactored architecture)
+        # This is the DUMB UI component - all business logic is in SettingsAppWidget
+        self.glue_cell_tab = GlueCellSettingsUI(
+            parent_widget=self.glueSettingsTab,
+            available_glue_types=glue_type_names
+        )
+
         # Set the layout to the tab
         self.glueSettingsTab.setLayout(self.glueSettingsTabLayout)
+
+        print("[SettingsContent] ✅ Created new modular GlueCellSettingsUI (v2.0)")
 
 
     def _connect_settings_signals(self):
@@ -194,6 +207,12 @@ class SettingsContent(BackgroundWidget):
         # Connect glue settings value changes if glue tab exists
         if self.glueSettingsTabLayout is not None:
             self.glueSettingsTabLayout.value_changed_signal.connect(self._emit_setting_change)
+
+        # Connect NEW modular glue cell settings (v2.0) - DUMB UI signals
+        # These will be handled by SettingsAppWidget (centralized business logic)
+        if self.glue_cell_tab is not None:
+            self.glue_cell_tab.value_changed_signal.connect(self._emit_setting_change)
+            print("[SettingsContent] ✅ Connected glue_cell_tab signals to unified handler")
 
         # Connect camera settings value changes if camera tab exists
         if self.cameraSettingsTabLayout is not None:
@@ -400,6 +419,12 @@ class SettingsContent(BackgroundWidget):
         """Clean up resources when closing the settings content"""
         if self.cameraSettingsTabLayout is not None:
             self.cameraSettingsTabLayout.clean_up()
+
+        # CRITICAL: Clean up glue cell settings (unsubscribe from MessageBroker)
+        if self.glue_cell_tab is not None:
+            self.glue_cell_tab.cleanup()
+            print("[SettingsContent] ✅ Cleaned up glue_cell_tab (MessageBroker unsubscribed)")
+
         # TODO: Add cleanup for other tabs if needed
         # if self.robotSettingsTabLayout is not None:
         #     self.robotSettingsTabLayout.clean_up()
