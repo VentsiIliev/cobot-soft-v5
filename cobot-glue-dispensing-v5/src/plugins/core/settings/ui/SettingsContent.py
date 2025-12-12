@@ -3,8 +3,7 @@ import os
 from PyQt6 import QtCore
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
-from PyQt6.QtWidgets import QVBoxLayout, QLabel
-from PyQt6.QtWidgets import QSizePolicy
+from PyQt6.QtWidgets import QVBoxLayout, QLabel, QSizePolicy
 
 from frontend.widgets.CustomWidgets import CustomTabWidget, BackgroundTabPage
 from frontend.widgets.Drawer import Drawer
@@ -47,8 +46,8 @@ class SettingsContent(BackgroundWidget):
     # Action signals
     update_camera_feed_requested = QtCore.pyqtSignal()
     raw_mode_requested = QtCore.pyqtSignal(bool)
-    
-    # Settings change signal - replaces callback pattern
+
+    # Settings change signal - replaces a callback pattern
     setting_changed = QtCore.pyqtSignal(str, object, str)  # key, value, component_type
 
     def __init__(self, controller=None, controller_service=None):
@@ -87,10 +86,10 @@ class SettingsContent(BackgroundWidget):
         # Get needed tabs from application context
         needed_tabs = self._get_needed_settings_tabs()
         print(f"SettingsContent: Creating tabs for application: {needed_tabs}")
-        
+
         # Create tabs dynamically based on application needs
         self._create_dynamic_tabs(needed_tabs)
-        
+
         print(f"SettingsContent: Tabs created successfully. Glue tab exists: {self.glueSettingsTab is not None}")
 
         # Set icons for tabs (Initial)
@@ -98,7 +97,7 @@ class SettingsContent(BackgroundWidget):
 
         # Connect unified signals to settings callback
         self._connect_settings_signals()
-        
+
         # Setup jog drawer for all settings tabs
         self._setup_jog_drawer()
         # self.hide()  # Hide settings content initially
@@ -118,16 +117,16 @@ class SettingsContent(BackgroundWidget):
             # Create camera tab if needed
             if "camera" in needed_tabs:
                 self._create_camera_tab()
-            
-            # Create robot tab if needed  
+
+            # Create robot tab if needed
             if "robot" in needed_tabs:
                 self._create_robot_tab()
-                
+
             # Create glue tab if needed
             if "glue" in needed_tabs:
                 self._create_glue_tab()
-                
-                
+
+
         except Exception as e:
             print(f"Error creating dynamic tabs: {e}")
             # Fallback to creating default tabs
@@ -227,7 +226,7 @@ class SettingsContent(BackgroundWidget):
         try:
             print("Loading initial glue settings from server...")
             response = self.controller.handle(glue_endpoints.SETTINGS_GLUE_GET)
-            
+
             if response and response.get('status') == 'success':
                 settings_data = response.get('data', {})
                 print(f"Loaded glue settings: {settings_data}")
@@ -240,7 +239,7 @@ class SettingsContent(BackgroundWidget):
             import traceback
             traceback.print_exc()
             return GlueSettings()  # Return default settings on error
-    
+
     def _emit_setting_change(self, key: str, value, component_type: str):
         """
         Emit the unified setting_changed signal and maintain backward compatibility.
@@ -252,39 +251,74 @@ class SettingsContent(BackgroundWidget):
         """
         # Emit the new signal for modern signal-based handling
         self.setting_changed.emit(key, value, component_type)
-    
+
     def _setup_jog_drawer(self):
         """Setup the jog drawer and toggle button for all settings tabs"""
-        # Create jog drawer as top-level widget for full screen height
-        self.jog_drawer = Drawer(None, animation_duration=300, side="right")
+        # Create jog drawer as child of this widget so Drawer.toggle() can calculate positions
+        self.jog_drawer = Drawer(self, animation_duration=300, side="right")
         self.jog_drawer.setFixedWidth(350)  # Fixed width for jog panel
         self.jog_drawer.heightOffset = 0  # Use full height with no offset
         self.jog_drawer.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-        
+
         # Create jog content
         jog_layout = QVBoxLayout(self.jog_drawer)
         jog_layout.setContentsMargins(15, 15, 15, 15)
         jog_layout.setSpacing(10)
-        
-        # Jog title
-        jog_title = QLabel("Robot Jog Control")
-        jog_title.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #333333;
-            margin-bottom: 10px;
-            padding: 10px;
-            background-color: #F0F0F0;
-            border-radius: 4px;
-        """)
-        jog_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        jog_layout.addWidget(jog_title)
-        
+
+
         # Jog widget
         self.jog_widget = RobotJogWidget()
         self.jog_widget.save_point_btn.setVisible(False)
         self.jog_widget.clear_points_btn.setVisible(False)
         jog_layout.addWidget(self.jog_widget)
+
+        # Floating toggle button to open/close the jog drawer
+        from PyQt6.QtWidgets import QPushButton
+        self.jog_toggle_button = QPushButton("", self)
+        self.jog_toggle_button.setFixedSize(48, 48)
+        self.jog_toggle_button.setToolTip("Open jog drawer")
+        self.jog_toggle_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.jog_toggle_button.setStyleSheet("""
+            QPushButton {
+                border-radius: 24px;
+                background-color: #905BA9;
+                color: white;
+                font-weight: bold;
+                border: none;
+                font-size: 18px;
+            }
+            QPushButton:hover {
+                background-color: #7b4690;
+            }
+        """)
+
+        def _on_toggle_clicked():
+            try:
+                self.jog_drawer.toggle()
+            finally:
+                self._update_toggle_arrow()
+
+        self.jog_toggle_button.clicked.connect(_on_toggle_clicked)
+        self.jog_toggle_button.setVisible(True)
+        self.jog_toggle_button.raise_()
+
+        # Make the toggle button follow the drawer during animation
+        try:
+            # Reposition button on each animation value change (smooth follow)
+            self.jog_drawer.animation.valueChanged.connect(lambda _v: self._position_toggle_button())
+            # Also ensure correct final position when animation finishes
+            self.jog_drawer.animation.finished.connect(self._position_toggle_button)
+            # Update arrow glyph after animation completes (keeps icon state consistent)
+            self.jog_drawer.animation.finished.connect(lambda: self._update_toggle_arrow())
+        except Exception:
+            # If signals aren't available for any reason, fallback to reposition on show/resize
+            pass
+
+        # Initialize arrow glyph based on initial drawer state
+        try:
+            self._update_toggle_arrow()
+        except Exception:
+            pass
 
         # PERFORMANCE FIX: Connect tab change to control camera timer
         self.currentChanged.connect(self._on_tab_changed)
@@ -520,21 +554,21 @@ class SettingsContent(BackgroundWidget):
     def update_tab_icons(self):
         """Dynamically update tab icons based on window width and created tabs"""
         tab_icon_size = int(self.width() * 0.05)  # 5% of new window width for tabs
-        
+
         # Set icons based on which tabs were actually created
         tab_index = 0
         if self.cameraSettingsTab is not None:
             self.setTabIcon(tab_index, QIcon(CAMERA_SETTINGS_ICON_PATH))
             tab_index += 1
-        
+
         if self.robotSettingsTab is not None:
             self.setTabIcon(tab_index, QIcon(ROBOT_SETTINGS_ICON_PATH))
             tab_index += 1
-            
+
         if self.glueSettingsTab is not None:
             self.setTabIcon(tab_index, QIcon(GLUE_SETTINGS_ICON_PATH))
             tab_index += 1
-        
+
         self.tabBar().setIconSize(QSize(tab_icon_size, tab_icon_size))
 
     def resizeEvent(self, event):
@@ -544,7 +578,7 @@ class SettingsContent(BackgroundWidget):
         # Resize the tab widget to be responsive to the window size
         self.setMinimumWidth(int(new_width * 0.3))  # 30% of the window width
         self.update_tab_icons()
-        
+
         # Handle jog drawer resizing
         if hasattr(self, 'jog_drawer'):
             self._resize_drawer_to_screen_height()
@@ -555,34 +589,25 @@ class SettingsContent(BackgroundWidget):
 
     def _resize_drawer_to_screen_height(self):
         """Resize drawer to full screen height"""
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import QPoint
+        # Position and size the drawer relative to this widget so animation uses same coords
+        try:
+            parent_width = self.width()
+            parent_height = self.height()
 
-        # Get main window position and the screen it's on
-        main_window = self.window()
-        main_window_global_pos = main_window.mapToGlobal(QPoint(0, 0))
+            # Respect heightOffset if set
+            y = self.jog_drawer.heightOffset if hasattr(self.jog_drawer, 'heightOffset') else 0
+            self.jog_drawer.setFixedHeight(max(0, parent_height - y))
 
-        # Get the screen that contains the main window
-        screen = QApplication.screenAt(main_window_global_pos)
-        if screen is None:
-            screen = QApplication.primaryScreen()
-        screen_geometry = screen.geometry()
+            # Compute x position relative to this widget
+            if hasattr(self, 'jog_drawer') and getattr(self.jog_drawer, 'is_open', False):
+                x = parent_width - self.jog_drawer.width()
+            else:
+                x = parent_width
 
-        # Set drawer to full screen height
-        self.jog_drawer.setFixedHeight(screen_geometry.height())
-        self.jog_drawer.heightOffset = 0  # No offset, use full height
-
-        # Position drawer based on its current state using screen coordinates
-        screen_right = screen_geometry.x() + screen_geometry.width()
-
-        if hasattr(self, 'jog_drawer') and self.jog_drawer.is_open:
-            # If open, position at visible location on screen
-            x = screen_right - self.jog_drawer.width()
-        else:
-            # If closed, position off-screen
-            x = screen_right
-
-        self.jog_drawer.move(x, screen_geometry.y())  # Position using correct screen coordinates
+            # Place the drawer as a child inside this widget coordinate space
+            self.jog_drawer.move(x, y)
+        except Exception as e:
+            print(f"Error resizing jog drawer: {e}")
 
     def showEvent(self, event):
         """Handle show events to ensure proper positioning"""
@@ -622,17 +647,43 @@ class SettingsContent(BackgroundWidget):
         widget_rect = self.rect()
         button_y = (widget_rect.height() - self.jog_toggle_button.height()) // 2
 
-        if hasattr(self, 'jog_drawer') and self.jog_drawer.is_open:
-            # When drawer is open, position button at the left edge of the drawer
-            # The drawer is positioned at (parent_width - drawer_width), so button goes just to the left
-            button_x = widget_rect.width() - self.jog_drawer.width() - self.jog_toggle_button.width() - 5
-        else:
-            # When drawer is closed, position button at the right edge of the widget
-            button_x = widget_rect.width() - self.jog_toggle_button.width() - 10
+        try:
+            # If the drawer exists and has a valid position (animated), use its current x to place the button
+            if hasattr(self, 'jog_drawer') and self.jog_drawer is not None and self.jog_drawer.isVisible():
+                drawer_pos = self.jog_drawer.pos()
+                drawer_x = drawer_pos.x()
+                # place button just to the left of the drawer (with a small gap)
+                button_x = drawer_x - self.jog_toggle_button.width() - 5
+                # If computed x would place the button off-screen (negative), clamp to right edge fallback
+                if button_x < 0:
+                    button_x = widget_rect.width() - self.jog_toggle_button.width() - 10
+            else:
+                # Drawer not visible / off-screen -> place at right edge of the widget
+                button_x = widget_rect.width() - self.jog_toggle_button.width() - 10
 
-        self.jog_toggle_button.move(button_x, button_y)
-        self.jog_toggle_button.setVisible(True)
-        self.jog_toggle_button.raise_()
+            self.jog_toggle_button.move(button_x, button_y)
+            self.jog_toggle_button.setVisible(True)
+            self.jog_toggle_button.raise_()
+        except Exception:
+            # Fallback to simple positioning logic
+            button_x = widget_rect.width() - self.jog_toggle_button.width() - 10
+            self.jog_toggle_button.move(button_x, button_y)
+            self.jog_toggle_button.setVisible(True)
+            self.jog_toggle_button.raise_()
+
+    def _update_toggle_arrow(self):
+        """Update the arrow glyph shown on the toggle button based on drawer state."""
+        try:
+            if not hasattr(self, 'jog_toggle_button'):
+                return
+
+            # When drawer is closed (is_open False) we show a left-pointing arrow to indicate "open"
+            # When drawer is open (is_open True) we show a right-pointing arrow to indicate "close"
+            is_open = getattr(self, 'jog_drawer', None) and getattr(self.jog_drawer, 'is_open', False)
+            arrow = '◀' if not is_open else '▶'
+            self.jog_toggle_button.setText(arrow)
+        except Exception:
+            pass
 if __name__ == "__main__":
     import sys
     from PyQt6.QtWidgets import QApplication, QSizePolicy
