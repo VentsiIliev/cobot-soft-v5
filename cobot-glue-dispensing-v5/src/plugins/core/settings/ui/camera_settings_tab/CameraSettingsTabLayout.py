@@ -96,7 +96,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.updateFrequency = 100  # Changed from 30ms to 100ms (10 FPS instead of 33 FPS)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._process_latest_cached_frame)
-        # Don't start timer by default - let it be controlled by visibility
+        # Don't start the timer by default - let it be controlled by visibility
         self.timer_active = False
         print("[CameraSettingsTabLayout] Timer created but not started (performance optimization)")
 
@@ -357,7 +357,7 @@ class CameraSettingsTabLayout(BaseSettingsTabLayout, QVBoxLayout):
         self.on_threshold_preview_clicked(pos.x(), pos.y())
 
     def update_camera_preview(self, pixmap):
-        """Update the camera preview with a new frame, maintaining 16:9 aspect ratio"""
+        """Update the camera preview with a new frame, maintaining the 16:9 aspect ratio"""
         if hasattr(self, 'camera_preview_label'):
             label_size = self.camera_preview_label.size()
             scaled_pixmap = pixmap.scaled(
