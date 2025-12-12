@@ -77,6 +77,9 @@ class SettingsAppWidget(AppWidget):
                 # Connect camera settings signals (centralized business logic)
                 self._setup_camera_signals()
 
+                # Connect jog widget signals (forward to RobotService)
+                self._setup_jog_signals()
+
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -147,10 +150,10 @@ class SettingsAppWidget(AppWidget):
 
     def _setup_glue_cell_signals(self):
         """
-        Setup signal connections for glue cell settings (CENTRALIZED PATTERN).
+        Set up signal connections for glue cell settings (CENTRALIZED PATTERN).
 
         Connects all signals from GlueCellSettingsUI to centralized handlers
-        in SettingsAppWidget. This implements the DUMB UI / SMART Controller pattern.
+        in the SettingsAppWidget. This implements the DUMB UI / SMART Controller pattern.
         """
         if not hasattr(self.content_widget, 'glue_cell_tab'):
             print("⚠️ glue_cell_tab not found, skipping glue cell signals setup")
@@ -159,7 +162,7 @@ class SettingsAppWidget(AppWidget):
         glue_cell_tab = self.content_widget.glue_cell_tab
 
         # Connect value change signal (backward compatibility)
-        # This signal carries legacy format: "load_cell_1_zero_offset"
+        # This signal carries a legacy format: "load_cell_1_zero_offset"
         glue_cell_tab.value_changed_signal.connect(self._handle_glue_cell_setting_change)
 
         # Connect new action signals
@@ -177,6 +180,75 @@ class SettingsAppWidget(AppWidget):
             first_cell_id = min(self.glue_cell_configs.keys())
             glue_cell_tab.set_cell_config(self.glue_cell_configs[first_cell_id])
             print(f"✅ Initialized glue cell UI with Cell {first_cell_id}")
+
+    def _setup_jog_signals(self):
+        """Connect SettingsContent jog signals to RobotService calls via ControllerService."""
+        if not hasattr(self, 'content_widget'):
+            return
+
+        # Ensure controller_service available
+        if not hasattr(self, 'controller_service') or self.controller_service is None:
+            print("⚠️ ControllerService not available; jog signals not connected")
+            return
+
+        try:
+            # Forward jog requests to the RobotService.jog_robot
+            self.content_widget.jogRequested.connect(
+                lambda cmd, axis, direction, value: self._handle_jog_request(cmd, axis, direction, value)
+            )
+
+            # Optionally forward start/stop notifications (here we only log)
+            self.content_widget.jogStarted.connect(lambda d: print(f"[SettingsAppWidget] Jog started: {d}"))
+            self.content_widget.jogStopped.connect(lambda d: print(f"[SettingsAppWidget] Jog stopped: {d}"))
+
+            # Save calibration point
+            self.content_widget.jog_save_point_requested.connect(lambda: self._handle_save_calibration_point())
+
+            print("✅ Jog signals connected to RobotService via ControllerService")
+        except Exception as e:
+            print(f"❌ Error connecting jog signals: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _handle_jog_request(self, cmd: str, axis: str, direction: str, value: float):
+        """Handle the actual jog request and call RobotService.jog_robot."""
+        try:
+            if not hasattr(self, 'controller_service') or self.controller_service is None:
+                print("⚠️ ControllerService not available; cannot perform jog")
+                return
+
+            # Perform jog through the RobotService only (ControllerService.robot)
+            try:
+                result = self.controller_service.robot.jog_robot(axis, direction, value)
+                if result and getattr(result, 'success', False):
+                    print(f"✅ Jog performed via RobotService: {axis} {direction} {value}")
+                else:
+                    msg = getattr(result, 'message', str(result)) if result is not None else 'Unknown error'
+                    print(f"❌ Jog failed via RobotService: {msg}")
+            except Exception as e:
+                print(f"❌ Exception while invoking RobotService.jog_robot: {e}")
+        except Exception as e:
+            print(f"❌ Exception while handling jog request: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _handle_save_calibration_point(self):
+        """Call RobotService.save_calibration_point() when save point requested."""
+        try:
+            if not hasattr(self, 'controller_service') or self.controller_service is None:
+                print("⚠️ ControllerService not available; cannot save calibration point")
+                return
+
+            result = self.controller_service.robot.save_calibration_point()
+            if result and getattr(result, 'success', False):
+                print("✅ Calibration point saved via RobotService")
+            else:
+                msg = getattr(result, 'message', str(result)) if result is not None else 'Unknown error'
+                print(f"❌ Failed to save calibration point: {msg}")
+        except Exception as e:
+            print(f"❌ Exception while saving calibration point: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _handle_load_glue_types(self):
         """Load glue types via controller."""
@@ -269,7 +341,7 @@ class SettingsAppWidget(AppWidget):
         """
         Handle ALL glue cell setting changes (CENTRALIZED BUSINESS LOGIC).
 
-        This method receives signals from GlueCellSettingsUI and:
+        This method receives signals from the GlueCellSettingsUI and:
         1. Parses the legacy key format ("load_cell_1_zero_offset")
         2. Maps field to section (calibration/connection/measurement)
         3. Validates the change (e.g., motor address conflicts)
@@ -373,14 +445,14 @@ class SettingsAppWidget(AppWidget):
             result = self.controller_service.settings.tare_glue_cell(cell_id)
 
             if result.success:
-                # Get new calibration values from response
+                # Get new calibration values from the response
                 new_offset = result.data.get('new_offset', 0.0)
 
                 # Update cached config
                 if cell_id in self.glue_cell_configs:
                     self.glue_cell_configs[cell_id].calibration.zero_offset = new_offset
 
-                    # Update UI if this cell is currently displayed
+                    # Update the UI if this cell is currently displayed
                     if hasattr(self.content_widget, 'glue_cell_tab'):
                         if self.content_widget.glue_cell_tab.current_cell == cell_id:
                             self.content_widget.glue_cell_tab.set_cell_config(

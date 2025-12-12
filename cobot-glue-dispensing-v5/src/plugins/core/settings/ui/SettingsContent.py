@@ -46,6 +46,11 @@ class SettingsContent(BackgroundWidget):
     # Action signals
     update_camera_feed_requested = QtCore.pyqtSignal()
     raw_mode_requested = QtCore.pyqtSignal(bool)
+    # Re-emitted jog signals from embedded RobotJogWidget
+    jogRequested = QtCore.pyqtSignal(str, str, str, float)
+    jogStarted = QtCore.pyqtSignal(str)
+    jogStopped = QtCore.pyqtSignal(str)
+    jog_save_point_requested = QtCore.pyqtSignal()
 
     # Settings change signal - replaces a callback pattern
     setting_changed = QtCore.pyqtSignal(str, object, str)  # key, value, component_type
@@ -271,6 +276,15 @@ class SettingsContent(BackgroundWidget):
         self.jog_widget.save_point_btn.setVisible(False)
         self.jog_widget.clear_points_btn.setVisible(False)
         jog_layout.addWidget(self.jog_widget)
+
+        # Forward RobotJogWidget signals to SettingsContent level so the container can handle them centrally
+        try:
+            self.jog_widget.jogRequested.connect(lambda cmd, axis, direction, value: self.jogRequested.emit(cmd, axis, direction, value))
+            self.jog_widget.jogStarted.connect(lambda d: self.jogStarted.emit(d))
+            self.jog_widget.jogStopped.connect(lambda d: self.jogStopped.emit(d))
+            self.jog_widget.save_point_requested.connect(lambda: self.jog_save_point_requested.emit())
+        except Exception:
+            pass
 
         # Floating toggle button to open/close the jog drawer
         from PyQt6.QtWidgets import QPushButton
