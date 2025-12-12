@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout
 
 from frontend.widgets.CameraFeed import CameraFeed, CameraFeedConfig
 from plugins.core.dashboard.ui.widgets.MachineIndicatorsWidget import MaterialButton
+from plugins.core.settings.ui.camera_settings_tab.utils import PreviewClickHandler
 
 
 def create_camera_preview_section(self):
@@ -47,7 +48,7 @@ def create_camera_preview_section(self):
     preview_layout.addWidget(self.camera_preview_feed)
 
     # Initialize click handler for camera preview
-    from plugins.core.settings.ui.camera_settings_tab.preview_click_handler import PreviewClickHandler
+
     # Note: We'll use the PreviewClickHandler with the graphics view instead of a label
     self.camera_preview_handler = PreviewClickHandler(self.camera_preview_feed.graphics_view, "Camera Preview")
 
@@ -131,7 +132,7 @@ def create_camera_preview_section(self):
     self.reset_settings_button.setMinimumHeight(40)
     button_grid.addWidget(self.reset_settings_button, 5, 0, 1, 2)
 
-    # preview_layout.addLayout(button_grid)
+    preview_layout.addLayout(button_grid)
     preview_layout.addStretch()
 
     self.connect_default_callbacks()

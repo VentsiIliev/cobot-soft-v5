@@ -17,5 +17,5 @@
     "Forward Ramp Steps": 1,
     "Reverse Ramp Steps": 1,
     "Initial Ramp Speed Duration": 1,
-    "Spray On": true
+    "Spray On": false
 }

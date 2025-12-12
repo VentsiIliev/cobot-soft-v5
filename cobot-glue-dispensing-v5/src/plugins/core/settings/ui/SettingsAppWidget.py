@@ -24,7 +24,8 @@ class SettingsAppWidget(AppWidget):
         super().__init__("Settings", parent)
 
     def setup_ui(self):
-        """Set up the user management specific UI"""
+        """
+        Set up the user management specific UI"""
         super().setup_ui()  # Get the basic layout with the back button
         self.setStyleSheet("""
                    QWidget {
@@ -72,6 +73,9 @@ class SettingsAppWidget(AppWidget):
 
                 # Connect glue cell settings signals (centralized business logic)
                 self._setup_glue_cell_signals()
+
+                # Connect camera settings signals (centralized business logic)
+                self._setup_camera_signals()
 
             except Exception as e:
                 import traceback
@@ -434,6 +438,165 @@ class SettingsAppWidget(AppWidget):
 
         except Exception as e:
             print(f"❌ Error during reset operation: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _setup_camera_signals(self):
+        """
+        Setup signal connections for camera settings (CENTRALIZED PATTERN).
+
+        Connects all signals from CameraSettingsUI to centralized handlers
+        in SettingsAppWidget. This implements the DUMB UI / SMART Controller pattern.
+        """
+        if not hasattr(self.content_widget, 'cameraSettingsTabLayout'):
+            print("⚠️ cameraSettingsTabLayout not found, skipping camera signals setup")
+            return
+
+        camera_tab = self.content_widget.cameraSettingsTabLayout
+
+        # Connect value change signal (handled by base _handle_setting_change)
+        # This is already connected via content_widget.setting_changed
+
+        # Connect camera action signals
+        camera_tab.capture_image_requested.connect(self._handle_capture_image)
+        camera_tab.start_calibration_requested.connect(self._handle_start_calibration)
+        camera_tab.save_calibration_requested.connect(self._handle_save_calibration)
+        camera_tab.load_calibration_requested.connect(self._handle_load_calibration)
+        camera_tab.test_contour_detection_requested.connect(self._handle_test_contour_detection)
+        camera_tab.test_aruco_detection_requested.connect(self._handle_test_aruco_detection)
+
+        # Note: save/load/reset settings are handled in SettingsContent for backward compatibility
+        # raw_mode_requested is also handled in SettingsContent
+
+        print("✅ Camera signals connected to SettingsAppWidget")
+
+    # ============================================================================
+    # Camera Settings Handlers (Centralized Business Logic)
+    # ============================================================================
+
+    def _handle_capture_image(self):
+        """
+        Handle capture image request (CENTRALIZED BUSINESS LOGIC).
+
+        Captures a frame from the camera and saves it.
+        """
+        print("🔄 Capture image requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_CAPTURE)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ Image captured successfully")
+                print(f"✅ Image captured: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ Capture failed: {result.get('message', 'Unknown error')}")
+                print(f"❌ Capture failed: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error during capture: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _handle_start_calibration(self):
+        """
+        Handle start calibration request (CENTRALIZED BUSINESS LOGIC).
+
+        Starts camera calibration process.
+        """
+        print("🔄 Start calibration requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_START_CALIBRATION)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ Calibration started")
+                print(f"✅ Calibration started: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ Failed to start calibration: {result.get('message', 'Unknown error')}")
+                print(f"❌ Failed to start calibration: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error starting calibration: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _handle_save_calibration(self):
+        """
+        Handle save calibration request (CENTRALIZED BUSINESS LOGIC).
+
+        Saves current camera calibration data.
+        """
+        print("🔄 Save calibration requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_SAVE_CALIBRATION)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ Calibration saved successfully")
+                print(f"✅ Calibration saved: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ Failed to save calibration: {result.get('message', 'Unknown error')}")
+                print(f"❌ Failed to save calibration: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error saving calibration: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _handle_load_calibration(self):
+        """
+        Handle load calibration request (CENTRALIZED BUSINESS LOGIC).
+
+        Loads saved camera calibration data.
+        """
+        print("🔄 Load calibration requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_LOAD_CALIBRATION)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ Calibration loaded successfully")
+                print(f"✅ Calibration loaded: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ Failed to load calibration: {result.get('message', 'Unknown error')}")
+                print(f"❌ Failed to load calibration: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error loading calibration: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _handle_test_contour_detection(self):
+        """
+        Handle test contour detection request (CENTRALIZED BUSINESS LOGIC).
+
+        Tests contour detection with current settings.
+        """
+        print("🔄 Test contour detection requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_TEST_CONTOUR)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ Contour detection test completed")
+                print(f"✅ Contour test completed: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ Contour test failed: {result.get('message', 'Unknown error')}")
+                print(f"❌ Contour test failed: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error testing contour detection: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_toast(f"❌ Error: {str(e)}")
+
+    def _handle_test_aruco_detection(self):
+        """
+        Handle test ArUco detection request (CENTRALIZED BUSINESS LOGIC).
+
+        Tests ArUco marker detection with current settings.
+        """
+        print("🔄 Test ArUco detection requested")
+        try:
+            result = self.controller.handle(camera_endpoints.CAMERA_ACTION_TEST_ARUCO)
+            if result.get('status') == 'success':
+                self._show_toast(f"✅ ArUco detection test completed")
+                print(f"✅ ArUco test completed: {result.get('message', '')}")
+            else:
+                self._show_toast(f"❌ ArUco test failed: {result.get('message', 'Unknown error')}")
+                print(f"❌ ArUco test failed: {result.get('message', '')}")
+        except Exception as e:
+            print(f"❌ Error testing ArUco detection: {e}")
             import traceback
             traceback.print_exc()
             self._show_toast(f"❌ Error: {str(e)}")

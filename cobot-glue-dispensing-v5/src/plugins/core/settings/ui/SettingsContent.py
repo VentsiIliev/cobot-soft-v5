@@ -10,7 +10,7 @@ from frontend.widgets.CustomWidgets import CustomTabWidget, BackgroundTabPage
 from frontend.widgets.Drawer import Drawer
 from frontend.widgets.robotManualControl.RobotJogWidget import RobotJogWidget
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
-from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
+from plugins.core.settings.ui.camera_settings_tab.CameraSettingsUI import CameraSettingsUI
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
 from plugins.core.settings.ui.glue_cell_settings_tab.GlueCellSettingsUI import GlueCellSettingsUI
 from communication_layer.api.v1.endpoints import glue_endpoints
@@ -138,12 +138,12 @@ class SettingsContent(BackgroundWidget):
         """Create camera settings tab."""
         self.cameraSettingsTab = BackgroundTabPage()
         self.addTab(self.cameraSettingsTab, "")
-        
-        # Create camera settings layout
-        self.cameraSettingsTabLayout = CameraSettingsTabLayout(self.cameraSettingsTab)
+
+        # Create camera settings layout using new refactored CameraSettingsUI
+        self.cameraSettingsTabLayout = CameraSettingsUI(self.cameraSettingsTab)
         self.connectCameraSettingSignals()
         self.cameraSettingsTabLayout.update_camera_feed_signal.connect(lambda: self.update_camera_feed_requested.emit())
-        
+
         # Set the layout to the tab
         self.cameraSettingsTab.setLayout(self.cameraSettingsTabLayout)
 

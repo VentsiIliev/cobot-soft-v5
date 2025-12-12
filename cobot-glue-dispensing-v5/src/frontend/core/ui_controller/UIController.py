@@ -12,7 +12,7 @@ from frontend.feedback.FeedbackProvider import FeedbackProvider
 import logging
 import json
 
-from plugins.core.settings.ui.camera_settings_tab.CameraSettingsTabLayout import CameraSettingsTabLayout
+from plugins.core.settings.ui.camera_settings_tab.CameraSettingsUI import CameraSettingsUI
 from plugins.core.glue_settings_plugin.ui.GlueSettingsTabLayout import GlueSettingsTabLayout
 from plugins.core.settings.ui.robot_settings_tab.RobotConfigUI import RobotConfigUI
 
@@ -559,7 +559,7 @@ class UIController:
         return message
 
     def updateSettings(self, key, value, className):
-        if className == CameraSettingsTabLayout.__module__:
+        if className == CameraSettingsUI.__module__:
             print("Updating Settings Camera", key, value)
             resource = Constants.REQUEST_RESOURCE_CAMERA
             request = settings_endpoints.SETTINGS_CAMERA_SET

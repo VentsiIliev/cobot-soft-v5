@@ -3,7 +3,7 @@ from frontend.core.utils.localization import TranslationKeys
 
 def translate(camera_settings_tab_layout):
     """Update UI text based on current language"""
-    print(f"Translating CameraSettingsTabLayout...")
+    print(f"Translating CameraSettingsUI...")
 
     # Update styling to ensure responsive fonts are applied
     camera_settings_tab_layout.setup_styling()
