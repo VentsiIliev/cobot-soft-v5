@@ -87,7 +87,7 @@ def main(api_version,application_type):
     # INIT GLUE TYPES HANDLER (for persistence)
     from applications.glue_dispensing_application.handlers.glue_types_handler import GlueTypesHandler
     glue_types_handler = GlueTypesHandler()
-    print(f"✅ Glue types handler initialized: {glue_types_handler.repository.get_file_path()}")
+    print(f"Glue types handler initialized: {glue_types_handler.repository.get_file_path()}")
 
     # ROBOT INITIALIZATION NOW HANDLED BY APPLICATION FACTORY
     # Robot and robot service will be created dynamically based on application metadata
