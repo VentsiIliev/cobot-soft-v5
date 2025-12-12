@@ -38,3 +38,8 @@ shapely>=2.0.0,<3.0.0
 
 # Data Validation
 pydantic>=2.5.0,<3.0.0
+
+Cython
+psutil
+pyyaml
+lark-parser
